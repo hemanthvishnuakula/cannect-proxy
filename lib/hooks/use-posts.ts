@@ -257,6 +257,8 @@ export function useCreatePost() {
         media_urls: mediaUrls,
         is_reply: !!replyToId,
         reply_to_id: replyToId,
+        type: 'post', // Explicitly set type to 'post' for new posts
+        is_repost: false,
       }).select(`*, author:profiles!user_id(*)`).single();
       
       if (error) throw error;

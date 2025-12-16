@@ -107,14 +107,36 @@ export default function FeedScreen() {
   };
 
   const handleRepost = (post: PostWithAuthor) => {
-    Alert.alert("Repost", "Share this with your followers?", [
-      { text: "Cancel", style: "cancel" },
-      { 
-        text: "Repost", 
-        style: "default",
-        onPress: () => repostMutation.mutate(post) 
-      }
-    ]);
+    if (Platform.OS === 'ios') {
+      ActionSheetIOS.showActionSheetWithOptions(
+        {
+          options: ['Cancel', 'Repost', 'Quote Post'],
+          cancelButtonIndex: 0,
+        },
+        (buttonIndex) => {
+          if (buttonIndex === 1) {
+            // Simple Repost
+            repostMutation.mutate({ originalPost: post, content: "" });
+          } else if (buttonIndex === 2) {
+            // Quote Post - navigate to quote screen
+            router.push(`/compose/quote?postId=${post.id}` as any);
+          }
+        }
+      );
+    } else {
+      // Android Alert Fallback
+      Alert.alert("Share Post", "How would you like to share this?", [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Repost", 
+          onPress: () => repostMutation.mutate({ originalPost: post, content: "" })
+        },
+        { 
+          text: "Quote Post", 
+          onPress: () => router.push(`/compose/quote?postId=${post.id}` as any)
+        },
+      ]);
+    }
   };
 
   const handleShare = async (post: PostWithAuthor) => {

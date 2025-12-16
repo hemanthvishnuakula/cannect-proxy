@@ -92,9 +92,9 @@ export function SocialPost({
   onMore,
   onShare
 }: SocialPostProps) {
-  // Handle Simple Repost (content is empty)
-  // We show the "Reposted by X" label, and render the QUOTED post as the main content
-  const isSimpleRepost = post.type === 'repost' || (post.is_repost && !post.content);
+  // Handle Simple Repost: Only show repost UI when explicitly marked as a repost
+  // AND there's a quoted_post to display. This prevents false positives.
+  const isSimpleRepost = (post.type === 'repost' || post.is_repost === true) && !!post.quoted_post;
   
   // If it's a simple repost, we effectively "swap" the post to be the quoted one,
   // but keep the "reposted by" context.
