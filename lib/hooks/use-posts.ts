@@ -82,6 +82,7 @@ export function useFeed() {
             content,
             created_at,
             media_urls,
+            quoted_post_id:repost_of_id,
             author:profiles!user_id(*)
           ),
           external_id,
@@ -115,6 +116,7 @@ export function usePost(postId: string) {
             content,
             created_at,
             media_urls,
+            quoted_post_id:repost_of_id,
             author:profiles!user_id(*)
           ),
           external_id,

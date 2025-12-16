@@ -200,7 +200,13 @@ export function SocialPost({
             </Text>
           )}
 
-          {/* Quote Post (Only if it's a Quote Post with valid quoted content, NOT a simple repost) */}
+          {/* 
+            Quote Post Rendering with CIRCULAR REFERENCE GUARD:
+            - Only render ONE level of quoting to keep feed clean
+            - If the quoted post itself quotes another post, we show the quoted post's content
+              but NOT the nested quote (prevents infinite nesting)
+            - Condition: !isSimpleRepost ensures we don't double-render for simple reposts
+          */}
           {!isSimpleRepost && hasValidQuotedPost && displayPost === post && (
             <QuoteContainer onPress={() => {
               console.log("Pressed quoted post:", displayPost.quoted_post?.id);
@@ -214,10 +220,17 @@ export function SocialPost({
                   <Text className="font-bold text-sm text-text-primary" numberOfLines={1}>
                     {displayPost.quoted_post.author?.display_name || displayPost.quoted_post.author?.username || "Unknown"}
                   </Text>
+                  {/* Show if quoted post is itself a quote (but we won't nest deeper) */}
+                  {displayPost.quoted_post.quoted_post_id && (
+                    <View className="bg-muted/30 px-1.5 py-0.5 rounded">
+                      <Text className="text-xs text-text-muted">Quote</Text>
+                    </View>
+                  )}
                   <Text className="text-text-muted text-xs">
                     @{displayPost.quoted_post.author?.username || "user"}
                   </Text>
                 </View>
+                {/* Only show quoted post's own content - NEVER render nested quoted_post */}
                 <Text className="text-sm text-text-primary" numberOfLines={3}>
                   {displayPost.quoted_post.content}
                 </Text>
