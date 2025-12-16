@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { View, Text, TextInput, Pressable, ActivityIndicator, KeyboardAvoidingView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useRouter, useLocalSearchParams } from "expo-router";
-import { X } from "lucide-react-native";
+import { X, Globe2 } from "lucide-react-native";
 import { Image } from "expo-image";
 
 import { useAuthStore } from "@/lib/stores";
@@ -10,11 +10,21 @@ import { useRepost, usePost } from "@/lib/hooks";
 
 export default function QuotePostScreen() {
   const router = useRouter();
-  const { postId } = useLocalSearchParams<{ postId: string }>();
+  const { postId, externalData } = useLocalSearchParams<{ postId?: string; externalData?: string }>();
   const [content, setContent] = useState("");
   const { user } = useAuthStore();
   const repostMutation = useRepost();
-  const { data: originalPost, isLoading: isLoadingPost } = usePost(postId || "");
+  
+  // For internal posts, fetch from Supabase
+  const { data: internalPost, isLoading: isLoadingPost } = usePost(postId || "");
+  
+  // For external (Global) posts, parse from URL params
+  const externalPost = externalData ? JSON.parse(decodeURIComponent(externalData)) : null;
+  
+  // Use whichever post we have
+  const originalPost = externalPost || internalPost;
+  const isLoading = !externalPost && isLoadingPost;
+  const isFederated = !!externalPost || originalPost?.is_federated;
 
   const charCount = content.length;
   const maxChars = 280;
@@ -35,7 +45,7 @@ export default function QuotePostScreen() {
   };
 
   const avatarUrl = originalPost?.author?.avatar_url || 
-    `https://ui-avatars.com/api/?name=${encodeURIComponent(originalPost?.author?.username || "U")}&background=10B981&color=fff`;
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(originalPost?.author?.username || originalPost?.author?.display_name || "U")}&background=10B981&color=fff`;
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
@@ -58,7 +68,9 @@ export default function QuotePostScreen() {
             {repostMutation.isPending ? (
               <ActivityIndicator color="#fff" size="small" />
             ) : (
-              <Text className="text-white font-semibold text-base">Quote</Text>
+              <Text className="text-white font-semibold text-base">
+                {isFederated ? "Import & Quote" : "Quote"}
+              </Text>
             )}
           </Pressable>
         </View>
@@ -85,13 +97,13 @@ export default function QuotePostScreen() {
           </View>
 
           {/* Embedded Original Post */}
-          {isLoadingPost ? (
+          {isLoading ? (
             <View className="bg-surface-elevated border border-border rounded-xl p-4 items-center justify-center h-32">
               <ActivityIndicator color="#10B981" />
             </View>
           ) : originalPost ? (
             <View className="bg-surface-elevated border border-border rounded-xl p-4">
-              {/* Original Author */}
+              {/* Original Author with Federated Badge */}
               <View className="flex-row items-center gap-2 mb-2">
                 <Image 
                   source={{ uri: avatarUrl }} 
@@ -103,6 +115,12 @@ export default function QuotePostScreen() {
                 <Text className="text-text-muted text-sm">
                   @{originalPost.author?.username}
                 </Text>
+                {isFederated && (
+                  <View className="flex-row items-center gap-1 bg-blue-500/20 px-1.5 py-0.5 rounded-full ml-auto">
+                    <Globe2 size={10} color="#3B82F6" />
+                    <Text className="text-xs text-blue-500 font-medium">Bluesky</Text>
+                  </View>
+                )}
               </View>
               
               {/* Original Content */}
@@ -125,6 +143,13 @@ export default function QuotePostScreen() {
             <View className="bg-surface-elevated border border-border rounded-xl p-4 items-center">
               <Text className="text-text-muted">Post not found</Text>
             </View>
+          )}
+          
+          {/* Info text for federated quotes */}
+          {isFederated && (
+            <Text className="text-text-muted text-xs mt-3 text-center">
+              This will import the post to Cannect. Your followers can like & comment on your quote.
+            </Text>
           )}
         </View>
 

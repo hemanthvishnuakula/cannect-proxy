@@ -151,6 +151,25 @@ export default function FeedScreen() {
   };
 
   const handleRepost = (post: PostWithAuthor) => {
+    const isFederated = (post as any).is_federated === true;
+    
+    // For federated posts, we need to pass the data via URL params since they don't have a DB id
+    const getQuoteUrl = () => {
+      if (isFederated) {
+        // Encode the essential post data for the quote screen
+        const externalData = encodeURIComponent(JSON.stringify({
+          id: post.id,
+          content: post.content,
+          created_at: post.created_at,
+          media_urls: (post as any).media_urls,
+          author: post.author,
+          is_federated: true,
+        }));
+        return `/compose/quote?externalData=${externalData}`;
+      }
+      return `/compose/quote?postId=${post.id}`;
+    };
+    
     if (Platform.OS === 'ios') {
       ActionSheetIOS.showActionSheetWithOptions(
         {
@@ -163,7 +182,7 @@ export default function FeedScreen() {
             repostMutation.mutate({ originalPost: post, content: "" });
           } else if (buttonIndex === 2) {
             // Quote Post - navigate to quote screen
-            router.push(`/compose/quote?postId=${post.id}` as any);
+            router.push(getQuoteUrl() as any);
           }
         }
       );
@@ -173,7 +192,7 @@ export default function FeedScreen() {
       if (choice === '1') {
         repostMutation.mutate({ originalPost: post, content: "" });
       } else if (choice === '2') {
-        router.push(`/compose/quote?postId=${post.id}` as any);
+        router.push(getQuoteUrl() as any);
       }
     } else {
       // Android Alert Fallback
@@ -185,7 +204,7 @@ export default function FeedScreen() {
         },
         { 
           text: "Quote Post", 
-          onPress: () => router.push(`/compose/quote?postId=${post.id}` as any)
+          onPress: () => router.push(getQuoteUrl() as any)
         },
       ]);
     }
