@@ -289,8 +289,6 @@ export function useRepost() {
     },
   });
 }
-  });
-}
 
 export function useDeletePost() {
   const queryClient = useQueryClient();
