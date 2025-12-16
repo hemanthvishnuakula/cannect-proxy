@@ -175,7 +175,7 @@ export function SocialPost({
                 <Text className="text-xs text-blue-500 font-medium">Bluesky</Text>
               </View>
             </View>
-            <Text className="text-sm text-text-primary" numberOfLines={3}>
+            <Text className="text-sm text-text-primary">
               {externalData.content}
             </Text>
           </View>
@@ -215,7 +215,7 @@ export function SocialPost({
               </Text>
             </View>
             {/* Only show quoted post's own content - NEVER render nested quoted_post */}
-            <Text className="text-sm text-text-primary" numberOfLines={3}>
+            <Text className="text-sm text-text-primary">
               {displayPost.quoted_post.content}
             </Text>
           </View>
