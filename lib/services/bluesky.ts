@@ -6,6 +6,35 @@
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || "";
 
+/**
+ * Generic Bluesky API fetcher via proxy
+ * Use this for any Bluesky XRPC endpoint
+ */
+export async function fetchBluesky(
+  endpoint: string,
+  params: Record<string, string | number> = {}
+) {
+  const searchParams = new URLSearchParams();
+  searchParams.set("action", "xrpc");
+  searchParams.set("endpoint", endpoint);
+  
+  for (const [key, value] of Object.entries(params)) {
+    searchParams.set(key, String(value));
+  }
+
+  const proxyUrl = `${SUPABASE_URL}/functions/v1/bluesky-proxy?${searchParams.toString()}`;
+
+  const response = await fetch(proxyUrl, {
+    headers: { "Content-Type": "application/json" },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Bluesky API error: ${response.status}`);
+  }
+
+  return response.json();
+}
+
 export async function getFederatedPosts(limit = 25) {
   try {
     // Use Supabase Edge Function proxy to avoid CORS

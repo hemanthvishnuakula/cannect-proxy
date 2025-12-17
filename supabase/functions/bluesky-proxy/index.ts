@@ -60,6 +60,22 @@ serve(async (req) => {
       if (cursor) {
         bskyUrl += `&cursor=${encodeURIComponent(cursor)}`;
       }
+    } else if (action === "trendingTopics") {
+      // Get trending topics from Bluesky
+      bskyUrl = `${BSKY_PUBLIC_API}/app.bsky.unspecced.getTrendingTopics?limit=${limit}`;
+    } else if (action === "xrpc") {
+      // Generic XRPC endpoint passthrough
+      const endpoint = url.searchParams.get("endpoint") || "";
+      if (!endpoint) throw new Error("Missing endpoint parameter");
+      
+      // Build URL with all additional params
+      const xrpcUrl = new URL(`${BSKY_PUBLIC_API}${endpoint}`);
+      url.searchParams.forEach((value, key) => {
+        if (!["action", "endpoint"].includes(key)) {
+          xrpcUrl.searchParams.set(key, value);
+        }
+      });
+      bskyUrl = xrpcUrl.toString();
     } else {
       throw new Error("Invalid action");
     }

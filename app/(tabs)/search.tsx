@@ -2,10 +2,11 @@ import { useState } from "react";
 import { View, Text, TextInput, Pressable, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlashList } from "@shopify/flash-list";
-import { Search as SearchIcon, X, TrendingUp, Users } from "lucide-react-native";
+import { Search as SearchIcon, X, Users } from "lucide-react-native";
 import { useRouter } from "expo-router";
 import { useSearch, useTrendingActors, useActiveCannectUsers } from "@/lib/hooks";
 import { ProfileRow } from "@/components/Profile/ProfileRow";
+import { TrendingDiscovery } from "@/components/Search";
 import { cn } from "@/lib/utils";
 
 type SearchTab = "local" | "global";
@@ -81,53 +82,64 @@ export default function SearchScreen() {
     );
   };
 
+  // Handle trending topic tap - search for that topic
+  const handleTopicPress = (topic: string) => {
+    setQuery(topic);
+    setActiveTab("global");
+  };
+
   // Render discovery state (no search query)
   const renderDiscovery = () => {
     return (
       <FlashList
         data={[{ type: "header" }]}
         keyExtractor={(item, index) => `discovery-${index}`}
-        estimatedItemSize={300}
+        estimatedItemSize={500}
         renderItem={() => (
-          <View className="px-4">
-            {/* Active Cannect Users Section */}
-            <View className="mb-6">
-              <View className="flex-row items-center gap-2 mb-3">
-                <Users size={18} color="#10B981" />
-                <Text className="text-lg font-bold text-text-primary">Active on Cannect</Text>
-              </View>
-              {isActiveLoading ? (
-                <ActivityIndicator color="#10B981" />
-              ) : activeUsers && activeUsers.length > 0 ? (
-                activeUsers.map((user: any) => (
-                  <ProfileRow key={user.id} profile={user} showFollowButton />
-                ))
-              ) : (
-                <Text className="text-text-muted text-sm">No active users yet</Text>
-              )}
-            </View>
+          <View>
+            {/* Trending Topics from Bluesky */}
+            <TrendingDiscovery onTopicPress={handleTopicPress} />
 
-            {/* Trending on Bluesky Section */}
-            <View className="mb-6">
-              <View className="flex-row items-center gap-2 mb-3">
-                <TrendingUp size={18} color="#3B82F6" />
-                <Text className="text-lg font-bold text-text-primary">Discover on Bluesky</Text>
+            <View className="px-4 mt-6">
+              {/* Active Cannect Users Section */}
+              <View className="mb-6">
+                <View className="flex-row items-center gap-2 mb-3">
+                  <Users size={18} color="#10B981" />
+                  <Text className="text-lg font-bold text-text-primary">Active on Cannect</Text>
+                </View>
+                {isActiveLoading ? (
+                  <ActivityIndicator color="#10B981" />
+                ) : activeUsers && activeUsers.length > 0 ? (
+                  activeUsers.map((user: any) => (
+                    <ProfileRow key={user.id} profile={user} showFollowButton />
+                  ))
+                ) : (
+                  <Text className="text-text-muted text-sm">No active users yet</Text>
+                )}
               </View>
-              {isTrendingLoading ? (
-                <ActivityIndicator color="#3B82F6" />
-              ) : trendingActors && trendingActors.length > 0 ? (
-                trendingActors.slice(0, 5).map((actor: any) => (
-                  <ProfileRow
-                    key={actor.id}
-                    profile={actor}
-                    isFederated
-                    showFollowButton={false}
-                    onPress={() => handleGlobalUserPress(actor)}
-                  />
-                ))
-              ) : (
-                <Text className="text-text-muted text-sm">Unable to load suggestions</Text>
-              )}
+
+              {/* Suggested Bluesky Actors Section */}
+              <View className="mb-6">
+                <View className="flex-row items-center gap-2 mb-3">
+                  <Users size={18} color="#3B82F6" />
+                  <Text className="text-lg font-bold text-text-primary">Discover on Bluesky</Text>
+                </View>
+                {isTrendingLoading ? (
+                  <ActivityIndicator color="#3B82F6" />
+                ) : trendingActors && trendingActors.length > 0 ? (
+                  trendingActors.slice(0, 5).map((actor: any) => (
+                    <ProfileRow
+                      key={actor.id}
+                      profile={actor}
+                      isFederated
+                      showFollowButton={false}
+                      onPress={() => handleGlobalUserPress(actor)}
+                    />
+                  ))
+                ) : (
+                  <Text className="text-text-muted text-sm">Unable to load suggestions</Text>
+                )}
+              </View>
             </View>
           </View>
         )}
