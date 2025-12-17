@@ -65,7 +65,7 @@ export function ProfileRow({
           {isFederated && (
             <View className="flex-row items-center gap-1 bg-blue-500/20 px-1.5 py-0.5 rounded-full">
               <Globe2 size={10} color="#3B82F6" />
-              <Text className="text-[10px] text-blue-500 font-medium">Bluesky</Text>
+              <Text className="text-[10px] text-blue-500 font-medium">Global</Text>
             </View>
           )}
         </View>

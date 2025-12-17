@@ -44,7 +44,7 @@ export function TrendingDiscovery({ onTopicPress }: TrendingDiscoveryProps) {
             <Text className="text-text-muted font-bold text-lg w-6">{index + 1}</Text>
             <View>
               <Text className="text-text-primary font-semibold text-base">#{item.topic}</Text>
-              <Text className="text-text-muted text-xs uppercase font-medium">Global Topic</Text>
+              <Text className="text-text-muted text-xs uppercase font-medium">Global Trend</Text>
             </View>
           </View>
           <ChevronRight size={18} color="#6B7280" />

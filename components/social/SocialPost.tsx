@@ -172,13 +172,13 @@ export function SocialPost({
               </Text>
               <View className="flex-row items-center gap-1 bg-blue-500/20 px-1.5 py-0.5 rounded-full">
                 <Globe2 size={10} color="#3B82F6" />
-                <Text className="text-xs text-blue-500 font-medium">Bluesky</Text>
+                <Text className="text-xs text-blue-500 font-medium">Global</Text>
               </View>
             </View>
             <Text className="text-sm text-text-primary">
               {externalData.content}
             </Text>
-            {/* Media from quoted Bluesky post */}
+            {/* Media from quoted Global post */}
             {externalData.media_urls && externalData.media_urls.length > 0 && (
               <View className="mt-2 overflow-hidden rounded-lg border border-border">
                 <Image
@@ -281,7 +281,7 @@ export function SocialPost({
               {displayedIsFederated && (
                 <View className="flex-row items-center gap-1 bg-blue-500/20 px-1.5 py-0.5 rounded-full">
                   <Globe2 size={12} color="#3B82F6" />
-                  <Text className="text-xs text-blue-500 font-medium">Bluesky</Text>
+                  <Text className="text-xs text-blue-500 font-medium">Global</Text>
                 </View>
               )}
               <Text className="text-text-muted text-sm flex-shrink" numberOfLines={1}>

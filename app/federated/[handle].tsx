@@ -125,7 +125,7 @@ export default function FederatedUserScreen() {
         <View className="flex-1 items-center justify-center px-6">
           <Text className="text-text-primary text-lg font-bold mb-2">User not found</Text>
           <Text className="text-text-muted text-center mb-4">
-            Could not find @{handle} on Bluesky
+            Could not find @{handle} in the global network
           </Text>
           <Pressable onPress={() => router.back()} className="bg-primary px-6 py-3 rounded-full">
             <Text className="text-white font-medium">Go Back</Text>
@@ -157,7 +157,7 @@ export default function FederatedUserScreen() {
                   <Text className="text-xl font-bold text-text-primary">{profile.display_name}</Text>
                   <View className="flex-row items-center gap-1 bg-blue-500/20 px-2 py-0.5 rounded-full">
                     <Globe2 size={12} color="#3B82F6" />
-                    <Text className="text-xs text-blue-500 font-medium">Bluesky</Text>
+                    <Text className="text-xs text-blue-500 font-medium">Global</Text>
                   </View>
                 </View>
                 <Text className="text-text-muted text-sm">@{profile.username}</Text>
