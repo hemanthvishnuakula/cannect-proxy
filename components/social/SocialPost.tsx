@@ -3,6 +3,7 @@ import { Image } from "expo-image";
 import { Heart, MessageCircle, Repeat2, Share, MoreHorizontal, BadgeCheck, Globe2 } from "lucide-react-native";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "@/lib/utils/date";
+import { getOptimalRatio, ASSET_RATIOS, BLURHASH_PLACEHOLDERS } from "@/lib/utils/assets";
 import type { PostWithAuthor } from "@/lib/types/database";
 
 // ---------------------------------------------------------------------------
@@ -178,13 +179,19 @@ export function SocialPost({
             <Text className="text-sm text-text-primary">
               {externalData.content}
             </Text>
-            {/* Media from quoted Global post */}
+            {/* ✅ ASSET GUARD: Fixed ratio for quoted Global post media */}
             {externalData.media_urls && externalData.media_urls.length > 0 && (
-              <View className="mt-2 overflow-hidden rounded-lg border border-border">
+              <View 
+                className="mt-2 overflow-hidden rounded-lg border border-border bg-surface-elevated"
+                style={{ aspectRatio: ASSET_RATIOS.VIDEO }}
+              >
                 <Image
                   source={{ uri: externalData.media_urls[0] }}
-                  style={{ width: "100%", aspectRatio: 16/9 }}
+                  style={{ width: "100%", height: "100%" }}
                   contentFit="cover"
+                  transition={300}
+                  placeholder={BLURHASH_PLACEHOLDERS.GLOBAL}
+                  cachePolicy="memory-disk"
                 />
               </View>
             )}
@@ -228,13 +235,19 @@ export function SocialPost({
             <Text className="text-sm text-text-primary">
               {displayPost.quoted_post.content}
             </Text>
-            {/* Media from quoted Cannect post */}
+            {/* ✅ ASSET GUARD: Fixed ratio for quoted Cannect post media */}
             {displayPost.quoted_post.media_urls && displayPost.quoted_post.media_urls.length > 0 && (
-              <View className="mt-2 overflow-hidden rounded-lg border border-border">
+              <View 
+                className="mt-2 overflow-hidden rounded-lg border border-border bg-surface-elevated"
+                style={{ aspectRatio: ASSET_RATIOS.VIDEO }}
+              >
                 <Image
                   source={{ uri: displayPost.quoted_post.media_urls[0] }}
-                  style={{ width: "100%", aspectRatio: 16/9 }}
+                  style={{ width: "100%", height: "100%" }}
                   contentFit="cover"
+                  transition={300}
+                  placeholder={BLURHASH_PLACEHOLDERS.NEUTRAL}
+                  cachePolicy="memory-disk"
                 />
               </View>
             )}
@@ -305,15 +318,21 @@ export function SocialPost({
           {/* ✅ THE GUARDED QUOTE CARD - Uses renderQuotedContent() helper */}
           {renderQuotedContent()}
 
-          {/* Media */}
+          {/* ✅ ASSET GUARD: Fixed aspect ratio prevents layout jumping */}
           {!displayPost.quoted_post && displayPost.media_urls && displayPost.media_urls.length > 0 && (
-            <Pressable className="mt-3 overflow-hidden rounded-xl border border-border bg-surface aspect-video">
+            <View 
+              className="mt-3 overflow-hidden rounded-xl border border-border bg-surface-elevated"
+              style={{ aspectRatio: getOptimalRatio(displayPost.media_urls.length) }}
+            >
               <Image
                 source={{ uri: displayPost.media_urls[0] }}
                 style={{ width: "100%", height: "100%" }}
                 contentFit="cover"
+                transition={300}
+                placeholder={displayedIsFederated ? BLURHASH_PLACEHOLDERS.GLOBAL : BLURHASH_PLACEHOLDERS.NEUTRAL}
+                cachePolicy="memory-disk"
               />
-            </Pressable>
+            </View>
           )}
         </PostContent>
 
