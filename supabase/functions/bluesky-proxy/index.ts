@@ -36,6 +36,30 @@ serve(async (req) => {
       if (cursor) {
         bskyUrl += `&cursor=${encodeURIComponent(cursor)}`;
       }
+    } else if (action === "searchActors") {
+      // Search for Bluesky users/actors
+      const query = url.searchParams.get("q") || "";
+      bskyUrl = `${BSKY_PUBLIC_API}/app.bsky.actor.searchActors?q=${encodeURIComponent(query)}&limit=${limit}`;
+      if (cursor) {
+        bskyUrl += `&cursor=${encodeURIComponent(cursor)}`;
+      }
+    } else if (action === "trending") {
+      // Get suggested/trending actors for discovery
+      bskyUrl = `${BSKY_PUBLIC_API}/app.bsky.actor.getSuggestions?limit=${limit}`;
+      if (cursor) {
+        bskyUrl += `&cursor=${encodeURIComponent(cursor)}`;
+      }
+    } else if (action === "getProfile") {
+      // Get a specific actor's profile
+      const handle = url.searchParams.get("handle") || "";
+      bskyUrl = `${BSKY_PUBLIC_API}/app.bsky.actor.getProfile?actor=${encodeURIComponent(handle)}`;
+    } else if (action === "getAuthorFeed") {
+      // Get a specific actor's posts
+      const handle = url.searchParams.get("handle") || "";
+      bskyUrl = `${BSKY_PUBLIC_API}/app.bsky.feed.getAuthorFeed?actor=${encodeURIComponent(handle)}&limit=${limit}`;
+      if (cursor) {
+        bskyUrl += `&cursor=${encodeURIComponent(cursor)}`;
+      }
     } else {
       throw new Error("Invalid action");
     }

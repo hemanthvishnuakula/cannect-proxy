@@ -1,21 +1,29 @@
 import { View, Text, Pressable } from "react-native";
 import { router } from "expo-router";
-import { BadgeCheck } from "lucide-react-native";
+import { BadgeCheck, Globe2 } from "lucide-react-native";
 import { Avatar } from "@/components/ui/Avatar";
 import { useFollowUser, useUnfollowUser, useIsFollowing } from "@/lib/hooks";
 import type { Profile } from "@/lib/types/database";
 
 interface ProfileRowProps {
-  profile: Profile;
+  profile: Profile | any; // Allow federated profiles too
   showFollowButton?: boolean;
+  isFederated?: boolean;
+  onPress?: () => void;
 }
 
-export function ProfileRow({ profile, showFollowButton = true }: ProfileRowProps) {
-  const { data: isFollowing } = useIsFollowing(profile.id);
+export function ProfileRow({ 
+  profile, 
+  showFollowButton = true, 
+  isFederated = false,
+  onPress 
+}: ProfileRowProps) {
+  const { data: isFollowing } = useIsFollowing(isFederated ? "" : profile.id);
   const followUser = useFollowUser();
   const unfollowUser = useUnfollowUser();
 
   const handleFollow = () => {
+    if (isFederated) return; // Can't follow federated users directly
     if (isFollowing) {
       unfollowUser.mutate(profile.id);
     } else {
@@ -24,8 +32,16 @@ export function ProfileRow({ profile, showFollowButton = true }: ProfileRowProps
   };
 
   const handlePress = () => {
-    router.push(`/user/${profile.username}`);
+    if (onPress) {
+      onPress();
+    } else if (!isFederated) {
+      router.push(`/user/${profile.username}`);
+    }
+    // Federated profiles need custom handling via onPress
   };
+
+  const displayName = profile.display_name || profile.username;
+  const handle = profile.username || profile.handle;
 
   return (
     <Pressable
@@ -34,28 +50,39 @@ export function ProfileRow({ profile, showFollowButton = true }: ProfileRowProps
     >
       <Avatar
         url={profile.avatar_url}
-        name={profile.display_name || profile.username}
+        name={displayName}
         size={48}
       />
 
       <View className="flex-1">
-        <View className="flex-row items-center gap-1">
-          <Text className="text-text-primary font-semibold">
-            {profile.display_name}
+        <View className="flex-row items-center gap-1.5 flex-wrap">
+          <Text className="text-text-primary font-semibold" numberOfLines={1}>
+            {displayName}
           </Text>
           {profile.is_verified && (
             <BadgeCheck size={16} color="#10B981" fill="#10B981" />
           )}
+          {isFederated && (
+            <View className="flex-row items-center gap-1 bg-blue-500/20 px-1.5 py-0.5 rounded-full">
+              <Globe2 size={10} color="#3B82F6" />
+              <Text className="text-[10px] text-blue-500 font-medium">Bluesky</Text>
+            </View>
+          )}
         </View>
-        <Text className="text-text-muted">@{profile.username}</Text>
+        <Text className="text-text-muted">@{handle}</Text>
         {profile.bio && (
-          <Text className="text-text-secondary text-sm mt-0.5" numberOfLines={1}>
+          <Text className="text-text-secondary text-sm mt-0.5" numberOfLines={2}>
             {profile.bio}
+          </Text>
+        )}
+        {isFederated && (profile.followers_count > 0 || profile.following_count > 0) && (
+          <Text className="text-text-muted text-xs mt-1">
+            {profile.followers_count?.toLocaleString()} followers · {profile.following_count?.toLocaleString()} following
           </Text>
         )}
       </View>
 
-      {showFollowButton && (
+      {showFollowButton && !isFederated && (
         <Pressable
           onPress={handleFollow}
           disabled={followUser.isPending || unfollowUser.isPending}
@@ -73,6 +100,12 @@ export function ProfileRow({ profile, showFollowButton = true }: ProfileRowProps
             {isFollowing ? "Following" : "Follow"}
           </Text>
         </Pressable>
+      )}
+
+      {isFederated && (
+        <View className="px-3 py-1.5 rounded-full border border-blue-500/30 bg-blue-500/10">
+          <Text className="text-xs font-medium text-blue-500">View</Text>
+        </View>
       )}
     </Pressable>
   );
