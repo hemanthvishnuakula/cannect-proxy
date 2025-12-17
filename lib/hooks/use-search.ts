@@ -2,6 +2,14 @@ import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || "";
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "";
+
+// Common headers for edge function calls
+const getProxyHeaders = () => ({
+  "Content-Type": "application/json",
+  "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+  "apikey": SUPABASE_ANON_KEY,
+});
 
 /**
  * Bluesky Actor (normalized for UI consistency)
@@ -40,7 +48,7 @@ export function useSearch(query: string) {
       try {
         const proxyUrl = `${SUPABASE_URL}/functions/v1/bluesky-proxy?action=searchActors&q=${encodeURIComponent(query)}&limit=10`;
         const response = await fetch(proxyUrl, {
-          headers: { "Content-Type": "application/json" },
+          headers: getProxyHeaders(),
         });
 
         if (response.ok) {
@@ -80,7 +88,7 @@ export function useTrendingActors() {
       try {
         const proxyUrl = `${SUPABASE_URL}/functions/v1/bluesky-proxy?action=trending&limit=15`;
         const response = await fetch(proxyUrl, {
-          headers: { "Content-Type": "application/json" },
+          headers: getProxyHeaders(),
         });
 
         if (!response.ok) return [];

@@ -5,6 +5,14 @@
  */
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || "";
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "";
+
+// Common headers for edge function calls
+const getProxyHeaders = () => ({
+  "Content-Type": "application/json",
+  "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+  "apikey": SUPABASE_ANON_KEY,
+});
 
 /**
  * Generic Bluesky API fetcher via proxy
@@ -25,7 +33,7 @@ export async function fetchBluesky(
   const proxyUrl = `${SUPABASE_URL}/functions/v1/bluesky-proxy?${searchParams.toString()}`;
 
   const response = await fetch(proxyUrl, {
-    headers: { "Content-Type": "application/json" },
+    headers: getProxyHeaders(),
   });
 
   if (!response.ok) {
@@ -41,9 +49,7 @@ export async function getFederatedPosts(limit = 25) {
     const proxyUrl = `${SUPABASE_URL}/functions/v1/bluesky-proxy?action=feed&limit=${limit}`;
     
     const response = await fetch(proxyUrl, {
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: getProxyHeaders(),
     });
     
     if (!response.ok) {
@@ -89,9 +95,7 @@ export async function searchFederatedPosts(query: string, limit = 25) {
     const proxyUrl = `${SUPABASE_URL}/functions/v1/bluesky-proxy?action=search&q=${encodeURIComponent(query)}&limit=${limit}`;
     
     const response = await fetch(proxyUrl, {
-      headers: {
-        "Content-Type": "application/json",
-      },
+      headers: getProxyHeaders(),
     });
     
     if (!response.ok) {

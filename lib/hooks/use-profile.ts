@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { queryKeys } from "@/lib/query-client";
+import { useAuthStore } from "@/lib/stores/auth-store";
 import type { Profile } from "@/lib/types/database";
 
 // Fetch profile by ID

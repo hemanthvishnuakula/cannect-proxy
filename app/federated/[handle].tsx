@@ -10,6 +10,14 @@ import { SocialPost } from "@/components/social";
 import { useToggleRepost } from "@/lib/hooks";
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || "";
+const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "";
+
+// Common headers for edge function calls
+const getProxyHeaders = () => ({
+  "Content-Type": "application/json",
+  "Authorization": `Bearer ${SUPABASE_ANON_KEY}`,
+  "apikey": SUPABASE_ANON_KEY,
+});
 
 /**
  * Fetch a Bluesky actor's profile and recent posts
@@ -20,8 +28,8 @@ async function fetchActorFeed(handle: string) {
   const postsUrl = `${SUPABASE_URL}/functions/v1/bluesky-proxy?action=getAuthorFeed&handle=${encodeURIComponent(handle)}&limit=20`;
 
   const [profileRes, postsRes] = await Promise.all([
-    fetch(profileUrl).then(r => r.json()).catch(() => null),
-    fetch(postsUrl).then(r => r.json()).catch(() => ({ feed: [] })),
+    fetch(profileUrl, { headers: getProxyHeaders() }).then(r => r.json()).catch(() => null),
+    fetch(postsUrl, { headers: getProxyHeaders() }).then(r => r.json()).catch(() => ({ feed: [] })),
   ]);
 
   const profile = profileRes ? {
