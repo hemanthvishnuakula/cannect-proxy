@@ -271,6 +271,18 @@ export function SocialPost({
           </View>
         )}
 
+        {/* ✅ Gold Standard: Thread Context - "Replying to @username" */}
+        {displayPost?.is_reply && (displayPost as any)?.parent_post?.author?.username && (
+          <View className="flex-row items-center mb-1 ml-[52px]">
+            <Text className="text-xs text-text-muted">
+              Replying to{" "}
+              <Text className="text-primary font-medium">
+                @{(displayPost as any).parent_post.author.username}
+              </Text>
+            </Text>
+          </View>
+        )}
+
         <PostHeader>
           {/* Avatar */}
           <Pressable onPress={onProfilePress} className="active:opacity-80">

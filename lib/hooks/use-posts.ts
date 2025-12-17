@@ -48,14 +48,24 @@ async function fetchPostsWithCounts(query: any, userId?: string) {
     });
   }
 
-  // 5. Return Enriched Posts
-  return posts.map((post: any) => ({
-    ...post,
-    is_liked: likedPostIds.has(post.id),
-    is_reposted_by_me: repostedPostIds.has(post.id),
-    // Get count from the likes aggregate or fallback to column
-    likes_count: post.likes?.[0]?.count ?? post.likes_count ?? 0,
-  }));
+  // 5. Return Enriched Posts with Live Engagement Sync
+  return posts.map((post: any) => {
+    // ✅ Gold Standard: For reposts, use the original post's live engagement counts
+    const liveSource = post.quoted_post || post;
+    
+    return {
+      ...post,
+      is_liked: likedPostIds.has(post.id),
+      is_reposted_by_me: repostedPostIds.has(post.id) || repostedPostIds.has(post.repost_of_id),
+      // Sync live counts from original post if it's a repost
+      likes_count: post.type === 'repost' && liveSource?.likes 
+        ? (liveSource.likes?.[0]?.count ?? liveSource.likes_count ?? 0)
+        : (post.likes?.[0]?.count ?? post.likes_count ?? 0),
+      comments_count: post.type === 'repost' && liveSource?.comments_count
+        ? liveSource.comments_count
+        : post.comments_count,
+    };
+  });
 }
 
 // --- Modified Fetchers ---
@@ -72,6 +82,7 @@ export function useFeed() {
       // Select with a Count for likes
       // Note: For quoted_post, we use repost_of_id to get the original post this one is quoting
       // Also include external_* columns for shadow reposts of federated content
+      // ✅ Gold Standard: Join parent_post for "Replying to" context
       const query = supabase
         .from("posts")
         .select(`
@@ -83,8 +94,15 @@ export function useFeed() {
             content,
             created_at,
             media_urls,
+            is_reply,
+            reply_to_id,
+            comments_count,
             quoted_post_id:repost_of_id,
-            author:profiles!user_id(*)
+            author:profiles!user_id(*),
+            likes:likes(count)
+          ),
+          parent_post:reply_to_id(
+            author:profiles!user_id(username, display_name)
           ),
           external_id,
           external_source,
@@ -106,6 +124,7 @@ export function usePost(postId: string) {
   return useQuery({
     queryKey: queryKeys.posts.detail(postId),
     queryFn: async () => {
+      // ✅ Gold Standard: Include parent_post for "Replying to" context
       const query = supabase
         .from("posts")
         .select(`
@@ -117,8 +136,15 @@ export function usePost(postId: string) {
             content,
             created_at,
             media_urls,
+            is_reply,
+            reply_to_id,
+            comments_count,
             quoted_post_id:repost_of_id,
-            author:profiles!user_id(*)
+            author:profiles!user_id(*),
+            likes:likes(count)
+          ),
+          parent_post:reply_to_id(
+            author:profiles!user_id(username, display_name)
           ),
           external_id,
           external_source,
