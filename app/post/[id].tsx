@@ -80,22 +80,34 @@ export default function PostDetailsScreen() {
     if (!post) return;
     const isReposted = (post as any).is_reposted_by_me === true;
     
+    // If already reposted, UNDO (toggle off) - no menu needed
     if (isReposted) {
-      // Undo repost
       toggleRepostMutation.mutate({ post, undo: true });
       return;
     }
     
-    // Platform-aware repost confirmation
-    if (Platform.OS === 'web') {
-      const confirmRepost = window.confirm('Repost this to your followers?');
-      if (confirmRepost) {
-        toggleRepostMutation.mutate({ post });
+    // Full repost menu with Quote option
+    if (Platform.OS === 'ios') {
+      Alert.alert("Share Post", "How would you like to share this?", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Repost", onPress: () => toggleRepostMutation.mutate({ post }) },
+        { text: "Quote Post", onPress: () => router.push(`/compose/quote?postId=${post.id}` as any) }
+      ]);
+    } else if (Platform.OS === 'web') {
+      const wantsQuote = window.confirm('Quote Post? (OK = Quote with comment, Cancel = Simple Repost)');
+      if (wantsQuote) {
+        router.push(`/compose/quote?postId=${post.id}` as any);
+      } else {
+        const confirmRepost = window.confirm('Repost this without comment?');
+        if (confirmRepost) {
+          toggleRepostMutation.mutate({ post });
+        }
       }
     } else {
-      Alert.alert("Repost", "Share this with your followers?", [
+      Alert.alert("Share Post", "How would you like to share this?", [
         { text: "Cancel", style: "cancel" },
-        { text: "Repost", onPress: () => toggleRepostMutation.mutate({ post }) }
+        { text: "Repost", onPress: () => toggleRepostMutation.mutate({ post }) },
+        { text: "Quote Post", onPress: () => router.push(`/compose/quote?postId=${post.id}` as any) }
       ]);
     }
   };
@@ -109,16 +121,28 @@ export default function PostDetailsScreen() {
       return;
     }
     
-    // Platform-aware repost confirmation
-    if (Platform.OS === 'web') {
-      const confirmRepost = window.confirm('Repost this comment to your followers?');
-      if (confirmRepost) {
-        toggleRepostMutation.mutate({ post: comment });
+    // Full repost menu with Quote option
+    if (Platform.OS === 'ios') {
+      Alert.alert("Share Reply", "How would you like to share this?", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Repost", onPress: () => toggleRepostMutation.mutate({ post: comment }) },
+        { text: "Quote Post", onPress: () => router.push(`/compose/quote?postId=${comment.id}` as any) }
+      ]);
+    } else if (Platform.OS === 'web') {
+      const wantsQuote = window.confirm('Quote this reply? (OK = Quote with comment, Cancel = Simple Repost)');
+      if (wantsQuote) {
+        router.push(`/compose/quote?postId=${comment.id}` as any);
+      } else {
+        const confirmRepost = window.confirm('Repost this reply without comment?');
+        if (confirmRepost) {
+          toggleRepostMutation.mutate({ post: comment });
+        }
       }
     } else {
-      Alert.alert("Repost Comment", "Share this reply with your followers?", [
+      Alert.alert("Share Reply", "How would you like to share this?", [
         { text: "Cancel", style: "cancel" },
-        { text: "Repost", onPress: () => toggleRepostMutation.mutate({ post: comment }) }
+        { text: "Repost", onPress: () => toggleRepostMutation.mutate({ post: comment }) },
+        { text: "Quote Post", onPress: () => router.push(`/compose/quote?postId=${comment.id}` as any) }
       ]);
     }
   };

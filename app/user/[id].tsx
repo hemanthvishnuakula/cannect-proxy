@@ -67,12 +67,35 @@ export default function UserProfileScreen() {
   
   const handleRepost = (post: any) => {
     const isReposted = post.is_reposted_by_me === true;
+    
+    // If already reposted, UNDO (toggle off) - no menu needed
     if (isReposted) {
       toggleRepostMutation.mutate({ post, undo: true });
-    } else {
-      Alert.alert("Repost", "Share with your followers?", [
+      return;
+    }
+    
+    // Full repost menu with Quote option
+    if (Platform.OS === 'ios') {
+      Alert.alert("Share Post", "How would you like to share this?", [
         { text: "Cancel", style: "cancel" },
-        { text: "Repost", onPress: () => toggleRepostMutation.mutate({ post }) }
+        { text: "Repost", onPress: () => toggleRepostMutation.mutate({ post }) },
+        { text: "Quote Post", onPress: () => router.push(`/compose/quote?postId=${post.id}` as any) }
+      ]);
+    } else if (Platform.OS === 'web') {
+      const wantsQuote = window.confirm('Quote Post? (OK = Quote with comment, Cancel = Simple Repost)');
+      if (wantsQuote) {
+        router.push(`/compose/quote?postId=${post.id}` as any);
+      } else {
+        const confirmRepost = window.confirm('Repost this without comment?');
+        if (confirmRepost) {
+          toggleRepostMutation.mutate({ post });
+        }
+      }
+    } else {
+      Alert.alert("Share Post", "How would you like to share this?", [
+        { text: "Cancel", style: "cancel" },
+        { text: "Repost", onPress: () => toggleRepostMutation.mutate({ post }) },
+        { text: "Quote Post", onPress: () => router.push(`/compose/quote?postId=${post.id}` as any) }
       ]);
     }
   };
