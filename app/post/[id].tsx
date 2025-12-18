@@ -218,9 +218,6 @@ export default function PostDetailsScreen() {
                   <Text className="ml-2 text-sm font-medium text-primary">
                     View Parent Post
                   </Text>
-                  <Text className="text-text-muted text-xs ml-2">
-                    (Replying to @{(post as any)?.parent_post?.author?.username || 'user'})
-                  </Text>
                 </Pressable>
               )}
               
@@ -233,6 +230,8 @@ export default function PostDetailsScreen() {
                 onShare={handleShare}
                 onRepost={handleRepost}
                 onMore={handleMore}
+                // ✅ Diamond Standard: Hide "Replying to" when parent context is shown above
+                showThreadContext={!showViewParent}
               />
               
               {/* ✅ Diamond Standard: Thread connector line + reply count */}
