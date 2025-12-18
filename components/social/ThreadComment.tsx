@@ -4,7 +4,8 @@ import { Heart, MessageCircle, Repeat2, MoreHorizontal, ChevronRight } from "luc
 import { useRouter } from "expo-router";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "@/lib/utils/date";
-import { ASSET_RATIOS, BLURHASH_PLACEHOLDERS } from "@/lib/utils/assets";
+import { BLURHASH_PLACEHOLDERS } from "@/lib/utils/assets";
+import { PostCarousel } from "./PostCarousel";
 
 interface Author {
   id: string;
@@ -108,20 +109,10 @@ export function ThreadComment({
           {comment.content}
         </Text>
 
-        {/* ✅ ASSET GUARD: Fixed ratio keeps connector line stable */}
+        {/* ✅ Diamond Standard: Dynamic aspect ratio carousel */}
         {comment.media_urls && comment.media_urls.length > 0 && (
-          <View 
-            className="mb-3 overflow-hidden rounded-xl border border-border"
-            style={{ aspectRatio: ASSET_RATIOS.VIDEO }}
-          >
-            <Image
-              source={{ uri: comment.media_urls[0] }}
-              style={{ width: "100%", height: "100%" }}
-              contentFit="cover"
-              transition={300}
-              placeholder={BLURHASH_PLACEHOLDERS.NEUTRAL}
-              cachePolicy="memory-disk"
-            />
+          <View className="mb-3">
+            <PostCarousel mediaUrls={comment.media_urls} />
           </View>
         )}
 

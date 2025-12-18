@@ -3,7 +3,8 @@ import { Image } from "expo-image";
 import { Heart, MessageCircle, Repeat2, Share, MoreHorizontal, BadgeCheck, Globe2 } from "lucide-react-native";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "@/lib/utils/date";
-import { getOptimalRatio, ASSET_RATIOS, BLURHASH_PLACEHOLDERS } from "@/lib/utils/assets";
+import { ASSET_RATIOS, BLURHASH_PLACEHOLDERS } from "@/lib/utils/assets";
+import { PostCarousel } from "./PostCarousel";
 import type { PostWithAuthor } from "@/lib/types/database";
 
 // ---------------------------------------------------------------------------
@@ -333,21 +334,12 @@ export function SocialPost({
           {/* ✅ THE GUARDED QUOTE CARD - Uses renderQuotedContent() helper */}
           {renderQuotedContent()}
 
-          {/* ✅ ASSET GUARD: Fixed aspect ratio prevents layout jumping */}
+          {/* ✅ DIAMOND STANDARD: Dynamic aspect ratio carousel */}
           {!displayPost.quoted_post && displayPost.media_urls && displayPost.media_urls.length > 0 && (
-            <View 
-              className="mt-3 overflow-hidden rounded-xl border border-border bg-surface-elevated"
-              style={{ aspectRatio: getOptimalRatio(displayPost.media_urls.length) }}
-            >
-              <Image
-                source={{ uri: displayPost.media_urls[0] }}
-                style={{ width: "100%", height: "100%" }}
-                contentFit="cover"
-                transition={300}
-                placeholder={displayedIsFederated ? BLURHASH_PLACEHOLDERS.GLOBAL : BLURHASH_PLACEHOLDERS.NEUTRAL}
-                cachePolicy="memory-disk"
-              />
-            </View>
+            <PostCarousel 
+              mediaUrls={displayPost.media_urls} 
+              isFederated={displayedIsFederated}
+            />
           )}
         </PostContent>
 
