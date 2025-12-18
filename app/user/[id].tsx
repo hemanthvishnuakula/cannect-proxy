@@ -1,9 +1,10 @@
-import { View, Alert, Text, Platform, ActivityIndicator } from "react-native";
+import { View, Alert, Text, Platform, ActivityIndicator, Pressable } from "react-native";
 import { useState } from "react";
 import { useLocalSearchParams, Stack, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlashList } from "@shopify/flash-list";
 import * as Haptics from "expo-haptics";
+import { RefreshCw } from "lucide-react-native";
 import { useProfileByUsername, useUserPosts, useLikePost, useUnlikePost, useToggleRepost, useDeletePost, useFollowUser, useUnfollowUser, useIsFollowing, ProfileTab } from "@/lib/hooks";
 import { ProfileHeader } from "@/components/social/ProfileHeader";
 import { SocialPost } from "@/components/social/SocialPost";
@@ -20,9 +21,21 @@ export default function UserProfileScreen() {
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
   
   // Look up profile by username first
-  const { data: profile, isLoading: isProfileLoading } = useProfileByUsername(username!);
+  const { 
+    data: profile, 
+    isLoading: isProfileLoading,
+    isError: isProfileError,
+    refetch: refetchProfile,
+  } = useProfileByUsername(username!);
   // Then use the profile's actual UUID for posts with tab filtering
-  const { data: postsData, fetchNextPage, hasNextPage, isFetchingNextPage } = useUserPosts(profile?.id ?? "", activeTab);
+  const { 
+    data: postsData, 
+    fetchNextPage, 
+    hasNextPage, 
+    isFetchingNextPage,
+    refetch: refetchPosts,
+    isRefetching,
+  } = useUserPosts(profile?.id ?? "", activeTab);
   
   // ✅ Platinum: Follow state and mutations
   const { data: isFollowing } = useIsFollowing(profile?.id ?? "");
@@ -100,6 +113,12 @@ export default function UserProfileScreen() {
     }
   };
 
+  // ✅ Pull-to-refresh handler
+  const handleRefresh = () => {
+    refetchProfile();
+    refetchPosts();
+  };
+
   // Render item based on active tab
   const renderItem = ({ item }: { item: any }) => {
     if (activeTab === 'media') {
@@ -130,13 +149,41 @@ export default function UserProfileScreen() {
   };
 
   // ✅ Platinum Loading State: Skeleton Shimmer
-  if (isProfileLoading || !profile) {
+  if (isProfileLoading) {
     return (
       <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
         <Stack.Screen options={{ title: "Profile", headerBackTitle: "Back" }} />
         <SkeletonProfile />
         <SkeletonCard />
         <SkeletonCard />
+      </SafeAreaView>
+    );
+  }
+
+  // ✅ Error State with Retry
+  if (isProfileError || !profile) {
+    return (
+      <SafeAreaView className="flex-1 bg-background items-center justify-center px-6" edges={["top"]}>
+        <Stack.Screen options={{ title: "Profile", headerBackTitle: "Back" }} />
+        <Text className="text-text-primary text-lg font-semibold mb-2">
+          User not found
+        </Text>
+        <Text className="text-text-muted text-center mb-6">
+          This profile may not exist or has been removed.
+        </Text>
+        <Pressable 
+          onPress={() => refetchProfile()}
+          className="flex-row items-center gap-2 bg-primary px-6 py-3 rounded-full active:opacity-80"
+        >
+          <RefreshCw size={18} color="white" />
+          <Text className="text-white font-semibold">Retry</Text>
+        </Pressable>
+        <Pressable 
+          onPress={() => router.back()}
+          className="mt-4 px-6 py-3"
+        >
+          <Text className="text-primary font-semibold">Go Back</Text>
+        </Pressable>
       </SafeAreaView>
     );
   }
@@ -174,11 +221,16 @@ export default function UserProfileScreen() {
         <FlashList
           key={activeTab === 'media' ? 'grid' : 'list'}
           data={posts}
-          keyExtractor={(item, index) => `${item.id}-${index}`}
+          keyExtractor={(item) => `${activeTab}-${item.id}`}
           numColumns={activeTab === 'media' ? 3 : 1}
           estimatedItemSize={activeTab === 'media' ? 120 : 200}
           renderItem={renderItem}
           onEndReached={() => hasNextPage && fetchNextPage()}
+          
+          // ✅ Pull-to-refresh
+          refreshing={isRefetching}
+          onRefresh={handleRefresh}
+          
           ListFooterComponent={
             isFetchingNextPage ? (
               <View className="py-4 items-center">

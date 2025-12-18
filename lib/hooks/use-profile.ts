@@ -36,8 +36,16 @@ export function useUpdateProfile() {
       if (error) throw error;
     },
     onSuccess: (_, variables) => {
+      // Invalidate profile cache
       queryClient.invalidateQueries({ 
         queryKey: queryKeys.profiles.detail(variables.id) 
+      });
+      // ✅ Also invalidate posts cache so updated name/avatar shows in feed
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.posts.byUser(variables.id) 
+      });
+      queryClient.invalidateQueries({ 
+        queryKey: queryKeys.posts.all 
       });
     },
   });
@@ -63,12 +71,12 @@ export function useProfileByUsername(username: string) {
 
 // Check if current user follows target user
 export function useIsFollowing(targetUserId: string) {
+  const { user } = useAuthStore(); // ✅ Consistent: use store instead of getSession
+
   return useQuery({
     queryKey: queryKeys.follows.isFollowing("current", targetUserId),
     queryFn: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) return false;
-      const user = session.user;
+      if (!user) return false;
 
       const { data, error } = await supabase
         .from("follows")
@@ -80,14 +88,14 @@ export function useIsFollowing(targetUserId: string) {
       if (error) throw error;
       return !!data;
     },
-    enabled: !!targetUserId,
+    enabled: !!targetUserId && !!user,
   });
 }
 
-// Follow a user
+// Follow a user with optimistic updates
 export function useFollowUser() {
   const queryClient = useQueryClient();
-  const { user } = useAuthStore(); // Optimization: use store instead of getSession
+  const { user } = useAuthStore();
 
   return useMutation({
     mutationFn: async (targetUserId: string) => {
@@ -99,7 +107,78 @@ export function useFollowUser() {
       if (error) throw error;
       return targetUserId;
     },
-    onSettled: (targetUserId) => { // Use onSettled to ensure UI reflects server state
+    // ✅ Optimistic update for instant UI feedback
+    onMutate: async (targetUserId) => {
+      // Cancel outgoing queries
+      await queryClient.cancelQueries({ 
+        queryKey: queryKeys.follows.isFollowing("current", targetUserId) 
+      });
+      await queryClient.cancelQueries({ 
+        queryKey: queryKeys.profiles.detail(targetUserId) 
+      });
+      
+      // Snapshot previous values
+      const previousIsFollowing = queryClient.getQueryData(
+        queryKeys.follows.isFollowing("current", targetUserId)
+      );
+      const previousProfile = queryClient.getQueryData(
+        queryKeys.profiles.detail(targetUserId)
+      );
+      const previousMyProfile = queryClient.getQueryData(
+        queryKeys.profiles.detail(user?.id ?? "")
+      );
+      
+      // Optimistically set to following
+      queryClient.setQueryData(
+        queryKeys.follows.isFollowing("current", targetUserId),
+        true
+      );
+      
+      // Optimistically update follower count on target
+      queryClient.setQueryData(
+        queryKeys.profiles.detail(targetUserId),
+        (old: any) => old ? { 
+          ...old, 
+          followers_count: (old.followers_count || 0) + 1 
+        } : old
+      );
+      
+      // Optimistically update following count on self
+      if (user?.id) {
+        queryClient.setQueryData(
+          queryKeys.profiles.detail(user.id),
+          (old: any) => old ? { 
+            ...old, 
+            following_count: (old.following_count || 0) + 1 
+          } : old
+        );
+      }
+      
+      return { previousIsFollowing, previousProfile, previousMyProfile };
+    },
+    onError: (err, targetUserId, context) => {
+      // Rollback on error
+      if (context?.previousIsFollowing !== undefined) {
+        queryClient.setQueryData(
+          queryKeys.follows.isFollowing("current", targetUserId),
+          context.previousIsFollowing
+        );
+      }
+      if (context?.previousProfile) {
+        queryClient.setQueryData(
+          queryKeys.profiles.detail(targetUserId),
+          context.previousProfile
+        );
+      }
+      if (context?.previousMyProfile && user?.id) {
+        queryClient.setQueryData(
+          queryKeys.profiles.detail(user.id),
+          context.previousMyProfile
+        );
+      }
+    },
+    onSettled: (targetUserId) => {
+      // Refetch to ensure server state
       queryClient.invalidateQueries({ queryKey: queryKeys.follows.isFollowing("current", targetUserId!) });
       queryClient.invalidateQueries({ queryKey: queryKeys.profiles.detail(targetUserId!) });
       queryClient.invalidateQueries({ queryKey: queryKeys.profiles.detail(user?.id!) });
@@ -107,15 +186,14 @@ export function useFollowUser() {
   });
 }
 
-// Unfollow a user
+// Unfollow a user with optimistic updates
 export function useUnfollowUser() {
   const queryClient = useQueryClient();
+  const { user } = useAuthStore(); // ✅ Consistent: use store instead of getSession
 
   return useMutation({
     mutationFn: async (targetUserId: string) => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.user) throw new Error("Not authenticated");
-      const user = session.user;
+      if (!user) throw new Error("Not authenticated");
 
       const { error } = await supabase
         .from("follows")
@@ -126,12 +204,82 @@ export function useUnfollowUser() {
       if (error) throw error;
       return targetUserId;
     },
-    onSuccess: (targetUserId) => {
+    // ✅ Optimistic update for instant UI feedback
+    onMutate: async (targetUserId) => {
+      await queryClient.cancelQueries({ 
+        queryKey: queryKeys.follows.isFollowing("current", targetUserId) 
+      });
+      await queryClient.cancelQueries({ 
+        queryKey: queryKeys.profiles.detail(targetUserId) 
+      });
+      
+      const previousIsFollowing = queryClient.getQueryData(
+        queryKeys.follows.isFollowing("current", targetUserId)
+      );
+      const previousProfile = queryClient.getQueryData(
+        queryKeys.profiles.detail(targetUserId)
+      );
+      const previousMyProfile = queryClient.getQueryData(
+        queryKeys.profiles.detail(user?.id ?? "")
+      );
+      
+      // Optimistically set to not following
+      queryClient.setQueryData(
+        queryKeys.follows.isFollowing("current", targetUserId),
+        false
+      );
+      
+      // Optimistically update follower count on target
+      queryClient.setQueryData(
+        queryKeys.profiles.detail(targetUserId),
+        (old: any) => old ? { 
+          ...old, 
+          followers_count: Math.max(0, (old.followers_count || 0) - 1)
+        } : old
+      );
+      
+      // Optimistically update following count on self
+      if (user?.id) {
+        queryClient.setQueryData(
+          queryKeys.profiles.detail(user.id),
+          (old: any) => old ? { 
+            ...old, 
+            following_count: Math.max(0, (old.following_count || 0) - 1)
+          } : old
+        );
+      }
+      
+      return { previousIsFollowing, previousProfile, previousMyProfile };
+    },
+    onError: (err, targetUserId, context) => {
+      if (context?.previousIsFollowing !== undefined) {
+        queryClient.setQueryData(
+          queryKeys.follows.isFollowing("current", targetUserId),
+          context.previousIsFollowing
+        );
+      }
+      if (context?.previousProfile) {
+        queryClient.setQueryData(
+          queryKeys.profiles.detail(targetUserId),
+          context.previousProfile
+        );
+      }
+      if (context?.previousMyProfile && user?.id) {
+        queryClient.setQueryData(
+          queryKeys.profiles.detail(user.id),
+          context.previousMyProfile
+        );
+      }
+    },
+    onSettled: (targetUserId) => {
       queryClient.invalidateQueries({
-        queryKey: queryKeys.follows.isFollowing("current", targetUserId),
+        queryKey: queryKeys.follows.isFollowing("current", targetUserId!),
       });
       queryClient.invalidateQueries({
-        queryKey: queryKeys.profiles.detail(targetUserId),
+        queryKey: queryKeys.profiles.detail(targetUserId!),
+      });
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.profiles.detail(user?.id!),
       });
     },
   });

@@ -1,8 +1,9 @@
-import { View, Text, ActivityIndicator } from "react-native";
+import { View, Text, ActivityIndicator, Pressable } from "react-native";
 import { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
+import { RefreshCw } from "lucide-react-native";
 
 import { useAuthStore } from "@/lib/stores";
 import { useProfile, useUserPosts, useSignOut, ProfileTab } from "@/lib/hooks";
@@ -20,13 +21,20 @@ export default function ProfileScreen() {
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
 
   // Fetch Profile & Posts with tab filtering
-  const { data: profile, isLoading: isProfileLoading } = useProfile(user?.id ?? "");
+  const { 
+    data: profile, 
+    isLoading: isProfileLoading,
+    isError: isProfileError,
+    refetch: refetchProfile,
+  } = useProfile(user?.id ?? "");
   const { 
     data: postsData, 
     isLoading: isPostsLoading, 
     fetchNextPage, 
     hasNextPage,
-    isFetchingNextPage
+    isFetchingNextPage,
+    refetch: refetchPosts,
+    isRefetching,
   } = useUserPosts(user?.id ?? "", activeTab);
 
   const posts = postsData?.pages?.flat() || [];
@@ -38,6 +46,12 @@ export default function ProfileScreen() {
 
   const handleEditProfile = () => {
     router.push("/settings/edit-profile" as any);
+  };
+
+  // ✅ Pull-to-refresh handler
+  const handleRefresh = () => {
+    refetchProfile();
+    refetchPosts();
   };
 
   // Render item based on active tab
@@ -57,12 +71,38 @@ export default function ProfileScreen() {
   };
 
   // ✅ Platinum Loading State: Skeleton Shimmer
-  if (isProfileLoading || !profile) {
+  if (isProfileLoading) {
     return (
       <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
         <SkeletonProfile />
         <SkeletonCard />
         <SkeletonCard />
+      </SafeAreaView>
+    );
+  }
+
+  // ✅ Error State with Retry
+  if (isProfileError || !profile) {
+    return (
+      <SafeAreaView className="flex-1 bg-background items-center justify-center px-6" edges={["top"]}>
+        <Text className="text-text-primary text-lg font-semibold mb-2">
+          Failed to load profile
+        </Text>
+        <Text className="text-text-muted text-center mb-6">
+          Please check your connection and try again.
+        </Text>
+        <Pressable 
+          onPress={() => refetchProfile()}
+          className="flex-row items-center gap-2 bg-primary px-6 py-3 rounded-full active:opacity-80"
+        >
+          <RefreshCw size={18} color="white" />
+          <Text className="text-white font-semibold">Retry</Text>
+        </Pressable>
+        <View className="mt-8">
+          <Button variant="ghost" onPress={handleSignOut}>
+            <Text className="text-accent-error">Sign Out</Text>
+          </Button>
+        </View>
       </SafeAreaView>
     );
   }
@@ -97,10 +137,14 @@ export default function ProfileScreen() {
         <FlashList
           key={activeTab === 'media' ? 'grid' : 'list'}
           data={posts}
-          keyExtractor={(item, index) => `${item.id}-${index}`}
+          keyExtractor={(item) => `${activeTab}-${item.id}`}
           numColumns={activeTab === 'media' ? 3 : 1}
           estimatedItemSize={activeTab === 'media' ? 120 : 200}
           renderItem={renderItem}
+          
+          // ✅ Pull-to-refresh
+          refreshing={isRefetching}
+          onRefresh={handleRefresh}
 
           // Empty State
           ListEmptyComponent={
