@@ -31,6 +31,7 @@ interface ThreadCommentProps {
   comment: Comment;
   isLast?: boolean;
   isReply?: boolean;
+  showLine?: boolean; // ✅ Diamond Standard: Control thread line visibility
   onReplyPress?: () => void;
   onLikePress?: () => void;
   onRepostPress?: () => void; // ✅ Everything is a Post: Repost promotes comment to top-level
@@ -42,6 +43,7 @@ export function ThreadComment({
   comment, 
   isLast = false, 
   isReply = false,
+  showLine = true,
   onReplyPress,
   onLikePress,
   onRepostPress,
@@ -77,7 +79,7 @@ export function ThreadComment({
         </Pressable>
         
         {/* The Connector Line - shows thread connection */}
-        {!isLast && (
+        {showLine && !isLast && (
           <View className="flex-1 w-[2px] bg-border my-2 rounded-full" />
         )}
       </View>

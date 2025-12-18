@@ -208,7 +208,7 @@ export default function PostDetailsScreen() {
           // The Main Post is the Header
           ListHeaderComponent={
             <View>
-              {/* Gold Standard: View Parent anchor - "looks through" reposts to find the original's parent */}
+              {/* ✅ Diamond Standard: Ancestor Context - View parent in chain */}
               {showViewParent && (
                 <Pressable 
                   onPress={() => router.push(`/post/${displayPost.reply_to_id}` as any)}
@@ -217,6 +217,9 @@ export default function PostDetailsScreen() {
                   <ArrowUpLeft size={16} color="#10B981" />
                   <Text className="ml-2 text-sm font-medium text-primary">
                     View Parent Post
+                  </Text>
+                  <Text className="text-text-muted text-xs ml-2">
+                    (Replying to @{(post as any)?.parent_post?.author?.username || 'user'})
                   </Text>
                 </Pressable>
               )}
@@ -232,12 +235,24 @@ export default function PostDetailsScreen() {
                 onMore={handleMore}
               />
               
-              {/* Divider with reply count */}
-              <View className="border-t border-border px-4 py-3">
-                <Text className="text-text-primary font-semibold">
-                  {replies?.length || 0} {replies?.length === 1 ? "Reply" : "Replies"}
-                </Text>
-              </View>
+              {/* ✅ Diamond Standard: Thread connector line + reply count */}
+              {(replies?.length || 0) > 0 && (
+                <View className="flex-row items-center px-4 py-3 border-t border-border">
+                  <View className="w-9 items-center">
+                    <View className="w-[2px] h-4 bg-border rounded-full" />
+                  </View>
+                  <Text className="text-text-primary font-semibold ml-3">
+                    {replies?.length} {replies?.length === 1 ? "Reply" : "Replies"}
+                  </Text>
+                </View>
+              )}
+              {(replies?.length || 0) === 0 && (
+                <View className="border-t border-border px-4 py-3">
+                  <Text className="text-text-muted">
+                    No replies yet
+                  </Text>
+                </View>
+              )}
             </View>
           }
 
