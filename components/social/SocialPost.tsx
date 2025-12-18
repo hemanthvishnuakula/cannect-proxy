@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "@/lib/utils/date";
 import { ASSET_RATIOS, BLURHASH_PLACEHOLDERS } from "@/lib/utils/assets";
 import { PostCarousel } from "./PostCarousel";
+import { PostShareCard } from "./PostShareCard";
+import { useShareSnapshot } from "@/lib/hooks/use-share-snapshot";
 import type { PostWithAuthor, isFederatedPost, hasExternalMetadata } from "@/lib/types/database";
 
 // ---------------------------------------------------------------------------
@@ -147,6 +149,20 @@ export const SocialPost = memo(function SocialPost({
   onQuotedPostPress,
   showThreadContext = true,
 }: SocialPostProps) {
+  // =====================================================
+  // SHARE SNAPSHOT HOOK
+  // =====================================================
+  const { shareRef, captureAndShare } = useShareSnapshot();
+
+  // Handle share - use snapshot share if no custom handler provided
+  const handleShare = useCallback(() => {
+    if (onShare) {
+      onShare();
+    } else {
+      captureAndShare();
+    }
+  }, [onShare, captureAndShare]);
+
   // Check if quoted_post is valid (has actual data, not just an empty object from the join)
   const hasValidQuotedPost = post.quoted_post && post.quoted_post.id && post.quoted_post.content;
   
@@ -456,13 +472,30 @@ export const SocialPost = memo(function SocialPost({
           />
           <ActionButton 
             icon={Share} 
-            onPress={onShare}
+            onPress={handleShare}
             accessibilityLabel="Share post"
           />
         </PostFooter>
           </>
         )}
       </PostRoot>
+
+      {/* =====================================================
+          GHOST CONTAINER - Off-screen Share Card
+          This is captured by react-native-view-shot to create
+          a beautiful Instagram Stories-ready share image.
+          collapsable={false} prevents React Native from 
+          optimizing this view away before capture.
+          ===================================================== */}
+      <View 
+        collapsable={false} 
+        style={{ position: 'absolute', top: -9999, left: -9999 }}
+        pointerEvents="none"
+      >
+        <View ref={shareRef} collapsable={false}>
+          <PostShareCard post={post} />
+        </View>
+      </View>
     </Pressable>
   );
 }, (prevProps, nextProps) => {
