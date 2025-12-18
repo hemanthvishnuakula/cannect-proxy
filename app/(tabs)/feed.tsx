@@ -3,12 +3,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import { Leaf, Globe2 } from "lucide-react-native";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
-import { useFeed, useFollowingFeed, useLikePost, useUnlikePost, useDeletePost, useRepost, useToggleRepost } from "@/lib/hooks";
+import { useFeed, useFollowingFeed, useLikePost, useUnlikePost, useDeletePost, useRepost, useToggleRepost, useProfile } from "@/lib/hooks";
 import { useAuthStore } from "@/lib/stores";
 import { SocialPost } from "@/components/social";
+import { EmptyFeedState } from "@/components/social/EmptyFeedState";
+import { DiscoveryModal, useDiscoveryModal } from "@/components/social/DiscoveryModal";
 import { getFederatedPosts } from "@/lib/services/bluesky";
 import type { PostWithAuthor } from "@/lib/types/database";
 
@@ -24,6 +26,12 @@ export default function FeedScreen() {
   const router = useRouter();
   const { user } = useAuthStore();
   const [activeTab, setActiveTab] = useState<FeedTab>("for-you");
+  
+  // Get current user's profile for discovery modal logic
+  const { data: myProfile } = useProfile(user?.id ?? "");
+  
+  // Discovery modal for new users with 0 following
+  const { showDiscovery, closeDiscovery } = useDiscoveryModal(myProfile?.following_count);
   
   // Cannect (For You) feed - all posts
   const forYouQuery = useFeed();
@@ -411,15 +419,11 @@ export default function FeedScreen() {
             onEndReachedThreshold={0.5}
             contentContainerStyle={{ paddingBottom: 20 }}
             ListEmptyComponent={
-              <View className="flex-1 items-center justify-center pt-24">
-                <Text className="text-text-secondary text-base">
-                  {activeTab === "federated" 
-                    ? "No federated posts available." 
-                    : activeTab === "following"
-                    ? "No posts from people you follow yet."
-                    : "No posts yet. Be the first!"}
-                </Text>
-              </View>
+              <EmptyFeedState 
+                type={activeTab} 
+                isLoading={isCurrentLoading}
+                onRetry={handleRefresh}
+              />
             }
             ListFooterComponent={
               isFetchingNextPage && activeTab !== "federated" ? (
@@ -431,6 +435,12 @@ export default function FeedScreen() {
           />
         </View>
       )}
+      
+      {/* Discovery Modal for new users */}
+      <DiscoveryModal 
+        isVisible={showDiscovery && activeTab === "following"} 
+        onClose={closeDiscovery} 
+      />
     </SafeAreaView>
   );
 }
