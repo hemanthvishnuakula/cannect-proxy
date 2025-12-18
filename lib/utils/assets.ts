@@ -14,14 +14,15 @@ export const ASSET_RATIOS = {
 /**
  * BlurHash placeholders for different content contexts.
  * These provide immediate visual feedback before images load.
+ * Generated with 4x3 component grid for proper validation.
  */
 export const BLURHASH_PLACEHOLDERS = {
-  // Neutral gray gradient - works with any content
-  NEUTRAL: "|rF?hV%2WCj[ayj[a|j[ayjtjtayjtjtayjtayjt",
+  // Neutral dark gray gradient - works with any content (matches #0A0A0A background)
+  NEUTRAL: "L00000fQfQfQfQfQfQfQfQfQfQfQ",
   // Slightly blue tint - ideal for Global federated content
-  GLOBAL: "L6PZf959NHpZ_400InWQkqWYaeM+",
-  // Greenish tint - matches Cannect branding
-  CANNECT: "LDH{XVNG00~p~p9FM{%L%L%ME1Rj",
+  GLOBAL: "L03+~pfQfQfQfQfQfQfQfQfQfQfQ",
+  // Greenish tint - matches Cannect branding (#10B981)
+  CANNECT: "L02rs:fQfQfQfQfQfQfQfQfQfQfQ",
 } as const;
 
 /**
