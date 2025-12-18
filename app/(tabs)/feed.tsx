@@ -280,7 +280,7 @@ export default function FeedScreen() {
         <View style={{ flex: 1 }}>
           <FlashList
             data={posts}
-            keyExtractor={(item) => item.id}
+            keyExtractor={(item, index) => `${item.id}-${index}`}
             renderItem={({ item }) => {
               // Live Global = direct from Bluesky API (read-only except repost)
               const isLiveGlobal = (item as any).is_federated === true;

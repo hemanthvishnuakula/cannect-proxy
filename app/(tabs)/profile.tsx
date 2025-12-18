@@ -97,7 +97,7 @@ export default function ProfileScreen() {
         <FlashList
           key={activeTab === 'media' ? 'grid' : 'list'}
           data={posts}
-          keyExtractor={(item) => item.id}
+          keyExtractor={(item, index) => `${item.id}-${index}`}
           numColumns={activeTab === 'media' ? 3 : 1}
           estimatedItemSize={activeTab === 'media' ? 120 : 200}
           renderItem={renderItem}
