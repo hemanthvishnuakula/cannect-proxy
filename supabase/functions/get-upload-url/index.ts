@@ -83,22 +83,24 @@ serve(async (req) => {
     // 2. CLOUDFLARE IMAGES - Direct Upload
     // ========================================
     if (type === "image") {
+      // Cloudflare Images v2 direct_upload requires FormData
+      const formData = new FormData();
+      formData.append("requireSignedURLs", "false");
+      formData.append("metadata", JSON.stringify({
+        userId: user.id,
+        uploadedAt: new Date().toISOString(),
+        filename: filename || "image",
+      }));
+
       const response = await fetch(
         `https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/images/v2/direct_upload`,
         {
           method: "POST",
           headers: {
             Authorization: `Bearer ${CLOUDFLARE_IMAGES_TOKEN}`,
-            "Content-Type": "application/json",
+            // Don't set Content-Type - let fetch set it with boundary
           },
-          body: JSON.stringify({
-            requireSignedURLs: false,
-            metadata: {
-              userId: user.id,
-              uploadedAt: new Date().toISOString(),
-              filename: filename || "image",
-            },
-          }),
+          body: formData,
         }
       );
 
