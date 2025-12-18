@@ -113,8 +113,11 @@ export default function UserProfileScreen() {
     }
   };
 
-  // ✅ Pull-to-refresh handler
+  // ✅ Pull-to-refresh handler with haptic feedback
   const handleRefresh = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     refetchProfile();
     refetchPosts();
   };
@@ -197,6 +200,7 @@ export default function UserProfileScreen() {
         profile={profile!} 
         isCurrentUser={currentUser?.id === profile!.id}
         isFollowing={isFollowing ?? false}
+        isFollowPending={followMutation.isPending || unfollowMutation.isPending}
         onFollowPress={handleFollowToggle}
         onFollowersPress={() => router.push({ 
           pathname: `/user/${username}/relationships` as any,

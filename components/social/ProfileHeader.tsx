@@ -1,4 +1,4 @@
-import { View, Text, Pressable } from "react-native";
+import { View, Text, Pressable, ActivityIndicator } from "react-native";
 import { Image } from "expo-image";
 import { Share, Link as LinkIcon, Calendar } from "lucide-react-native";
 import { Button } from "@/components/ui/Button";
@@ -11,6 +11,7 @@ interface ProfileHeaderProps {
   profile: Profile;
   isCurrentUser?: boolean;
   isFollowing?: boolean;
+  isFollowPending?: boolean; // ✅ Loading state for follow button
   onEditPress?: () => void;
   onFollowPress?: () => void;
   onSharePress?: () => void;
@@ -22,6 +23,7 @@ export function ProfileHeader({
   profile, 
   isCurrentUser,
   isFollowing,
+  isFollowPending,
   onEditPress,
   onFollowPress,
   onSharePress,
@@ -83,8 +85,13 @@ export function ProfileHeader({
                 variant={isFollowing ? "secondary" : "primary"}
                 size="sm"
                 onPress={onFollowPress}
+                disabled={isFollowPending}
               >
-                {isFollowing ? "Following" : "Follow"}
+                {isFollowPending ? (
+                  <ActivityIndicator size="small" color={isFollowing ? "#6B7280" : "white"} />
+                ) : (
+                  isFollowing ? "Following" : "Follow"
+                )}
               </Button>
             )}
           </View>

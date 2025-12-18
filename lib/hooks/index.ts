@@ -4,3 +4,4 @@ export * from "./use-profile";
 export * from "./use-notifications";
 export * from "./use-search";
 export * from "./use-share-snapshot";
+export * from "./use-debounce";

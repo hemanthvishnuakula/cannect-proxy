@@ -1,9 +1,10 @@
-import { View, Text, ActivityIndicator, Pressable } from "react-native";
+import { View, Text, ActivityIndicator, Pressable, Platform } from "react-native";
 import { useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import { RefreshCw } from "lucide-react-native";
+import * as Haptics from "expo-haptics";
 
 import { useAuthStore } from "@/lib/stores";
 import { useProfile, useUserPosts, useSignOut, ProfileTab } from "@/lib/hooks";
@@ -48,8 +49,11 @@ export default function ProfileScreen() {
     router.push("/settings/edit-profile" as any);
   };
 
-  // ✅ Pull-to-refresh handler
+  // ✅ Pull-to-refresh handler with haptic feedback
   const handleRefresh = () => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
     refetchProfile();
     refetchPosts();
   };
