@@ -9,6 +9,7 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { X, ChevronLeft, ChevronRight, Download } from 'lucide-react-native';
@@ -33,7 +34,24 @@ export function MediaViewer({
   onClose,
 }: MediaViewerProps) {
   const [currentPage, setCurrentPage] = useState(initialIndex);
+  const [isDownloading, setIsDownloading] = useState(false);
   const scrollRef = useRef<ScrollView>(null);
+
+  const goToPrevious = useCallback(() => {
+    if (currentPage > 0) {
+      const newPage = currentPage - 1;
+      setCurrentPage(newPage);
+      scrollRef.current?.scrollTo({ x: newPage * SCREEN_WIDTH, animated: true });
+    }
+  }, [currentPage]);
+
+  const goToNext = useCallback(() => {
+    if (currentPage < images.length - 1) {
+      const newPage = currentPage + 1;
+      setCurrentPage(newPage);
+      scrollRef.current?.scrollTo({ x: newPage * SCREEN_WIDTH, animated: true });
+    }
+  }, [currentPage, images.length]);
 
   // Reset state when modal opens
   React.useEffect(() => {
@@ -61,7 +79,7 @@ export function MediaViewer({
     
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isVisible, onClose]);
+  }, [isVisible, onClose, goToPrevious, goToNext]);
 
   const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const page = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
@@ -70,41 +88,29 @@ export function MediaViewer({
     }
   }, [currentPage, images.length]);
 
-  const handleDownload = useCallback(() => {
+  const handleDownload = useCallback(async () => {
     // ✅ Fix: Proper download using blob for cross-origin images
     const imageUrl = images[currentPage];
-    fetch(imageUrl)
-      .then(res => res.blob())
-      .then(blob => {
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `image_${Date.now()}.jpg`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(link.href);
-      })
-      .catch(() => {
-        // Fallback to opening in new tab
-        window.open(imageUrl, '_blank');
-      });
+    setIsDownloading(true);
+    try {
+      const res = await fetch(imageUrl);
+      const blob = await res.blob();
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      // Detect file extension from URL or default to jpg
+      const ext = imageUrl.match(/\.(jpg|jpeg|png|gif|webp)/i)?.[1] || 'jpg';
+      link.download = `image_${Date.now()}.${ext}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(link.href);
+    } catch {
+      // Fallback to opening in new tab
+      window.open(imageUrl, '_blank');
+    } finally {
+      setIsDownloading(false);
+    }
   }, [images, currentPage]);
-
-  const goToPrevious = useCallback(() => {
-    if (currentPage > 0) {
-      const newPage = currentPage - 1;
-      setCurrentPage(newPage);
-      scrollRef.current?.scrollTo({ x: newPage * SCREEN_WIDTH, animated: true });
-    }
-  }, [currentPage]);
-
-  const goToNext = useCallback(() => {
-    if (currentPage < images.length - 1) {
-      const newPage = currentPage + 1;
-      setCurrentPage(newPage);
-      scrollRef.current?.scrollTo({ x: newPage * SCREEN_WIDTH, animated: true });
-    }
-  }, [currentPage, images.length]);
 
   if (!images || images.length === 0) return null;
 
@@ -133,8 +139,13 @@ export function MediaViewer({
               onPress={handleDownload}
               style={styles.headerButton}
               accessibilityLabel="Download image"
+              disabled={isDownloading}
             >
-              <Download color="white" size={20} />
+              {isDownloading ? (
+                <ActivityIndicator color="white" size="small" />
+              ) : (
+                <Download color="white" size={20} />
+              )}
             </Pressable>
 
             {/* Close Button */}
