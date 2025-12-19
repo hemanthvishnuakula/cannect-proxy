@@ -1,12 +1,15 @@
 // =====================================================
-// Cannect Service Worker v2.0
+// Cannect Service Worker v2.1
 // Handles: Push Notifications + Cache Management + Updates
 // =====================================================
 
 // Cache versioning - INCREMENT THIS ON EVERY DEPLOY
-const CACHE_VERSION = 'v1.0.0';
+const CACHE_VERSION = 'v1.0.1';
 const CACHE_NAME = `cannect-${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline.html';
+
+// 💎 Versions that require immediate update (breaking changes)
+const FORCE_UPDATE_VERSIONS = [];
 
 // Assets to precache (shell of the app)
 const PRECACHE_ASSETS = [
@@ -17,20 +20,52 @@ const PRECACHE_ASSETS = [
 ];
 
 // =====================================================
-// Install Event - Precache Core Assets
+// Install Event - Precache Core Assets (with error handling)
 // =====================================================
 self.addEventListener('install', (event) => {
   console.log(`[SW] Installing version ${CACHE_VERSION}`);
   
   event.waitUntil(
-    caches.open(CACHE_NAME)
-      .then((cache) => {
-        console.log('[SW] Precaching app shell');
-        return cache.addAll(PRECACHE_ASSETS);
-      })
-      .then(() => {
-        console.log('[SW] Precache complete');
-      })
+    (async () => {
+      // 💎 Fix 6: Check storage quota before installing
+      if (navigator.storage && navigator.storage.estimate) {
+        try {
+          const { quota, usage } = await navigator.storage.estimate();
+          const availableMB = ((quota - usage) / 1024 / 1024).toFixed(2);
+          console.log(`[SW] Available storage: ${availableMB}MB`);
+          
+          if (quota - usage < 5 * 1024 * 1024) {
+            console.warn('[SW] Low storage - precaching may fail');
+          }
+        } catch (e) {
+          console.warn('[SW] Could not estimate storage:', e);
+        }
+      }
+      
+      const cache = await caches.open(CACHE_NAME);
+      console.log('[SW] Precaching app shell');
+      
+      // 💎 Fix 2: Cache assets individually to handle failures gracefully
+      const results = await Promise.allSettled(
+        PRECACHE_ASSETS.map(async (url) => {
+          try {
+            const response = await fetch(url, { cache: 'reload' });
+            if (response.ok) {
+              await cache.put(url, response);
+              return { url, success: true };
+            }
+            console.warn(`[SW] Failed to fetch ${url}: ${response.status}`);
+            return { url, success: false };
+          } catch (error) {
+            console.warn(`[SW] Failed to fetch ${url}:`, error);
+            return { url, success: false };
+          }
+        })
+      );
+      
+      const successCount = results.filter(r => r.status === 'fulfilled' && r.value?.success).length;
+      console.log(`[SW] Precached ${successCount}/${PRECACHE_ASSETS.length} assets`);
+    })()
   );
   
   // Don't call skipWaiting here - we want to control this from the UI
@@ -72,11 +107,15 @@ self.addEventListener('fetch', (event) => {
   // Skip non-http(s) requests
   if (!request.url.startsWith('http')) return;
   
-  // Skip API requests (always fetch fresh)
+  // 💎 Skip API requests AND external media (always fetch fresh)
   if (request.url.includes('/functions/') || 
       request.url.includes('supabase.co') ||
       request.url.includes('/rest/') ||
-      request.url.includes('cloudflare')) {
+      request.url.includes('cloudflare') ||
+      request.url.includes('imagedelivery.net') ||   // 💎 Cloudflare Images
+      request.url.includes('videodelivery.net') ||   // 💎 Cloudflare Stream
+      request.url.includes('customer-') ||           // 💎 Cloudflare customer subdomain
+      request.url.includes('/api/')) {
     return;
   }
   
@@ -136,6 +175,16 @@ self.addEventListener('message', (event) => {
   
   if (event.data && event.data.type === 'GET_VERSION') {
     event.ports[0].postMessage({ version: CACHE_VERSION });
+  }
+  
+  // 💎 Fix 5: Check if this version requires force update
+  if (event.data && event.data.type === 'CHECK_FORCE_UPDATE') {
+    const shouldForce = FORCE_UPDATE_VERSIONS.includes(CACHE_VERSION);
+    event.source.postMessage({ 
+      type: 'FORCE_UPDATE_RESULT', 
+      shouldForce,
+      version: CACHE_VERSION 
+    });
   }
 });
 

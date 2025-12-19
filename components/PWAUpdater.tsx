@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { View, Text, Pressable, Platform, StyleSheet } from 'react-native';
 import Animated, { 
   FadeInUp, 
@@ -31,6 +31,9 @@ export function PWAUpdater({ checkInterval = 60000 }: PWAUpdaterProps) {
   const [registration, setRegistration] = useState<ServiceWorkerRegistration | null>(null);
   const [isUpdating, setIsUpdating] = useState(false);
   
+  // 💎 Fix 3: Guard against infinite reload loops
+  const hasReloadedRef = useRef(false);
+  
   // Animation for the refresh icon
   const rotation = useSharedValue(0);
   const animatedIconStyle = useAnimatedStyle(() => ({
@@ -61,6 +64,13 @@ export function PWAUpdater({ checkInterval = 60000 }: PWAUpdaterProps) {
 
     // Listen for controller changes (new SW activated)
     const handleControllerChange = () => {
+      // 💎 Fix 3: Guard against multiple reloads
+      if (hasReloadedRef.current) {
+        console.warn('[PWAUpdater] Reload already triggered, ignoring');
+        return;
+      }
+      hasReloadedRef.current = true;
+      
       console.log('[PWAUpdater] Controller changed - reloading');
       window.location.reload();
     };
@@ -96,7 +106,29 @@ export function PWAUpdater({ checkInterval = 60000 }: PWAUpdaterProps) {
     // Check if there's already a waiting worker
     if (reg.waiting) {
       console.log('[PWAUpdater] Update already waiting');
-      setShowToast(true);
+      
+      // 💎 Fix 5: Check if this is a critical force update
+      const handleForceUpdateCheck = (event: MessageEvent) => {
+        if (event.data?.type === 'FORCE_UPDATE_RESULT') {
+          navigator.serviceWorker.removeEventListener('message', handleForceUpdateCheck);
+          
+          if (event.data.shouldForce) {
+            console.log('[PWAUpdater] Force update required for version:', event.data.version);
+            reg.waiting?.postMessage({ type: 'SKIP_WAITING' });
+            // Will reload via controllerchange
+            return;
+          }
+          
+          // 💎 Fix 4: Don't show if already dismissed this session
+          const dismissed = sessionStorage.getItem('pwa_update_dismissed');
+          if (dismissed !== 'true') {
+            setShowToast(true);
+          }
+        }
+      };
+      
+      navigator.serviceWorker.addEventListener('message', handleForceUpdateCheck);
+      reg.waiting.postMessage({ type: 'CHECK_FORCE_UPDATE' });
       return;
     }
 
@@ -148,6 +180,10 @@ export function PWAUpdater({ checkInterval = 60000 }: PWAUpdaterProps) {
   // =====================================================
   const handleDismiss = useCallback(() => {
     setShowToast(false);
+    
+    // 💎 Fix 4: Remember dismissal in this session so we don't nag
+    // But it will show again on next session/tab
+    sessionStorage.setItem('pwa_update_dismissed', 'true');
   }, []);
 
   // Don't render on non-web platforms
