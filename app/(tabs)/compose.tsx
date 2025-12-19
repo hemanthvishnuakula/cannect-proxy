@@ -19,6 +19,7 @@ import {
   Trash2, 
   Play,
   AlertCircle,
+  WifiOff,
 } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import Animated, { 
@@ -29,7 +30,7 @@ import Animated, {
   useSharedValue,
 } from "react-native-reanimated";
 
-import { useCreatePost, useMediaUpload, usePWAPersistence } from "@/lib/hooks";
+import { useCreatePost, useMediaUpload, usePWAPersistence, useNetworkStatus } from "@/lib/hooks";
 import { useAuthStore } from "@/lib/stores";
 import { router } from "expo-router";
 
@@ -46,6 +47,9 @@ export default function ComposeScreen() {
   // 💎 Draft persistence
   const { saveDraft, getDraft, clearDraft } = usePWAPersistence();
   const draftLoadedRef = useRef(false);
+  
+  // 💎 Network status for offline indicator
+  const isOnline = useNetworkStatus();
 
   // Progress bar animation
   const progressWidth = useSharedValue(0);
@@ -212,6 +216,22 @@ export default function ComposeScreen() {
             )}
           </Pressable>
         </View>
+
+        {/* ========================================
+            Offline Banner 💎
+        ======================================== */}
+        {!isOnline && (
+          <Animated.View 
+            entering={FadeIn.duration(200)}
+            exiting={FadeOut.duration(200)}
+            className="flex-row items-center bg-yellow-500/20 border border-yellow-500/50 mx-4 mt-4 p-3 rounded-xl"
+          >
+            <WifiOff size={18} color="#EAB308" />
+            <Text className="text-yellow-400 flex-1 ml-2">
+              You're offline. Your post will be saved as a draft.
+            </Text>
+          </Animated.View>
+        )}
 
         {/* ========================================
             Error Banner

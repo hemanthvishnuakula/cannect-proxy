@@ -99,6 +99,21 @@ export async function registerWebPushNotifications(userId: string): Promise<Push
       console.log('New Web Push subscription created:', subscription);
     } else {
       console.log('Existing Web Push subscription found:', subscription);
+      
+      // 💎 Check if subscription is about to expire (within 7 days)
+      const expirationTime = (subscription as any).expirationTime;
+      if (expirationTime) {
+        const sevenDaysFromNow = Date.now() + (7 * 24 * 60 * 60 * 1000);
+        if (expirationTime < sevenDaysFromNow) {
+          console.log('[WebPush] Subscription expiring soon, refreshing...');
+          await subscription.unsubscribe();
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
+          });
+          console.log('[WebPush] Subscription refreshed');
+        }
+      }
     }
 
     // Save subscription to Supabase

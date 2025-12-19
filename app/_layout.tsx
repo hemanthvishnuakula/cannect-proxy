@@ -30,6 +30,22 @@ function AppContent() {
   // Initialize push notifications (registers token when authenticated)
   usePushNotifications();
 
+  // 💎 bfcache handling - Invalidate stale queries when page restored from back/forward cache
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+
+    const handlePageShow = (event: PageTransitionEvent) => {
+      // persisted = true means page was restored from bfcache
+      if (event.persisted) {
+        console.log('[bfcache] Page restored from cache, invalidating queries');
+        queryClient.invalidateQueries();
+      }
+    };
+
+    window.addEventListener("pageshow", handlePageShow);
+    return () => window.removeEventListener("pageshow", handlePageShow);
+  }, []);
+
   return (
     <SafeAreaProvider>
       <StatusBar style="light" />
