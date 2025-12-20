@@ -109,13 +109,13 @@ export default function FeedScreen() {
   }
 
   const handleLike = (post: PostWithAuthor) => {
-    // For simple reposts of internal posts, like the ORIGINAL post, not the repost wrapper
-    // This aggregates likes on the original content, not scattered across reposts
-    const isSimpleRepostOfInternal = (post.type === 'repost' || post.is_repost) && 
+    // For quote posts of internal posts, like the QUOTED post, not the quote wrapper
+    // Simple reposts are now in separate table, so we only check for quotes here
+    const isQuoteOfInternal = post.type === 'quote' && 
       post.repost_of_id && 
       !(post as any).external_id;
     
-    const targetId = isSimpleRepostOfInternal ? post.repost_of_id : post.id;
+    const targetId = isQuoteOfInternal ? post.repost_of_id! : post.id;
     
     if (post.is_liked) {
       unlikeMutation.mutate(targetId);

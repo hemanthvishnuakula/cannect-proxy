@@ -30,7 +30,8 @@ export function ProfileHeader({
   onFollowersPress,
   onFollowingPress
 }: ProfileHeaderProps) {
-  const coverUrl = profile.cover_url;
+  // Federation-ready: Use banner_url instead of cover_url
+  const coverUrl = profile.banner_url;
 
   return (
     <View className="bg-background border-b border-border pb-2">

@@ -64,7 +64,7 @@ export default function NotificationsScreen() {
     useCallback(() => {
       const timer = setTimeout(() => {
         if (notifications && notifications.some(n => !n.is_read)) {
-          markAsRead.mutate();
+          markAsRead.mutate(undefined); // Mark all as read (no specific IDs)
         }
       }, 2000);
       

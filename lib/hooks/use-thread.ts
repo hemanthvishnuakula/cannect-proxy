@@ -1,8 +1,11 @@
 /**
  * useThread - Fetch complete thread with ancestors and nested descendants
  * 
- * Implements the Post Ribbon pattern:
- * - Walks up reply_to_id chain for full ancestor context
+ * Federation-Ready (Bluesky AT Protocol compatible):
+ * - Uses thread_parent_id instead of reply_to_id
+ * - Uses thread_root_id for fast thread lookups
+ * - Uses replies_count instead of comments_count
+ * - Walks up thread_parent_id chain for full ancestor context
  * - Fetches nested replies up to MAX_INLINE_DEPTH levels
  * - Supports optimistic updates for new replies
  */
@@ -11,12 +14,12 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/lib/stores';
 import type { PostWithAuthor } from '@/lib/types/database';
-import type { ThreadView, ThreadNode, THREAD_CONFIG } from '@/lib/types/thread';
+import type { ThreadView, ThreadNode } from '@/lib/types/thread';
 
 const POST_SELECT = `
   *,
   author:profiles!user_id(*),
-  original_post:posts!repost_of_id(
+  original_post:repost_of_id(
     *,
     author:profiles!user_id(*)
   )
@@ -56,8 +59,8 @@ export function useThread(postId: string) {
         isLiked = !!like;
       }
 
-      // 3. Recursively fetch ancestors (walk up reply_to_id chain)
-      const ancestors = await fetchAncestors(focusedPost.reply_to_id, user?.id);
+      // 3. Recursively fetch ancestors (walk up thread_parent_id chain)
+      const ancestors = await fetchAncestors(focusedPost.thread_parent_id, user?.id);
 
       // 4. Fetch descendants with nesting (2 levels deep)
       const descendants = await fetchDescendants(postId, 0, 2, user?.id);
@@ -66,7 +69,7 @@ export function useThread(postId: string) {
         focusedPost: { ...focusedPost, is_liked: isLiked } as PostWithAuthor,
         ancestors: ancestors.reverse(), // Root first
         descendants,
-        totalReplies: focusedPost.comments_count || 0,
+        totalReplies: focusedPost.replies_count || 0,
         hasMoreAncestors: false,
       };
     },
@@ -76,19 +79,21 @@ export function useThread(postId: string) {
 }
 
 /**
- * Recursively fetch ancestor posts up the reply chain
+ * Recursively fetch ancestor posts up the thread chain
+ * 
+ * Uses thread_parent_id for walking up the thread tree
  */
 async function fetchAncestors(
-  replyToId: string | null,
+  threadParentId: string | null,
   userId?: string,
   maxDepth: number = 10
 ): Promise<PostWithAuthor[]> {
-  if (!replyToId || maxDepth <= 0) return [];
+  if (!threadParentId || maxDepth <= 0) return [];
 
   const { data: parent, error } = await supabase
     .from('posts')
     .select(POST_SELECT)
-    .eq('id', replyToId)
+    .eq('id', threadParentId)
     .single();
 
   if (error || !parent) return [];
@@ -108,12 +113,14 @@ async function fetchAncestors(
   const parentWithLike = { ...parent, is_liked: isLiked } as PostWithAuthor;
 
   // Recursively get parent's ancestors
-  const grandparents = await fetchAncestors(parent.reply_to_id, userId, maxDepth - 1);
+  const grandparents = await fetchAncestors(parent.thread_parent_id, userId, maxDepth - 1);
   return [...grandparents, parentWithLike];
 }
 
 /**
  * Fetch descendants with nested structure
+ * 
+ * Uses thread_parent_id to find direct children
  */
 async function fetchDescendants(
   parentId: string,
@@ -125,7 +132,7 @@ async function fetchDescendants(
   const { data: replies, error } = await supabase
     .from('posts')
     .select(POST_SELECT)
-    .eq('reply_to_id', parentId)
+    .eq('thread_parent_id', parentId)
     .eq('is_reply', true)
     .order('created_at', { ascending: true })
     .limit(limit);
@@ -163,8 +170,8 @@ async function fetchDescendants(
         post: replyWithLike,
         children,
         depth: currentDepth,
-        hasMoreReplies: (reply.comments_count || 0) > children.length,
-        replyCount: reply.comments_count || 0,
+        hasMoreReplies: (reply.replies_count || 0) > children.length,
+        replyCount: reply.replies_count || 0,
       };
     })
   );
@@ -172,6 +179,8 @@ async function fetchDescendants(
 
 /**
  * Create a reply in a thread with optimistic update
+ * 
+ * Federation-ready: Sets thread_parent_id and thread_root_id
  */
 export function useThreadReply(threadPostId: string) {
   const queryClient = useQueryClient();
@@ -181,7 +190,17 @@ export function useThreadReply(threadPostId: string) {
     mutationFn: async ({ content, parentId }: { content: string; parentId?: string }) => {
       if (!user) throw new Error('Must be logged in');
 
-      const replyToId = parentId || threadPostId;
+      const threadParentId = parentId || threadPostId;
+      
+      // Get parent post's thread info to set thread_root_id
+      const { data: parentPost } = await supabase
+        .from("posts")
+        .select("thread_root_id, thread_depth")
+        .eq("id", threadParentId)
+        .single();
+      
+      const threadRootId = parentPost?.thread_root_id || threadParentId;
+      const threadDepth = (parentPost?.thread_depth ?? 0) + 1;
 
       const { data, error } = await supabase
         .from('posts')
@@ -189,7 +208,10 @@ export function useThreadReply(threadPostId: string) {
           user_id: user.id,
           content,
           is_reply: true,
-          reply_to_id: replyToId,
+          thread_parent_id: threadParentId,
+          thread_root_id: threadRootId,
+          thread_depth: threadDepth,
+          type: 'post',
         })
         .select(POST_SELECT)
         .single();
@@ -198,7 +220,7 @@ export function useThreadReply(threadPostId: string) {
       return data;
     },
     onMutate: async ({ content, parentId }) => {
-      const replyToId = parentId || threadPostId;
+      const threadParentId = parentId || threadPostId;
       
       // Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['thread', threadPostId] });
@@ -215,9 +237,9 @@ export function useThreadReply(threadPostId: string) {
             content,
             created_at: new Date().toISOString(),
             is_reply: true,
-            reply_to_id: replyToId,
+            thread_parent_id: threadParentId,
             likes_count: 0,
-            comments_count: 0,
+            replies_count: 0,
             reposts_count: 0,
             author: {
               id: user.id,
@@ -267,7 +289,7 @@ export function useLoadMoreReplies(threadPostId: string) {
       const { data: replies, error } = await supabase
         .from('posts')
         .select(POST_SELECT)
-        .eq('reply_to_id', parentId)
+        .eq('thread_parent_id', parentId)
         .eq('is_reply', true)
         .order('created_at', { ascending: true })
         .range(offset, offset + 9);
@@ -293,7 +315,7 @@ export function useLoadMoreReplies(threadPostId: string) {
                     children: [],
                     depth: node.depth + 1,
                     hasMoreReplies: false,
-                    replyCount: r.comments_count || 0,
+                    replyCount: r.replies_count || 0,
                   })),
                 ],
                 hasMoreReplies: replies.length === 10, // Has more if we got full page

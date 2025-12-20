@@ -125,8 +125,8 @@ export const ThreadReply = memo(function ThreadReply({
           <View style={styles.actions}>
             <Pressable onPress={handleReply} style={styles.actionButton}>
               <MessageCircle size={16} color="#6B7280" />
-              {post.comments_count > 0 && (
-                <Text style={styles.actionCount}>{post.comments_count}</Text>
+              {(post.replies_count ?? 0) > 0 && (
+                <Text style={styles.actionCount}>{post.replies_count}</Text>
               )}
             </Pressable>
             <Pressable onPress={handleRepost} style={styles.actionButton}>

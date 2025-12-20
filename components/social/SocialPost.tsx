@@ -189,9 +189,10 @@ export const SocialPost = memo(function SocialPost({
   // Store type for later use (avoids TypeScript narrowing issues)
   const postType = post.type;
   
-  // Handle Simple Repost: Only show repost UI when type is explicitly 'repost'
-  // Quote posts (type='quote') have is_repost=true but should NOT show the "reposted" banner
-  const isSimpleRepost = post.type === 'repost' && (hasValidQuotedPost || isCannectRepostOfGlobal);
+  // Handle Quote Posts: type='quote' with a quoted_post to display
+  // In the federation-ready schema, simple reposts are in a separate table
+  // so we only need to handle quotes here (which have their own UI)
+  const isQuotePost = post.type === 'quote' && (hasValidQuotedPost || isCannectRepostOfGlobal);
   
   // For external reposts, construct a virtual quoted_post from the metadata
   const virtualQuotedPost = isCannectRepostOfGlobal && externalData ? {
@@ -203,14 +204,13 @@ export const SocialPost = memo(function SocialPost({
     is_federated: true, // Mark as federated for badge display
   } : null;
   
-  // If it's a simple repost, we effectively "swap" the post to be the quoted one,
-  // but keep the "reposted by" context.
+  // In the federation-ready schema, simple reposts are in a separate table
+  // They don't appear as individual posts in the feed anymore
+  // Quotes show both the user's commentary AND the embedded quoted content
   // Note: displayPost can be the original post, quoted_post, or a virtual object,
   // so we use `any` here for flexibility with the complex union types
-  const displayPost: any = isSimpleRepost 
-    ? (virtualQuotedPost || post.quoted_post) 
-    : post;
-  const reposter = isSimpleRepost ? post.author : null;
+  const displayPost: any = post;
+  const reposter = null; // Reposted-by context is no longer needed here
 
   // Fix: Standardize fallback to match registration logic (using encoded display_name)
   const displayName = displayPost?.author?.display_name || displayPost?.author?.username || "User";
@@ -235,9 +235,6 @@ export const SocialPost = memo(function SocialPost({
   const renderQuotedContent = () => {
     // Live Global items don't show nested quotes in the feed
     if (isLiveGlobal) return null;
-    
-    // Simple reposts swap the display - quote already shown as main content
-    if (isSimpleRepost) return null;
     
     // Shadow Repost of external content (Bluesky snapshot)
     if (isCannectRepostOfGlobal && externalData && postType === 'quote') {
@@ -343,33 +340,9 @@ export const SocialPost = memo(function SocialPost({
   return (
     <Pressable onPress={onPress}>
       <PostRoot>
-        {/* ✅ Edge Case: Repost of deleted post - show graceful fallback */}
-        {isSimpleRepost && !displayPost && (
-          <View className="p-4 opacity-60">
-            <View className="flex-row items-center gap-2 mb-2">
-              <Repeat2 size={14} color="#6B7280" />
-              <Text className="text-xs font-medium text-text-muted">
-                {post.author?.display_name || post.author?.username} reposted
-              </Text>
-            </View>
-            <Text className="text-text-muted italic">
-              This post is no longer available
-            </Text>
-          </View>
-        )}
-
-        {/* Normal post rendering - only when displayPost exists */}
+        {/* Normal post rendering */}
         {displayPost && (
           <>
-        {reposter && (
-          <View className="flex-row items-center gap-2 mb-2 ml-[52px]">
-            <Repeat2 size={14} color="#6B7280" />
-            <Text className="text-xs font-medium text-text-muted">
-              {reposter.id === 'me' ? 'You' : reposter.display_name || reposter.username} reposted
-            </Text>
-          </View>
-        )}
-
         {/* ✅ Gold Standard: Thread Context - "Replying to @username" */}
         {showThreadContext && displayPost?.is_reply && displayPost?.parent_post?.author?.username && (
           <View className="flex-row items-center mb-1 ml-[52px]">
@@ -469,9 +442,9 @@ export const SocialPost = memo(function SocialPost({
           */}
           <ActionButton 
             icon={MessageCircle} 
-            count={isCannectRepostOfGlobal ? post.comments_count : displayPost?.comments_count} 
+            count={isCannectRepostOfGlobal ? post.replies_count : displayPost?.replies_count} 
             onPress={interactionsDisabled ? undefined : onReply}
-            accessibilityLabel={`Reply. ${isCannectRepostOfGlobal ? post.comments_count : displayPost?.comments_count || 0} replies`}
+            accessibilityLabel={`Reply. ${isCannectRepostOfGlobal ? post.replies_count : displayPost?.replies_count || 0} replies`}
           />
           <ActionButton 
             icon={Repeat2} 
@@ -537,7 +510,7 @@ export const SocialPost = memo(function SocialPost({
     prevProps.post.is_liked === nextProps.post.is_liked &&
     prevProps.post.is_reposted_by_me === nextProps.post.is_reposted_by_me &&
     prevProps.post.likes_count === nextProps.post.likes_count &&
-    prevProps.post.comments_count === nextProps.post.comments_count &&
+    prevProps.post.replies_count === nextProps.post.replies_count &&
     prevProps.post.reposts_count === nextProps.post.reposts_count
   );
 });

@@ -105,7 +105,7 @@ export function PostCard({ post, showBorder = false }: PostCardProps) {
             <Pressable className="flex-row items-center gap-1 py-1 px-2">
               <MessageCircle size={18} color="#6B6B6B" />
               <Text className="text-text-muted text-sm">
-                {post.comments_count > 0 ? post.comments_count : ""}
+                {(post.replies_count ?? 0) > 0 ? post.replies_count : ""}
               </Text>
             </Pressable>
 

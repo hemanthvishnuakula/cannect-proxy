@@ -53,7 +53,7 @@ async function fetchActorFeed(handle: string) {
       media_urls: bskyPost.embed?.images?.map((img: any) => img.fullsize) || [],
       likes_count: bskyPost.likeCount || 0,
       reposts_count: bskyPost.repostCount || 0,
-      comments_count: bskyPost.replyCount || 0,
+      replies_count: bskyPost.replyCount || 0,
       is_federated: true,
       type: "post",
       author: {

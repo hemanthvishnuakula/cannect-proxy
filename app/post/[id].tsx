@@ -24,8 +24,6 @@ export default function PostDetailsScreen() {
     isLoading, 
     error, 
     refetch,
-    loadMoreReplies,
-    isLoadingMore,
   } = useThread(id ?? "");
   
   // ✅ Diamond Standard: Custom back handler for direct URL access
@@ -79,12 +77,13 @@ export default function PostDetailsScreen() {
   };
 
   const handleLike = (targetPost: PostWithAuthor) => {
-    // For simple reposts of internal posts, like the ORIGINAL post
-    const isSimpleRepostOfInternal = (targetPost.type === 'repost' || targetPost.is_repost) && 
+    // For quote posts of internal posts, like the QUOTED post
+    // Simple reposts are now in separate table, so we only check for quotes here
+    const isQuoteOfInternal = targetPost.type === 'quote' && 
       targetPost.repost_of_id && 
       !(targetPost as any).external_id;
     
-    const likeTargetId = isSimpleRepostOfInternal && targetPost.repost_of_id 
+    const likeTargetId = isQuoteOfInternal && targetPost.repost_of_id 
       ? targetPost.repost_of_id 
       : targetPost.id;
     
@@ -198,8 +197,6 @@ export default function PostDetailsScreen() {
           onRepost={handleRepost}
           onReply={(post, username) => startReplyToComment(post.id, username)}
           onMore={handleMore}
-          onLoadMoreReplies={loadMoreReplies}
-          isLoadingMoreReplies={isLoadingMore}
         />
 
         {/* ✅ Diamond Standard: Sticky Reply Bar with haptics */}

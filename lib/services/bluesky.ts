@@ -69,7 +69,7 @@ export async function getFederatedPosts(limit = 25) {
         media_urls: bskyPost.embed?.images?.map((img: any) => img.fullsize) || [],
         likes_count: bskyPost.likeCount || 0,
         reposts_count: bskyPost.repostCount || 0,
-        comments_count: bskyPost.replyCount || 0,
+        replies_count: bskyPost.replyCount || 0,
         is_federated: true, // Internal flag for UI logic
         type: 'post',
         author: {
@@ -113,7 +113,7 @@ export async function searchFederatedPosts(query: string, limit = 25) {
       media_urls: bskyPost.embed?.images?.map((img: any) => img.fullsize) || [],
       likes_count: bskyPost.likeCount || 0,
       reposts_count: bskyPost.repostCount || 0,
-      comments_count: bskyPost.replyCount || 0,
+      replies_count: bskyPost.replyCount || 0,
       is_federated: true,
       type: 'post',
       author: {

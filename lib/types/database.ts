@@ -1,199 +1,28 @@
-export type Json =
-  | string
-  | number
-  | boolean
-  | null
-  | { [key: string]: Json | undefined }
-  | Json[];
+/**
+ * Database Types - Re-exports from generated Supabase types + helper types
+ * 
+ * This file re-exports the auto-generated Supabase types and adds
+ * helper types for common patterns like posts with authors.
+ */
 
-export interface Database {
-  public: {
-    Tables: {
-      profiles: {
-        Row: {
-          id: string;
-          username: string;
-          display_name: string | null;
-          avatar_url: string | null;
-          cover_url: string | null;
-          bio: string | null;
-          website: string | null;
-          followers_count: number;
-          following_count: number;
-          posts_count: number;
-          is_verified: boolean;
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id: string;
-          username: string;
-          display_name?: string | null;
-          avatar_url?: string | null;
-          cover_url?: string | null;
-          bio?: string | null;
-          website?: string | null;
-          followers_count?: number;
-          following_count?: number;
-          posts_count?: number;
-          is_verified?: boolean;
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          username?: string;
-          display_name?: string | null;
-          avatar_url?: string | null;
-          cover_url?: string | null;
-          bio?: string | null;
-          website?: string | null;
-          followers_count?: number;
-          following_count?: number;
-          posts_count?: number;
-          is_verified?: boolean;
-          created_at?: string;
-          updated_at?: string;
-        };
-      };
-      posts: {
-        Row: {
-          id: string;
-          user_id: string;
-          content: string;
-          media_urls: string[] | null;
-          video_url: string | null;
-          video_thumbnail_url: string | null;
-          likes_count: number;
-          comments_count: number;
-          reposts_count: number;
-          is_reply: boolean;
-          reply_to_id: string | null;
-          is_repost: boolean;
-          repost_of_id: string | null;
-          type: 'post' | 'repost' | 'quote';
-          created_at: string;
-          updated_at: string;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          content: string;
-          media_urls?: string[] | null;
-          video_url?: string | null;
-          video_thumbnail_url?: string | null;
-          likes_count?: number;
-          comments_count?: number;
-          reposts_count?: number;
-          is_reply?: boolean;
-          reply_to_id?: string | null;
-          is_repost?: boolean;
-          repost_of_id?: string | null;
-          type?: 'post' | 'repost' | 'quote';
-          created_at?: string;
-          updated_at?: string;
-        };
-        Update: {
-          id?: string;
-          user_id?: string;
-          content?: string;
-          media_urls?: string[] | null;
-          video_url?: string | null;
-          video_thumbnail_url?: string | null;
-          likes_count?: number;
-          comments_count?: number;
-          reposts_count?: number;
-          is_reply?: boolean;
-          reply_to_id?: string | null;
-          is_repost?: boolean;
-          repost_of_id?: string | null;
-          type?: 'post' | 'repost' | 'quote';
-          created_at?: string;
-          updated_at?: string;
-        };
-      };
-      likes: {
-        Row: {
-          id: string;
-          user_id: string;
-          post_id: string;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          post_id: string;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          user_id?: string;
-          post_id?: string;
-          created_at?: string;
-        };
-      };
-      follows: {
-        Row: {
-          id: string;
-          follower_id: string;
-          following_id: string;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          follower_id: string;
-          following_id: string;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          follower_id?: string;
-          following_id?: string;
-          created_at?: string;
-        };
-      };
-      notifications: {
-        Row: {
-          id: string;
-          user_id: string;
-          actor_id: string;
-          type: "like" | "follow" | "comment" | "repost" | "mention";
-          post_id: string | null;
-          is_read: boolean;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          user_id: string;
-          actor_id: string;
-          type: "like" | "follow" | "comment" | "repost" | "mention";
-          post_id?: string | null;
-          is_read?: boolean;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          user_id?: string;
-          actor_id?: string;
-          type?: "like" | "follow" | "comment" | "repost" | "mention";
-          post_id?: string | null;
-          is_read?: boolean;
-          created_at?: string;
-        };
-      };
-    };
-    Views: {};
-    Functions: {};
-    Enums: {};
-  };
-}
+// Re-export generated types from Supabase CLI
+export type { Database, Json } from "./supabase";
+export type { Database as DB } from "./supabase";
 
-// Helper types
+import type { Database } from "./supabase";
+
+// =====================================================
+// Table row types (shortcuts)
+// =====================================================
 export type Profile = Database["public"]["Tables"]["profiles"]["Row"];
 export type Post = Database["public"]["Tables"]["posts"]["Row"];
 export type Like = Database["public"]["Tables"]["likes"]["Row"];
+export type Repost = Database["public"]["Tables"]["reposts"]["Row"];
 export type Follow = Database["public"]["Tables"]["follows"]["Row"];
 export type Notification = Database["public"]["Tables"]["notifications"]["Row"];
+
+// Notification reason type (matches AT Protocol pattern)
+export type NotificationReason = Notification["reason"];
 
 // =====================================================
 // Extended types with relations
@@ -208,12 +37,13 @@ export interface ExternalMetadata {
     display_name?: string;
     avatar_url?: string;
     handle?: string;
+    did?: string;
   };
   media_urls?: string[];
   created_at?: string;
   likes_count?: number;
   reposts_count?: number;
-  comments_count?: number;
+  replies_count?: number;
 }
 
 /** Parent post context for thread display */
@@ -224,33 +54,42 @@ export interface ParentPostContext {
   };
 }
 
+/** Repost record with reposter info */
+export interface RepostWithReposter extends Repost {
+  reposter?: Profile;
+}
+
 /** Base post with author relation */
 export interface BasePostWithAuthor extends Post {
   author: Profile;
   is_liked?: boolean;
   is_reposted_by_me?: boolean;
+  // For feed: who reposted this (if shown via repost)
+  reposted_by?: Profile | null;
+  reposted_at?: string | null;
+  // Quoted post (for type='quote')
   quoted_post?: (Post & { 
     author: Profile;
-    quoted_post_id?: string | null;
   }) | null;
+  // Parent post context for replies
   parent_post?: ParentPostContext | null;
 }
 
 /** Local Cannect post (native content) */
 export interface LocalPost extends BasePostWithAuthor {
   is_federated?: false;
-  external_id?: undefined;
-  external_source?: undefined;
-  external_metadata?: undefined;
 }
 
-/** Federated post from external source (e.g., Bluesky) */
-export interface FederatedPost extends BasePostWithAuthor {
+/** 
+ * Federated post from external source (e.g., Bluesky)
+ * Uses Omit + intersection to properly override external_metadata type
+ */
+export type FederatedPost = Omit<BasePostWithAuthor, 'external_metadata'> & {
   is_federated: true;
-  external_id: string;
-  external_source: "bluesky" | string;
-  external_metadata: ExternalMetadata;
-}
+  external_id: string | null;
+  external_source: string | null;
+  external_metadata: ExternalMetadata | null;
+};
 
 /** Discriminated union for all post types */
 export type PostWithAuthor = LocalPost | FederatedPost;
@@ -262,10 +101,25 @@ export function isFederatedPost(post: PostWithAuthor): post is FederatedPost {
 
 /** Type guard for posts with external metadata (shadow reposts) */
 export function hasExternalMetadata(post: PostWithAuthor): post is FederatedPost {
-  return 'external_id' in post && 'external_metadata' in post && !!post.external_metadata;
+  return 'external_id' in post && 'external_metadata' in post && 
+    post.external_id != null && post.external_metadata != null;
 }
 
+/** Notification with actor profile */
 export type NotificationWithActor = Notification & {
   actor: Profile;
   post?: Post;
 };
+
+// =====================================================
+// Legacy aliases for backward compatibility
+// =====================================================
+
+/** @deprecated Use thread_parent_id instead */
+export type LegacyReplyToId = string | null;
+
+/** @deprecated Use replies_count instead */
+export type LegacyCommentsCount = number;
+
+/** @deprecated Use reason instead of type for notifications */
+export type LegacyNotificationType = "like" | "follow" | "comment" | "repost" | "mention";

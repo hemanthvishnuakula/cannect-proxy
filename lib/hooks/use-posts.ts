@@ -1,3 +1,13 @@
+/**
+ * use-posts.ts - Federation-Ready Post Hooks
+ * 
+ * Updated for Bluesky AT Protocol compatibility:
+ * - Uses thread_parent_id instead of reply_to_id
+ * - Uses replies_count instead of comments_count  
+ * - Reposts use separate `reposts` table (pointer model like Bluesky)
+ * - Quotes still use posts table with type='quote'
+ */
+
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { queryKeys } from "@/lib/query-client";
@@ -7,7 +17,9 @@ import { useAuthStore } from "@/lib/stores";
 const POSTS_PER_PAGE = 20;
 
 /**
- * Helper to enrich posts with "is_liked", "likes_count", and "is_reposted_by_me"
+ * Helper to enrich posts with engagement flags and counts
+ * 
+ * Federation-ready: Uses separate `reposts` table for is_reposted_by_me
  */
 async function fetchPostsWithCounts(query: any, userId?: string) {
   // 1. Get the raw posts
@@ -24,7 +36,7 @@ async function fetchPostsWithCounts(query: any, userId?: string) {
   
   if (allRelevantIds.length === 0) return [];
 
-  // 3. Get "Liked By Me" status (check both wrapper and original content)
+  // 3. Get "Liked By Me" status
   let likedPostIds = new Set<string>();
   if (userId) {
     const { data: myLikes } = await supabase
@@ -36,44 +48,42 @@ async function fetchPostsWithCounts(query: any, userId?: string) {
     myLikes?.forEach((l: any) => likedPostIds.add(l.post_id));
   }
 
-  // 4. Get "Reposted By Me" status - check for SIMPLE reposts only (type='repost')
-  // Quote posts (type='quote') don't count as "reposted" for the toggle button
+  // 4. Get "Reposted By Me" status from the REPOSTS TABLE (Bluesky pattern)
+  // This is the key federation change - reposts are now a pointer table
   let repostedPostIds = new Set<string>();
   if (userId) {
     const { data: myReposts } = await supabase
-      .from("posts")
-      .select("repost_of_id, external_id")
+      .from("reposts")
+      .select("post_id")
       .eq("user_id", userId)
-      .eq("type", "repost");
+      .in("post_id", allRelevantIds);
       
     myReposts?.forEach((r: any) => {
-      if (r.repost_of_id) repostedPostIds.add(r.repost_of_id);
-      if (r.external_id) repostedPostIds.add(r.external_id);
+      if (r.post_id) repostedPostIds.add(r.post_id);
     });
   }
 
   // 5. Return Enriched Posts with Live Engagement Sync
   return posts.map((post: any) => {
-    // ✅ Gold Standard: For reposts, use the original post's live engagement
-    const isRepost = post.type === 'repost' && post.quoted_post;
-    const liveSource = isRepost ? post.quoted_post : post;
+    // For quote posts, the quoted_post contains the original content
+    const isQuote = post.type === 'quote' && post.quoted_post;
+    const liveSource = isQuote ? post.quoted_post : post;
     const sourceId = liveSource?.id || post.id;
     
     return {
       ...post,
-      // ✅ Check if the ORIGINAL content is liked (not the wrapper)
+      // Check if the ORIGINAL content is liked (not the wrapper)
       is_liked: likedPostIds.has(sourceId),
-      // ✅ Check if the ORIGINAL content is reposted by me
+      // Check if the ORIGINAL content is reposted by me (from reposts table)
       is_reposted_by_me: repostedPostIds.has(sourceId) || repostedPostIds.has(post.id),
-      // Sync live counts from original post if it's a repost
-      likes_count: isRepost && liveSource?.likes 
+      // Sync live counts from original post if it's a quote
+      likes_count: isQuote && liveSource?.likes 
         ? (liveSource.likes?.[0]?.count ?? liveSource.likes_count ?? 0)
         : (post.likes?.[0]?.count ?? post.likes_count ?? 0),
-      comments_count: isRepost && liveSource?.comments_count !== undefined
-        ? liveSource.comments_count
-        : post.comments_count,
-      // ✅ Sync reposts_count from original content (the "Viral" effect)
-      reposts_count: isRepost && liveSource?.reposts_count !== undefined
+      replies_count: isQuote && liveSource?.replies_count !== undefined
+        ? liveSource.replies_count
+        : post.replies_count,
+      reposts_count: isQuote && liveSource?.reposts_count !== undefined
         ? liveSource.reposts_count
         : post.reposts_count,
     };
@@ -82,6 +92,11 @@ async function fetchPostsWithCounts(query: any, userId?: string) {
 
 // --- Modified Fetchers ---
 
+/**
+ * Main feed query - includes own posts + reposts from reposts table
+ * 
+ * Federation-ready: Uses thread_parent_id, replies_count, and reposts table
+ */
 export function useFeed() {
   const { user } = useAuthStore();
   
@@ -91,10 +106,8 @@ export function useFeed() {
       const from = pageParam * POSTS_PER_PAGE;
       const to = from + POSTS_PER_PAGE - 1;
 
-      // Select with a Count for likes
-      // Note: For quoted_post, we use repost_of_id to get the original post this one is quoting
-      // Also include external_* columns for shadow reposts of federated content
-      // ✅ Gold Standard: Join parent_post for "Replying to" context
+      // Select posts with thread context
+      // Note: For quotes, we use repost_of_id to get the original post being quoted
       const query = supabase
         .from("posts")
         .select(`
@@ -107,14 +120,15 @@ export function useFeed() {
             created_at,
             media_urls,
             is_reply,
-            reply_to_id,
-            comments_count,
+            thread_parent_id,
+            thread_root_id,
+            replies_count,
             reposts_count,
             quoted_post_id:repost_of_id,
             author:profiles!user_id(*),
             likes:likes(count)
           ),
-          parent_post:reply_to_id(
+          parent_post:thread_parent_id(
             author:profiles!user_id(username, display_name)
           ),
           external_id,
@@ -132,7 +146,9 @@ export function useFeed() {
   });
 }
 
-// ✅ Following Feed - Only posts from users the current user follows
+/**
+ * Following Feed - Only posts from users the current user follows
+ */
 export function useFollowingFeed() {
   const { user } = useAuthStore();
   
@@ -172,14 +188,15 @@ export function useFollowingFeed() {
             created_at,
             media_urls,
             is_reply,
-            reply_to_id,
-            comments_count,
+            thread_parent_id,
+            thread_root_id,
+            replies_count,
             reposts_count,
             quoted_post_id:repost_of_id,
             author:profiles!user_id(*),
             likes:likes(count)
           ),
-          parent_post:reply_to_id(
+          parent_post:thread_parent_id(
             author:profiles!user_id(username, display_name)
           ),
           external_id,
@@ -205,7 +222,6 @@ export function usePost(postId: string) {
   return useQuery({
     queryKey: queryKeys.posts.detail(postId),
     queryFn: async () => {
-      // ✅ Gold Standard: Include parent_post for "Replying to" context
       const query = supabase
         .from("posts")
         .select(`
@@ -218,14 +234,15 @@ export function usePost(postId: string) {
             created_at,
             media_urls,
             is_reply,
-            reply_to_id,
-            comments_count,
+            thread_parent_id,
+            thread_root_id,
+            replies_count,
             reposts_count,
             quoted_post_id:repost_of_id,
             author:profiles!user_id(*),
             likes:likes(count)
           ),
-          parent_post:reply_to_id(
+          parent_post:thread_parent_id(
             author:profiles!user_id(username, display_name)
           ),
           external_id,
@@ -246,17 +263,21 @@ export function usePost(postId: string) {
   });
 }
 
+/**
+ * Fetch direct replies to a post
+ * 
+ * Federation-ready: Uses thread_parent_id instead of reply_to_id
+ */
 export function usePostReplies(postId: string) {
   const { user } = useAuthStore();
   return useQuery({
     queryKey: queryKeys.posts.replies(postId),
     queryFn: async () => {
-      // Infinite Pivot: Only fetch DIRECT replies to this post/comment
-      // Each comment can be "pivoted" to become the main post, fetching its own direct replies
+      // Fetch DIRECT replies using thread_parent_id
       const { data: replies, error } = await supabase
         .from("posts")
         .select(`*, author:profiles!user_id(*), likes:likes(count)`)
-        .eq("reply_to_id", postId)
+        .eq("thread_parent_id", postId)
         .order("created_at", { ascending: true });
       
       if (error) throw error;
@@ -268,7 +289,7 @@ export function usePostReplies(postId: string) {
       let repostedPostIds = new Set<string>();
       
       if (user?.id) {
-        // ✅ Diamond Standard: Check likes
+        // Check likes
         const { data: myLikes } = await supabase
           .from("likes")
           .select("post_id")
@@ -276,25 +297,23 @@ export function usePostReplies(postId: string) {
           .in("post_id", postIds);
         myLikes?.forEach((l: any) => likedPostIds.add(l.post_id));
         
-        // ✅ Diamond Standard: Check reposts (fixes green state for reposted replies)
+        // Check reposts from REPOSTS TABLE (federation pattern)
         const { data: myReposts } = await supabase
-          .from("posts")
-          .select("repost_of_id, external_id")
+          .from("reposts")
+          .select("post_id")
           .eq("user_id", user.id)
-          .eq("type", "repost")
-          .in("repost_of_id", postIds);
+          .in("post_id", postIds);
         myReposts?.forEach((r: any) => {
-          if (r.repost_of_id) repostedPostIds.add(r.repost_of_id);
-          if (r.external_id) repostedPostIds.add(r.external_id);
+          if (r.post_id) repostedPostIds.add(r.post_id);
         });
       }
       
       return replies.map((post: any) => ({
         ...post,
         likes_count: post.likes?.[0]?.count ?? 0,
-        comments_count: post.comments_count ?? 0,
+        replies_count: post.replies_count ?? 0,
         is_liked: likedPostIds.has(post.id),
-        is_reposted_by_me: repostedPostIds.has(post.id), // ✅ Now replies show green repost state
+        is_reposted_by_me: repostedPostIds.has(post.id),
       }));
     },
     enabled: !!postId,
@@ -302,8 +321,8 @@ export function usePostReplies(postId: string) {
 }
 
 /**
- * Gold Standard Profile Tabs:
- * - 'posts': Original posts + reposts (public face)
+ * Profile Tabs:
+ * - 'posts': Original posts + quotes (public face)
  * - 'replies': Comments/replies with thread context
  * - 'media': Posts containing images/videos
  */
@@ -328,7 +347,7 @@ export function useUserPosts(userId: string, tab: ProfileTab = 'posts') {
             author:profiles!user_id(*),
             likes:likes(count)
           ),
-          parent_post:reply_to_id(
+          parent_post:thread_parent_id(
             author:profiles!user_id(username, display_name)
           )
         `)
@@ -336,9 +355,9 @@ export function useUserPosts(userId: string, tab: ProfileTab = 'posts') {
         .order("created_at", { ascending: false })
         .range(from, to);
 
-      // ✅ Diamond Standard Tab Filtering
+      // Tab Filtering
       if (tab === 'posts') {
-        // Show ONLY original content (posts, reposts, quotes) - strictly exclude replies
+        // Show ONLY original content (posts, quotes) - exclude replies
         query = query.eq('is_reply', false);
       } else if (tab === 'replies') {
         // Show ONLY conversational interactions - all replies
@@ -372,9 +391,7 @@ export function useLikePost() {
       if (error) throw error;
       return postId;
     },
-    // Optimistic Update: Update UI immediately
     onMutate: async (postId) => {
-      // Cancel both feed and detail queries
       await queryClient.cancelQueries({ queryKey: queryKeys.posts.all });
       await queryClient.cancelQueries({ queryKey: queryKeys.posts.detail(postId) });
       
@@ -433,7 +450,6 @@ export function useUnlikePost() {
       return postId;
     },
     onMutate: async (postId) => {
-      // Cancel both feed and detail queries
       await queryClient.cancelQueries({ queryKey: queryKeys.posts.all });
       await queryClient.cancelQueries({ queryKey: queryKeys.posts.detail(postId) });
       
@@ -475,11 +491,14 @@ export function useUnlikePost() {
   });
 }
 
-// Keep existing hooks below
-
+/**
+ * Create a new post
+ * 
+ * Federation-ready: Uses thread_parent_id/thread_root_id for replies
+ */
 export function useCreatePost() {
   const queryClient = useQueryClient();
-  const { user } = useAuthStore(); // Use store instead of calling getSession
+  const { user } = useAuthStore();
 
   return useMutation({
     mutationFn: async ({ 
@@ -496,6 +515,24 @@ export function useCreatePost() {
       videoThumbnailUrl?: string;
     }) => {
       if (!user) throw new Error("Not authenticated");
+      
+      // For replies, we need to determine thread_root_id
+      let threadRootId: string | undefined;
+      let threadDepth = 0;
+      
+      if (replyToId) {
+        // Fetch the parent post to get its thread_root_id
+        const { data: parentPost } = await supabase
+          .from("posts")
+          .select("thread_root_id, thread_depth")
+          .eq("id", replyToId)
+          .single();
+        
+        // If parent has a thread_root_id, use it; otherwise parent IS the root
+        threadRootId = parentPost?.thread_root_id || replyToId;
+        threadDepth = (parentPost?.thread_depth ?? 0) + 1;
+      }
+      
       const { data, error } = await supabase.from("posts").insert({
         user_id: user.id,
         content,
@@ -503,30 +540,29 @@ export function useCreatePost() {
         video_url: videoUrl,
         video_thumbnail_url: videoThumbnailUrl,
         is_reply: !!replyToId,
-        reply_to_id: replyToId,
-        type: 'post', // Explicitly set type to 'post' for new posts
-        is_repost: false,
+        thread_parent_id: replyToId || null,
+        thread_root_id: threadRootId || null,
+        thread_depth: threadDepth,
+        type: 'post',
       }).select(`*, author:profiles!user_id(*)`).single();
       
       if (error) throw error;
-      return { ...data, _replyToId: replyToId }; // Pass through for onSuccess
+      return { ...data, _replyToId: replyToId };
     },
-    // Optimistic Update: Increment parent's comments_count instantly for snappy UX
+    // Optimistic Update: Increment parent's replies_count instantly
     onMutate: async ({ replyToId }) => {
       if (!replyToId) return {};
       
-      // Cancel outgoing refetches so they don't overwrite our optimistic update
       await queryClient.cancelQueries({ queryKey: queryKeys.posts.detail(replyToId) });
       await queryClient.cancelQueries({ queryKey: queryKeys.posts.all });
       
-      // Snapshot previous values for rollback
       const previousDetail = queryClient.getQueryData(queryKeys.posts.detail(replyToId));
       const previousFeed = queryClient.getQueryData(queryKeys.posts.all);
       
-      // Optimistically update the parent post's comments_count in Detail view
+      // Optimistically update the parent post's replies_count
       queryClient.setQueryData(queryKeys.posts.detail(replyToId), (old: any) => {
         if (!old) return old;
-        return { ...old, comments_count: (old.comments_count || 0) + 1 };
+        return { ...old, replies_count: (old.replies_count || 0) + 1 };
       });
       
       // Also update in Feed (if parent post is visible there)
@@ -537,7 +573,7 @@ export function useCreatePost() {
           pages: old.pages.map((page: any) => 
             page.map((post: any) => 
               post.id === replyToId 
-                ? { ...post, comments_count: (post.comments_count || 0) + 1 }
+                ? { ...post, replies_count: (post.replies_count || 0) + 1 }
                 : post
             )
           ),
@@ -547,7 +583,6 @@ export function useCreatePost() {
       return { previousDetail, previousFeed, replyToId };
     },
     onError: (err, variables, context) => {
-      // Rollback on error
       if (context?.replyToId && context?.previousDetail) {
         queryClient.setQueryData(queryKeys.posts.detail(context.replyToId), context.previousDetail);
       }
@@ -556,20 +591,13 @@ export function useCreatePost() {
       }
     },
     onSuccess: (data) => {
-      // Invalidate feed and profile
       queryClient.invalidateQueries({ queryKey: queryKeys.posts.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.profiles.detail(user?.id!) });
-      
-      // ✅ Invalidate user posts for ALL tabs (posts, replies, media) to update profile tabs
       queryClient.invalidateQueries({ queryKey: queryKeys.posts.byUser(user?.id!) });
       
-      // If this was a reply, invalidate the thread's replies
       if (data._replyToId) {
-        // Invalidate replies for the immediate parent
         queryClient.invalidateQueries({ queryKey: queryKeys.posts.replies(data._replyToId) });
-        // Also invalidate the parent's detail to sync real count from DB
         queryClient.invalidateQueries({ queryKey: queryKeys.posts.detail(data._replyToId) });
-        // The parent post might be a reply itself, so we invalidate all reply queries
         queryClient.invalidateQueries({ predicate: (query) => 
           query.queryKey[0] === 'posts' && query.queryKey[1] === 'replies'
         });
@@ -579,10 +607,9 @@ export function useCreatePost() {
 }
 
 /**
- * Diamond Standard: Create Reply with Optimistic Updates
+ * Create Reply with Optimistic Updates
  * 
- * The reply appears INSTANTLY in the thread with a "sending..." state.
- * If the server fails, it gracefully rolls back.
+ * Federation-ready: Uses thread_parent_id and thread_root_id
  */
 export function useCreateReply(postId: string) {
   const queryClient = useQueryClient();
@@ -592,15 +619,26 @@ export function useCreateReply(postId: string) {
     mutationFn: async (content: string) => {
       if (!user) throw new Error("Not authenticated");
       
+      // Get parent post's thread info
+      const { data: parentPost } = await supabase
+        .from("posts")
+        .select("thread_root_id, thread_depth")
+        .eq("id", postId)
+        .single();
+      
+      const threadRootId = parentPost?.thread_root_id || postId;
+      const threadDepth = (parentPost?.thread_depth ?? 0) + 1;
+      
       const { data, error } = await supabase
         .from("posts")
         .insert({
           user_id: user.id,
           content,
-          reply_to_id: postId,
+          thread_parent_id: postId,
+          thread_root_id: threadRootId,
+          thread_depth: threadDepth,
           is_reply: true,
           type: "post",
-          is_repost: false,
         })
         .select(`*, author:profiles!user_id(*)`)
         .single();
@@ -608,17 +646,14 @@ export function useCreateReply(postId: string) {
       if (error) throw error;
       return data;
     },
-    // ✅ Optimistic Update: Instant feedback
     onMutate: async (newContent) => {
-      // 1. Cancel outgoing refetches
       await queryClient.cancelQueries({ queryKey: queryKeys.posts.replies(postId) });
       await queryClient.cancelQueries({ queryKey: queryKeys.posts.detail(postId) });
 
-      // 2. Snapshot current cache for rollback
       const previousReplies = queryClient.getQueryData(queryKeys.posts.replies(postId));
       const previousDetail = queryClient.getQueryData(queryKeys.posts.detail(postId));
 
-      // 3. Optimistically inject the new reply
+      // Optimistically inject the new reply
       queryClient.setQueryData(queryKeys.posts.replies(postId), (old: any) => {
         const optimisticReply = {
           id: `optimistic-${Date.now()}`,
@@ -632,72 +667,54 @@ export function useCreateReply(postId: string) {
           },
           created_at: new Date().toISOString(),
           likes_count: 0,
-          comments_count: 0,
+          replies_count: 0,
           reposts_count: 0,
           is_liked: false,
-          is_optimistic: true, // 👈 Flag for "sending..." UI state
+          is_optimistic: true,
         };
         return [...(old || []), optimisticReply];
       });
 
-      // 4. Optimistically increment parent's comments_count
+      // Optimistically increment parent's replies_count
       queryClient.setQueryData(queryKeys.posts.detail(postId), (old: any) => {
         if (!old) return old;
-        return { ...old, comments_count: (old.comments_count || 0) + 1 };
+        return { ...old, replies_count: (old.replies_count || 0) + 1 };
       });
 
       return { previousReplies, previousDetail };
     },
     onError: (err, newContent, context) => {
-      // Rollback on failure
       queryClient.setQueryData(queryKeys.posts.replies(postId), context?.previousReplies);
       queryClient.setQueryData(queryKeys.posts.detail(postId), context?.previousDetail);
     },
     onSettled: () => {
-      // Sync with server to get real IDs
       queryClient.invalidateQueries({ queryKey: queryKeys.posts.replies(postId) });
       queryClient.invalidateQueries({ queryKey: queryKeys.posts.detail(postId) });
-      // Also invalidate user's profile to show new reply in Replies tab
       queryClient.invalidateQueries({ queryKey: queryKeys.posts.byUser(user?.id!) });
     },
   });
 }
 
-export function useRepost() {
+/**
+ * Create a Quote Post (with commentary)
+ * 
+ * Quotes remain in the posts table with type='quote'
+ */
+export function useQuotePost() {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
 
   return useMutation({
-    mutationFn: async ({ originalPost, content = "" }: { originalPost: any, content?: string }) => {
+    mutationFn: async ({ originalPostId, content }: { originalPostId: string, content: string }) => {
       if (!user) throw new Error("Not authenticated");
       
-      const insertData: any = {
+      const { error } = await supabase.from("posts").insert({
         user_id: user.id,
         content: content,
-        is_repost: true,
-      };
-
-      // If it's a federated post, save as an external reference (Shadow Repost)
-      if (originalPost.is_federated) {
-        insertData.external_id = originalPost.id; // Bluesky CID
-        insertData.external_source = "bluesky";
-        insertData.external_metadata = {
-          author: originalPost.author,
-          content: originalPost.content,
-          media_urls: originalPost.media_urls,
-          created_at: originalPost.created_at,
-          likes_count: originalPost.likes_count,
-          reposts_count: originalPost.reposts_count,
-          comments_count: originalPost.comments_count,
-        };
-        insertData.type = content ? 'quote' : 'repost';
-      } else {
-        // Internal post - use repost_of_id
-        insertData.repost_of_id = originalPost.id;
-        insertData.type = content ? 'quote' : 'repost';
-      }
-
-      const { error } = await supabase.from("posts").insert(insertData);
+        repost_of_id: originalPostId,
+        type: 'quote',
+      });
+      
       if (error) throw error;
     },
     onSuccess: () => {
@@ -708,8 +725,10 @@ export function useRepost() {
 
 /**
  * Toggle Repost - Creates or Undoes a simple repost
- * Green icon = already reposted (click to undo)
- * Grey icon = not reposted (click to repost)
+ * 
+ * FEDERATION-READY: Uses separate `reposts` table (Bluesky pointer model)
+ * - Reposts are now a separate table, not posts with is_repost=true
+ * - This is identical to how Bluesky handles reposts
  */
 export function useToggleRepost() {
   const queryClient = useQueryClient();
@@ -719,64 +738,27 @@ export function useToggleRepost() {
     mutationFn: async ({ post, undo = false }: { post: any, undo?: boolean }) => {
       if (!user) throw new Error("Not authenticated");
 
+      const targetId = post.id;
+
       if (undo || post.is_reposted_by_me) {
-        // UNDO REPOST: Delete the repost row from our posts table
-        // ✅ Gold Standard: Target the ORIGINAL content ID, not the wrapper
-        if (post.is_federated) {
-          // For federated posts, match by external_id
-          const targetId = post.external_id || post.id;
-          const { error } = await supabase
-            .from("posts")
-            .delete()
-            .eq("user_id", user.id)
-            .eq("external_id", targetId)
-            .eq("is_repost", true);
-          if (error) throw error;
-        } else {
-          // For internal posts, match by repost_of_id and type="repost" (not quote)
-          // If this IS a repost wrapper, target its quoted_post.id
-          // If this is the original post, target its own id
-          const targetId = post.quoted_post?.id || post.repost_of_id || post.id;
-          const { error } = await supabase
-            .from("posts")
-            .delete()
-            .eq("user_id", user.id)
-            .eq("repost_of_id", targetId)
-            .eq("type", "repost");
-          if (error) throw error;
-        }
+        // UNDO REPOST: Delete from reposts table
+        const { error } = await supabase
+          .from("reposts")
+          .delete()
+          .eq("user_id", user.id)
+          .eq("post_id", targetId);
+        if (error) throw error;
       } else {
-        // CREATE SIMPLE REPOST
-        const insertData: any = {
+        // CREATE REPOST: Insert into reposts table
+        const { error } = await supabase.from("reposts").insert({
           user_id: user.id,
-          content: "",
-          is_repost: true,
-          type: "repost",
-        };
-
-        if (post.is_federated) {
-          insertData.external_id = post.id;
-          insertData.external_source = "bluesky";
-          insertData.external_metadata = {
-            author: post.author,
-            content: post.content,
-            media_urls: post.media_urls,
-            created_at: post.created_at,
-            likes_count: post.likes_count,
-            reposts_count: post.reposts_count,
-            comments_count: post.comments_count,
-          };
-        } else {
-          insertData.repost_of_id = post.id;
-        }
-
-        const { error } = await supabase.from("posts").insert(insertData);
+          post_id: targetId,
+        });
         if (error) throw error;
       }
     },
     // Optimistic update for instant feedback
     onMutate: async ({ post, undo }) => {
-      // ✅ Diamond Standard: Cancel and snapshot BOTH feed and detail caches
       await queryClient.cancelQueries({ queryKey: queryKeys.posts.all });
       await queryClient.cancelQueries({ queryKey: queryKeys.posts.detail(post.id) });
       
@@ -806,7 +788,7 @@ export function useToggleRepost() {
         };
       });
 
-      // ✅ Diamond Standard: Also update Detail view cache
+      // Also update Detail view cache
       queryClient.setQueryData(queryKeys.posts.detail(post.id), (old: any) => {
         if (!old) return old;
         return {
@@ -821,7 +803,6 @@ export function useToggleRepost() {
       return { previousPosts, previousDetail, postId: post.id };
     },
     onError: (err, vars, context) => {
-      // Rollback both caches on error
       queryClient.setQueryData(queryKeys.posts.all, context?.previousPosts);
       if (context?.postId) {
         queryClient.setQueryData(queryKeys.posts.detail(context.postId), context?.previousDetail);
@@ -830,10 +811,45 @@ export function useToggleRepost() {
     onSettled: (data, error, { post }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.posts.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.posts.detail(post.id) });
-      // ✅ Fix: Invalidate user profile posts (repost appears in their profile)
       if (user?.id) {
         queryClient.invalidateQueries({ queryKey: queryKeys.posts.byUser(user.id) });
       }
+    },
+  });
+}
+
+/**
+ * Legacy repost function - for creating quote posts
+ * @deprecated Use useQuotePost for quotes, useToggleRepost for simple reposts
+ */
+export function useRepost() {
+  const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+
+  return useMutation({
+    mutationFn: async ({ originalPost, content = "" }: { originalPost: any, content?: string }) => {
+      if (!user) throw new Error("Not authenticated");
+      
+      if (content) {
+        // Quote post - goes in posts table
+        const { error } = await supabase.from("posts").insert({
+          user_id: user.id,
+          content: content,
+          repost_of_id: originalPost.id,
+          type: 'quote',
+        });
+        if (error) throw error;
+      } else {
+        // Simple repost - goes in reposts table
+        const { error } = await supabase.from("reposts").insert({
+          user_id: user.id,
+          post_id: originalPost.id,
+        });
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.posts.all });
     },
   });
 }

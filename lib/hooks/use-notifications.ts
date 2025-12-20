@@ -1,12 +1,22 @@
+/**
+ * use-notifications.ts - Federation-Ready Notifications
+ * 
+ * Updated for Bluesky AT Protocol compatibility:
+ * - Uses `reason` instead of `type` (matches Bluesky notification reasons)
+ * - Supports: like, repost, follow, mention, reply, quote
+ */
+
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/lib/stores";
+import type { NotificationReason } from "@/lib/types/database";
 
 interface Notification {
   id: string;
   user_id: string;
   actor_id: string;
-  type: "like" | "comment" | "follow" | "repost";
+  // Federation-ready: use 'reason' instead of 'type' (Bluesky pattern)
+  reason: NotificationReason;
   post_id?: string;
   is_read: boolean;
   created_at: string;
