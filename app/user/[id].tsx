@@ -61,7 +61,11 @@ export default function UserProfileScreen() {
     if (isFollowing) {
       unfollowMutation.mutate(profile.id);
     } else {
-      followMutation.mutate(profile.id);
+      // Pass DID for AT Protocol federation
+      followMutation.mutate({ 
+        targetUserId: profile.id, 
+        targetDid: (profile as any).did 
+      });
     }
   };
   
@@ -74,7 +78,12 @@ export default function UserProfileScreen() {
     if (post.is_liked) {
       unlikeMutation.mutate(targetId);
     } else {
-      likeMutation.mutate(targetId);
+      // Pass AT fields for federation
+      likeMutation.mutate({
+        postId: targetId,
+        subjectUri: post.at_uri,
+        subjectCid: post.at_cid,
+      });
     }
   };
   
@@ -91,24 +100,49 @@ export default function UserProfileScreen() {
     if (Platform.OS === 'ios') {
       Alert.alert("Share Post", "How would you like to share this?", [
         { text: "Cancel", style: "cancel" },
-        { text: "Repost", onPress: () => toggleRepostMutation.mutate({ post }) },
-        { text: "Quote Post", onPress: () => router.push(`/compose/quote?postId=${post.id}` as any) }
+        { text: "Repost", onPress: () => toggleRepostMutation.mutate({ 
+          post, 
+          subjectUri: post.at_uri, 
+          subjectCid: post.at_cid 
+        }) },
+        { text: "Quote Post", onPress: () => {
+          const quoteUrl = post.at_uri 
+            ? `/compose/quote?postId=${post.id}&atUri=${encodeURIComponent(post.at_uri)}&atCid=${encodeURIComponent(post.at_cid || '')}`
+            : `/compose/quote?postId=${post.id}`;
+          router.push(quoteUrl as any);
+        }}
       ]);
     } else if (Platform.OS === 'web') {
       const wantsQuote = window.confirm('Quote Post? (OK = Quote with comment, Cancel = Simple Repost)');
       if (wantsQuote) {
-        router.push(`/compose/quote?postId=${post.id}` as any);
+        const quoteUrl = post.at_uri 
+          ? `/compose/quote?postId=${post.id}&atUri=${encodeURIComponent(post.at_uri)}&atCid=${encodeURIComponent(post.at_cid || '')}`
+          : `/compose/quote?postId=${post.id}`;
+        router.push(quoteUrl as any);
       } else {
         const confirmRepost = window.confirm('Repost this without comment?');
         if (confirmRepost) {
-          toggleRepostMutation.mutate({ post });
+          toggleRepostMutation.mutate({ 
+            post, 
+            subjectUri: post.at_uri, 
+            subjectCid: post.at_cid 
+          });
         }
       }
     } else {
       Alert.alert("Share Post", "How would you like to share this?", [
         { text: "Cancel", style: "cancel" },
-        { text: "Repost", onPress: () => toggleRepostMutation.mutate({ post }) },
-        { text: "Quote Post", onPress: () => router.push(`/compose/quote?postId=${post.id}` as any) }
+        { text: "Repost", onPress: () => toggleRepostMutation.mutate({ 
+          post, 
+          subjectUri: post.at_uri, 
+          subjectCid: post.at_cid 
+        }) },
+        { text: "Quote Post", onPress: () => {
+          const quoteUrl = post.at_uri 
+            ? `/compose/quote?postId=${post.id}&atUri=${encodeURIComponent(post.at_uri)}&atCid=${encodeURIComponent(post.at_cid || '')}`
+            : `/compose/quote?postId=${post.id}`;
+          router.push(quoteUrl as any);
+        }}
       ]);
     }
   };

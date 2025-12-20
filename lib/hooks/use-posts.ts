@@ -6,6 +6,7 @@
  * - Uses replies_count instead of comments_count  
  * - Reposts use separate `reposts` table (pointer model like Bluesky)
  * - Quotes still use posts table with type='quote'
+ * - Posts auto-federate to AT Protocol via database trigger
  */
 
 import { useQuery, useMutation, useQueryClient, useInfiniteQuery } from "@tanstack/react-query";
@@ -13,6 +14,7 @@ import { supabase } from "@/lib/supabase";
 import { queryKeys } from "@/lib/query-client";
 import type { PostWithAuthor } from "@/lib/types/database";
 import { useAuthStore } from "@/lib/stores";
+import { generateTID, parseTextToFacets, buildAtUri } from "@/lib/utils/atproto";
 
 const POSTS_PER_PAGE = 20;
 
@@ -498,21 +500,38 @@ export function useUserPosts(userId: string, tab: ProfileTab = 'posts') {
 
 // --- Mutations with Optimistic Updates ---
 
+/**
+ * Like a post
+ * 
+ * Federation-ready: Accepts AT URI and CID for federated posts.
+ * Database trigger will auto-queue the like for sync to Bluesky.
+ */
 export function useLikePost() {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
 
   return useMutation({
-    mutationFn: async (postId: string) => {
+    mutationFn: async ({ 
+      postId, 
+      subjectUri, 
+      subjectCid 
+    }: { 
+      postId: string; 
+      subjectUri?: string | null; 
+      subjectCid?: string | null;
+    }) => {
       if (!user) throw new Error("Not authenticated");
       const { error } = await supabase.from("likes").insert({
         user_id: user.id,
         post_id: postId,
+        // AT Protocol fields for federation
+        subject_uri: subjectUri,
+        subject_cid: subjectCid,
       });
       if (error) throw error;
       return postId;
     },
-    onMutate: async (postId) => {
+    onMutate: async ({ postId }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.posts.all });
       await queryClient.cancelQueries({ queryKey: queryKeys.posts.detail(postId) });
       
@@ -542,13 +561,13 @@ export function useLikePost() {
 
       return { previousPosts, previousDetail, postId };
     },
-    onError: (err, postId, context) => {
+    onError: (err, { postId }, context) => {
       queryClient.setQueryData(queryKeys.posts.all, context?.previousPosts);
       if (context?.postId) {
         queryClient.setQueryData(queryKeys.posts.detail(context.postId), context?.previousDetail);
       }
     },
-    onSettled: (data, error, postId) => {
+    onSettled: (data, error, { postId }) => {
       queryClient.invalidateQueries({ queryKey: queryKeys.posts.all });
       queryClient.invalidateQueries({ queryKey: queryKeys.posts.detail(postId) });
     },
@@ -615,11 +634,14 @@ export function useUnlikePost() {
 /**
  * Create a new post
  * 
- * Federation-ready: Uses thread_parent_id/thread_root_id for replies
+ * Federation-ready: 
+ * - Uses thread_parent_id/thread_root_id for replies
+ * - Generates AT Protocol rkey and facets
+ * - Database trigger auto-queues for federation to Bluesky
  */
 export function useCreatePost() {
   const queryClient = useQueryClient();
-  const { user } = useAuthStore();
+  const { user, profile } = useAuthStore();
 
   return useMutation({
     mutationFn: async ({ 
@@ -636,6 +658,15 @@ export function useCreatePost() {
       videoThumbnailUrl?: string;
     }) => {
       if (!user) throw new Error("Not authenticated");
+      
+      // Generate AT Protocol fields
+      const rkey = generateTID();
+      const { facets } = parseTextToFacets(content);
+      
+      // Build AT URI if user has a DID (federated)
+      const atUri = profile?.did 
+        ? buildAtUri(profile.did, 'app.bsky.feed.post', rkey)
+        : null;
       
       // For replies, we need to determine thread_root_id
       let threadRootId: string | undefined;
@@ -654,6 +685,21 @@ export function useCreatePost() {
         threadDepth = (parentPost?.thread_depth ?? 0) + 1;
       }
       
+      // Clean facets for storage (remove _unresolvedHandle, keep only resolved)
+      const cleanFacets = facets
+        .filter(f => {
+          // Only include mentions that have DIDs (resolved)
+          const mentionFeature = f.features.find(
+            feat => feat.$type === 'app.bsky.richtext.facet#mention'
+          );
+          return !mentionFeature || mentionFeature.did;
+        })
+        .map(f => {
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
+          const { _unresolvedHandle, ...cleanFacet } = f as any;
+          return cleanFacet;
+        });
+      
       const { data, error } = await supabase.from("posts").insert({
         user_id: user.id,
         content,
@@ -665,6 +711,11 @@ export function useCreatePost() {
         thread_root_id: threadRootId || null,
         thread_depth: threadDepth,
         type: 'post',
+        // AT Protocol fields
+        rkey,
+        at_uri: atUri,
+        facets: cleanFacets.length > 0 ? cleanFacets : null,
+        langs: ['en'],
       }).select(`*, author:profiles!user_id(*)`).single();
       
       if (error) throw error;
@@ -850,13 +901,24 @@ export function useQuotePost() {
  * FEDERATION-READY: Uses separate `reposts` table (Bluesky pointer model)
  * - Reposts are now a separate table, not posts with is_repost=true
  * - This is identical to how Bluesky handles reposts
+ * - Database trigger auto-queues for sync to Bluesky
  */
 export function useToggleRepost() {
   const queryClient = useQueryClient();
   const { user } = useAuthStore();
 
   return useMutation({
-    mutationFn: async ({ post, undo = false }: { post: any, undo?: boolean }) => {
+    mutationFn: async ({ 
+      post, 
+      undo = false,
+      subjectUri,
+      subjectCid,
+    }: { 
+      post: any; 
+      undo?: boolean;
+      subjectUri?: string | null;
+      subjectCid?: string | null;
+    }) => {
       if (!user) throw new Error("Not authenticated");
 
       const targetId = post.id;
@@ -870,10 +932,13 @@ export function useToggleRepost() {
           .eq("post_id", targetId);
         if (error) throw error;
       } else {
-        // CREATE REPOST: Insert into reposts table
+        // CREATE REPOST: Insert into reposts table with AT Protocol fields
         const { error } = await supabase.from("reposts").insert({
           user_id: user.id,
           post_id: targetId,
+          // AT Protocol fields for federation
+          subject_uri: subjectUri || post.at_uri,
+          subject_cid: subjectCid || post.at_cid,
         });
         if (error) throw error;
       }

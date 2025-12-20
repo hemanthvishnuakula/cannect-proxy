@@ -98,17 +98,18 @@ export function useFollowUser() {
   const { user } = useAuthStore();
 
   return useMutation({
-    mutationFn: async (targetUserId: string) => {
+    mutationFn: async ({ targetUserId, targetDid }: { targetUserId: string; targetDid?: string | null }) => {
       if (!user) throw new Error("Not authenticated");
       const { error } = await supabase.from("follows").insert({
         follower_id: user.id,
         following_id: targetUserId,
+        subject_did: targetDid, // AT Protocol DID for federation
       } as any);
       if (error) throw error;
       return targetUserId;
     },
     // ✅ Optimistic update for instant UI feedback
-    onMutate: async (targetUserId) => {
+    onMutate: async ({ targetUserId }) => {
       // Cancel outgoing queries
       await queryClient.cancelQueries({ 
         queryKey: queryKeys.follows.isFollowing("current", targetUserId) 
@@ -156,7 +157,7 @@ export function useFollowUser() {
       
       return { previousIsFollowing, previousProfile, previousMyProfile };
     },
-    onError: (err, targetUserId, context) => {
+    onError: (err, { targetUserId }, context) => {
       // Rollback on error
       if (context?.previousIsFollowing !== undefined) {
         queryClient.setQueryData(
@@ -177,7 +178,7 @@ export function useFollowUser() {
         );
       }
     },
-    onSettled: (targetUserId) => {
+    onSettled: (result, error, { targetUserId }) => {
       // Refetch to ensure server state
       queryClient.invalidateQueries({ queryKey: queryKeys.follows.isFollowing("current", targetUserId!) });
       queryClient.invalidateQueries({ queryKey: queryKeys.profiles.detail(targetUserId!) });

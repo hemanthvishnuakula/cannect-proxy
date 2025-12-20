@@ -46,7 +46,11 @@ export function ProfileRow({
     if (isFollowing) {
       unfollowUser.mutate(profile.id);
     } else {
-      followUser.mutate(profile.id);
+      // Pass DID for AT Protocol federation
+      followUser.mutate({ 
+        targetUserId: profile.id, 
+        targetDid: (profile as any).did 
+      });
     }
   };
 

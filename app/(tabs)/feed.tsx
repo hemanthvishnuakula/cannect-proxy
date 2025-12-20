@@ -120,7 +120,12 @@ export default function FeedScreen() {
     if (post.is_liked) {
       unlikeMutation.mutate(targetId);
     } else {
-      likeMutation.mutate(targetId);
+      // Pass AT Protocol fields for federation
+      likeMutation.mutate({
+        postId: targetId,
+        subjectUri: (post as any).at_uri,
+        subjectCid: (post as any).at_cid,
+      });
     }
   };
 
@@ -205,6 +210,10 @@ export default function FeedScreen() {
     const isFederated = (post as any).is_federated === true;
     const isReposted = (post as any).is_reposted_by_me === true;
     
+    // AT Protocol fields for federation
+    const subjectUri = (post as any).at_uri;
+    const subjectCid = (post as any).at_cid;
+    
     // If already reposted, UNDO (toggle off) - no menu needed
     if (isReposted) {
       toggleRepostMutation.mutate({ post, undo: true });
@@ -222,6 +231,8 @@ export default function FeedScreen() {
           media_urls: (post as any).media_urls,
           author: post.author,
           is_federated: true,
+          at_uri: subjectUri,
+          at_cid: subjectCid,
         }));
         return `/compose/quote?externalData=${externalData}`;
       }
@@ -236,8 +247,8 @@ export default function FeedScreen() {
         },
         (buttonIndex) => {
           if (buttonIndex === 1) {
-            // Simple Repost - use toggle mutation
-            toggleRepostMutation.mutate({ post });
+            // Simple Repost - use toggle mutation with AT fields
+            toggleRepostMutation.mutate({ post, subjectUri, subjectCid });
           } else if (buttonIndex === 2) {
             // Quote Post - navigate to quote screen
             router.push(getQuoteUrl() as any);
@@ -253,7 +264,7 @@ export default function FeedScreen() {
         // Ask if they want to do a simple repost
         const confirmRepost = window.confirm('Repost this without comment?');
         if (confirmRepost) {
-          toggleRepostMutation.mutate({ post });
+          toggleRepostMutation.mutate({ post, subjectUri, subjectCid });
         }
       }
     } else {
@@ -262,7 +273,7 @@ export default function FeedScreen() {
         { text: "Cancel", style: "cancel" },
         { 
           text: "Repost", 
-          onPress: () => toggleRepostMutation.mutate({ post })
+          onPress: () => toggleRepostMutation.mutate({ post, subjectUri, subjectCid })
         },
         { 
           text: "Quote Post", 
@@ -330,7 +341,7 @@ export default function FeedScreen() {
               return `${activeTab}-${item.id}-${reposterId || 'orig'}-${index}`;
             }}
             renderItem={({ item }) => {
-              // Live Global = direct from Bluesky API (read-only except repost)
+              // Live Global = direct from Bluesky API (now fully interactive via federation!)
               const isLiveGlobal = (item as any).is_federated === true;
               // Cannect Repost of Global = stored in our DB (fully interactive!)
               const isCannectRepostOfGlobal = !!(item as any).external_id;
@@ -341,41 +352,17 @@ export default function FeedScreen() {
               return (
                 <SocialPost 
                   post={item}
-                  onLike={() => {
-                    // For live global, prompt to import first
-                    if (isLiveGlobal && !isCannectRepostOfGlobal) {
-                      Alert.alert(
-                        "Import to Like",
-                        "Repost this to Cannect first to enable likes and comments.",
-                        [
-                          { text: "Cancel", style: "cancel" },
-                          { text: "Repost", onPress: () => handleRepost(item) }
-                        ]
-                      );
-                    } else {
-                      handleLike(item);
-                    }
-                  }}
-                  onReply={() => {
-                    // For live global, prompt to import first (creates shadow thread)
-                    if (isLiveGlobal && !isCannectRepostOfGlobal) {
-                      Alert.alert(
-                        "Import to Reply",
-                        "Repost this to Cannect first to start a discussion thread.",
-                        [
-                          { text: "Cancel", style: "cancel" },
-                          { text: "Repost & Reply", onPress: () => handleRepost(item) }
-                        ]
-                      );
-                    } else {
-                      handlePostPress(interactionId);
-                    }
-                  }}
+                  onLike={() => handleLike(item)}
+                  onReply={() => handlePostPress(interactionId)}
                   onRepost={() => handleRepost(item)}
                   onProfilePress={() => {
-                    // For Cannect reposts, navigate to reposter's profile
-                    // For live global, no navigation (external profile)
-                    if (!isLiveGlobal || isCannectRepostOfGlobal) {
+                    // For live global posts, navigate to federated profile
+                    if (isLiveGlobal && !isCannectRepostOfGlobal) {
+                      const handle = (item as any).author?.handle || (item as any).author?.username;
+                      if (handle) {
+                        router.push(`/federated/${encodeURIComponent(handle)}` as any);
+                      }
+                    } else {
                       handleProfilePress(item.author?.username || '');
                     }
                   }}
@@ -383,23 +370,7 @@ export default function FeedScreen() {
                     // Navigate to the reposter's profile
                     handleProfilePress(username);
                   }}
-                  onPress={() => {
-                    // For Cannect reposts, navigate to thread view
-                    // For live global, prompt to import
-                    if (!isLiveGlobal || isCannectRepostOfGlobal) {
-                      handlePostPress(interactionId);
-                    } else {
-                      // Show import prompt for live global
-                      Alert.alert(
-                        "Import Post",
-                        "Repost this to Cannect to enable full interaction.",
-                        [
-                          { text: "Cancel", style: "cancel" },
-                          { text: "Import", onPress: () => handleRepost(item) }
-                        ]
-                      );
-                    }
-                  }}
+                  onPress={() => handlePostPress(interactionId)}
                   onQuotedPostPress={(quotedPostId) => {
                     // Navigate to quoted post detail to see full context
                     router.push(`/post/${quotedPostId}` as any);

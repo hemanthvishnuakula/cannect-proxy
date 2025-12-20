@@ -5,8 +5,8 @@ import {
 } from "react-native";
 import { Link, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ArrowLeft, User, Mail, Lock, Eye, EyeOff } from "lucide-react-native";
-import { useSignUp } from "@/lib/hooks";
+import { ArrowLeft, User, Mail, Lock, Eye, EyeOff, Globe } from "lucide-react-native";
+import { useFederatedSignUp } from "@/lib/hooks/use-federated-auth";
 
 export default function RegisterScreen() {
   const [name, setName] = useState("");
@@ -16,14 +16,39 @@ export default function RegisterScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showConfirmation, setShowConfirmation] = useState(false);
-  const signUp = useSignUp();
+  const [federationResult, setFederationResult] = useState<{ 
+    did?: string; 
+    handle?: string;
+    federationError?: string;
+  } | null>(null);
+  const signUp = useFederatedSignUp();
 
   const handleRegister = async () => {
     setError(null);
     if (!name || !username || !email || !password) { setError("Please fill in all fields"); return; }
     if (password.length < 6) { setError("Password must be at least 6 characters"); return; }
+    
+    // Validate username for AT Protocol (3-20 chars, alphanumeric and hyphens)
+    const normalizedUsername = username.toLowerCase().replace(/[^a-z0-9-]/g, '');
+    if (normalizedUsername.length < 3) {
+      setError("Username must be at least 3 characters (letters, numbers, hyphens only)");
+      return;
+    }
+    
     try {
-      const result = await signUp.mutateAsync({ email, password, name, username });
+      const result = await signUp.mutateAsync({ 
+        email, 
+        password, 
+        username: normalizedUsername,
+        displayName: name,
+      });
+      
+      // Store federation result for display
+      setFederationResult({
+        did: result.did,
+        handle: result.handle,
+        federationError: result.federationError,
+      });
       
       // Check if email confirmation is required
       if (result.needsEmailConfirmation) {
@@ -45,6 +70,31 @@ export default function RegisterScreen() {
             We've sent a confirmation link to{"\n"}
             <Text className="text-primary font-semibold">{email}</Text>
           </Text>
+          
+          {/* Federation status */}
+          {federationResult?.handle && (
+            <View className="bg-surface-elevated border border-primary/30 rounded-xl p-4 mb-4 w-full">
+              <View className="flex-row items-center mb-2">
+                <Globe size={16} color="#10B981" />
+                <Text className="text-primary font-semibold ml-2">Federated to Bluesky</Text>
+              </View>
+              <Text className="text-text-secondary text-sm">
+                Your handle: <Text className="text-text-primary font-mono">@{federationResult.handle}</Text>
+              </Text>
+              <Text className="text-text-muted text-xs mt-1">
+                Your posts will be visible on Bluesky and other AT Protocol apps!
+              </Text>
+            </View>
+          )}
+          
+          {federationResult?.federationError && (
+            <View className="bg-accent-warning/20 border border-accent-warning/50 rounded-xl p-4 mb-4 w-full">
+              <Text className="text-accent-warning text-sm text-center">
+                Federation pending - you can enable it later in Settings
+              </Text>
+            </View>
+          )}
+          
           <Text className="text-text-muted text-center text-sm mb-8">
             Click the link in your email to activate your account, then come back and sign in.
           </Text>
@@ -70,7 +120,16 @@ export default function RegisterScreen() {
           </View>
           <View className="flex-1 px-6 pt-8">
             <Text className="text-3xl font-bold text-text-primary mb-2">Create Account</Text>
-            <Text className="text-text-secondary mb-8 text-base">Join Cannect today</Text>
+            <Text className="text-text-secondary mb-4 text-base">Join Cannect today</Text>
+            
+            {/* Federation badge */}
+            <View className="flex-row items-center bg-primary/10 border border-primary/30 rounded-xl px-4 py-3 mb-6">
+              <Globe size={16} color="#10B981" />
+              <Text className="text-text-secondary text-sm ml-2 flex-1">
+                Your account federates to <Text className="text-primary font-semibold">Bluesky</Text> automatically
+              </Text>
+            </View>
+            
             {error && (
               <View className="bg-accent-error/20 border border-accent-error/50 rounded-xl p-4 mb-6">
                 <Text className="text-accent-error text-center">{error}</Text>
