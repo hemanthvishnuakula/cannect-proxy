@@ -273,8 +273,15 @@ export function useFollowingFeed() {
         _feed_timestamp: p.created_at,
       }));
 
-      // 6. Merge and deduplicate (keep first occurrence of each post)
+      // 6. Merge all posts
       const allPosts = [...authoredWithTimestamp, ...repostedPosts];
+
+      // 7. Sort by feed timestamp FIRST (most recent first)
+      allPosts.sort((a: any, b: any) => 
+        new Date(b._feed_timestamp).getTime() - new Date(a._feed_timestamp).getTime()
+      );
+
+      // 8. Deduplicate (keep first/newest occurrence of each post)
       const seenPostIds = new Set<string>();
       const deduplicatedPosts = allPosts.filter((p: any) => {
         if (seenPostIds.has(p.id)) return false;
@@ -282,15 +289,10 @@ export function useFollowingFeed() {
         return true;
       });
 
-      // 7. Sort by feed timestamp (most recent first)
-      deduplicatedPosts.sort((a: any, b: any) => 
-        new Date(b._feed_timestamp).getTime() - new Date(a._feed_timestamp).getTime()
-      );
-
-      // 8. Take only the page slice
+      // 9. Take only the page slice
       const pagedPosts = deduplicatedPosts.slice(0, POSTS_PER_PAGE);
 
-      // 9. Enrich with is_liked and is_reposted_by_me
+      // 10. Enrich with is_liked and is_reposted_by_me
       return enrichPostsWithStatus(pagedPosts, user?.id);
     },
     getNextPageParam: (lastPage, allPages) => 
@@ -541,8 +543,15 @@ export function useUserPosts(userId: string, tab: ProfileTab = 'posts') {
           _feed_timestamp: p.created_at,
         }));
 
-        // 6. Merge and deduplicate
+        // 6. Merge all posts
         const allPosts = [...authoredWithTimestamp, ...repostedPosts];
+
+        // 7. Sort by feed timestamp FIRST (most recent first)
+        allPosts.sort((a: any, b: any) =>
+          new Date(b._feed_timestamp).getTime() - new Date(a._feed_timestamp).getTime()
+        );
+
+        // 8. Deduplicate (keep first/newest occurrence of each post)
         const seenPostIds = new Set<string>();
         const deduplicatedPosts = allPosts.filter((p: any) => {
           if (seenPostIds.has(p.id)) return false;
@@ -550,15 +559,10 @@ export function useUserPosts(userId: string, tab: ProfileTab = 'posts') {
           return true;
         });
 
-        // 7. Sort by feed timestamp
-        deduplicatedPosts.sort((a: any, b: any) =>
-          new Date(b._feed_timestamp).getTime() - new Date(a._feed_timestamp).getTime()
-        );
-
-        // 8. Take page slice
+        // 9. Take page slice
         const pagedPosts = deduplicatedPosts.slice(0, POSTS_PER_PAGE);
 
-        // 9. Enrich with status
+        // 10. Enrich with status
         return enrichPostsWithStatus(pagedPosts, user?.id);
       }
 
