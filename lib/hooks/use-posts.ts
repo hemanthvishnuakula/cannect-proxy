@@ -266,12 +266,17 @@ export function useFollowingFeed() {
           // Use repost timestamp for feed ordering
           _feed_timestamp: r.created_at,
         }));
+      
+      console.log('[useFollowingFeed] repostedPosts count:', repostedPosts.length);
+      console.log('[useFollowingFeed] repostedPosts:', repostedPosts.map((p: any) => ({ id: p.id, reposted_by: p.reposted_by, timestamp: p._feed_timestamp })));
 
       // 5. Add feed timestamp to authored posts
       const authoredWithTimestamp = (authoredPosts || []).map((p: any) => ({
         ...p,
         _feed_timestamp: p.created_at,
       }));
+      
+      console.log('[useFollowingFeed] authoredWithTimestamp count:', authoredWithTimestamp.length);
 
       // 6. Merge all posts
       const allPosts = [...authoredWithTimestamp, ...repostedPosts];
@@ -288,6 +293,8 @@ export function useFollowingFeed() {
         seenPostIds.add(p.id);
         return true;
       });
+      
+      console.log('[useFollowingFeed] after dedup, posts with reposted_by:', deduplicatedPosts.filter((p: any) => p.reposted_by).map((p: any) => ({ id: p.id, content: p.content?.substring(0, 20), reposted_by: p.reposted_by?.username })));
 
       // 9. Take only the page slice
       const pagedPosts = deduplicatedPosts.slice(0, POSTS_PER_PAGE);
