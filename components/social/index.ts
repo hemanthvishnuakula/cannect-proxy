@@ -7,6 +7,7 @@ export * from "./PostSkeleton";
 export * from "./ReplyBar";
 export * from "./EmptyFeedState";
 export * from "./DiscoveryModal";
+export * from "./RepostMenu";
 
 // Post Ribbon components (Bluesky threading pattern)
 export * from "./AncestorPost";

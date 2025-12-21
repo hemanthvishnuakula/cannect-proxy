@@ -1226,7 +1226,7 @@ export function useToggleRepost() {
  */
 export function useRepost() {
   const queryClient = useQueryClient();
-  const { user } = useAuthStore();
+  const { user, profile } = useAuthStore.getState();
 
   return useMutation({
     mutationFn: async ({ originalPost, content = "" }: { originalPost: any, content?: string }) => {
@@ -1234,13 +1234,14 @@ export function useRepost() {
       
       if (content) {
         // Quote post - goes in posts table
-        const { error } = await supabase.from("posts").insert({
+        const { data, error } = await supabase.from("posts").insert({
           user_id: user.id,
           content: content,
           repost_of_id: originalPost.id,
           type: 'quote',
-        });
+        }).select('id').single();
         if (error) throw error;
+        return { type: 'quote', postId: data.id, originalPostId: originalPost.id, content };
       } else {
         // Simple repost - goes in reposts table
         const { error } = await supabase.from("reposts").insert({
@@ -1248,6 +1249,72 @@ export function useRepost() {
           post_id: originalPost.id,
         });
         if (error) throw error;
+        return { type: 'repost', originalPostId: originalPost.id };
+      }
+    },
+    onMutate: async ({ originalPost, content }) => {
+      // Only do optimistic update for quote posts
+      if (!content) return {};
+      
+      await queryClient.cancelQueries({ queryKey: queryKeys.posts.all });
+      const previousPosts = queryClient.getQueryData(queryKeys.posts.all);
+      
+      // Get current user's profile for the new quote post
+      const { user, profile } = useAuthStore.getState();
+      
+      // Create optimistic quote post
+      const optimisticQuote = {
+        id: `temp-${Date.now()}`, // Temporary ID
+        content,
+        type: 'quote',
+        user_id: user?.id,
+        created_at: new Date().toISOString(),
+        author: profile ? {
+          id: profile.id,
+          username: profile.username,
+          display_name: profile.display_name,
+          avatar_url: profile.avatar_url,
+        } : null,
+        quoted_post: originalPost,
+        likes_count: 0,
+        reposts_count: 0,
+        replies_count: 0,
+        is_liked: false,
+        is_reposted_by_me: false,
+      };
+      
+      // Add quote to top of feed
+      queryClient.setQueryData(queryKeys.posts.all, (old: any) => {
+        if (!old?.pages?.[0]) return old;
+        return {
+          ...old,
+          pages: [
+            [optimisticQuote, ...old.pages[0]],
+            ...old.pages.slice(1)
+          ],
+        };
+      });
+      
+      // Increment quotes_count on original post
+      queryClient.setQueryData(queryKeys.posts.all, (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          pages: old.pages.map((page: any) =>
+            page.map((p: any) =>
+              p.id === originalPost.id
+                ? { ...p, quotes_count: (p.quotes_count || 0) + 1 }
+                : p
+            )
+          ),
+        };
+      });
+      
+      return { previousPosts, originalPostId: originalPost.id };
+    },
+    onError: (err, vars, context: any) => {
+      if (context?.previousPosts) {
+        queryClient.setQueryData(queryKeys.posts.all, context.previousPosts);
       }
     },
     onSuccess: () => {

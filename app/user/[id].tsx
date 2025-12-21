@@ -1,5 +1,5 @@
 import { View, Alert, Text, Platform, ActivityIndicator, Pressable } from "react-native";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useLocalSearchParams, Stack, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlashList } from "@shopify/flash-list";
@@ -7,7 +7,7 @@ import * as Haptics from "expo-haptics";
 import { RefreshCw } from "lucide-react-native";
 import { useProfileByUsername, useUserPosts, useLikePost, useUnlikePost, useToggleRepost, useDeletePost, useFollowUser, useUnfollowUser, useIsFollowing, ProfileTab } from "@/lib/hooks";
 import { ProfileHeader } from "@/components/social/ProfileHeader";
-import { SocialPost } from "@/components/social/SocialPost";
+import { SocialPost, RepostMenu } from "@/components/social";
 import { MediaGridItem } from "@/components/Profile";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/Tabs";
 import { SkeletonProfile, SkeletonCard } from "@/components/ui/Skeleton";
@@ -46,6 +46,10 @@ export default function UserProfileScreen() {
   const unlikeMutation = useUnlikePost();
   const toggleRepostMutation = useToggleRepost();
   const deleteMutation = useDeletePost();
+  
+  // Repost menu state
+  const [repostMenuVisible, setRepostMenuVisible] = useState(false);
+  const [repostMenuPost, setRepostMenuPost] = useState<any>(null);
 
   const posts = postsData?.pages.flat() || [];
   
@@ -88,64 +92,34 @@ export default function UserProfileScreen() {
   };
   
   const handleRepost = (post: any) => {
-    const isReposted = post.is_reposted_by_me === true;
-    
-    // If already reposted, UNDO (toggle off) - no menu needed
-    if (isReposted) {
-      toggleRepostMutation.mutate({ post, undo: true });
-      return;
-    }
-    
-    // Full repost menu with Quote option
-    if (Platform.OS === 'ios') {
-      Alert.alert("Share Post", "How would you like to share this?", [
-        { text: "Cancel", style: "cancel" },
-        { text: "Repost", onPress: () => toggleRepostMutation.mutate({ 
-          post, 
-          subjectUri: post.at_uri, 
-          subjectCid: post.at_cid 
-        }) },
-        { text: "Quote Post", onPress: () => {
-          const quoteUrl = post.at_uri 
-            ? `/compose/quote?postId=${post.id}&atUri=${encodeURIComponent(post.at_uri)}&atCid=${encodeURIComponent(post.at_cid || '')}`
-            : `/compose/quote?postId=${post.id}`;
-          router.push(quoteUrl as any);
-        }}
-      ]);
-    } else if (Platform.OS === 'web') {
-      const wantsQuote = window.confirm('Quote Post? (OK = Quote with comment, Cancel = Simple Repost)');
-      if (wantsQuote) {
-        const quoteUrl = post.at_uri 
-          ? `/compose/quote?postId=${post.id}&atUri=${encodeURIComponent(post.at_uri)}&atCid=${encodeURIComponent(post.at_cid || '')}`
-          : `/compose/quote?postId=${post.id}`;
-        router.push(quoteUrl as any);
-      } else {
-        const confirmRepost = window.confirm('Repost this without comment?');
-        if (confirmRepost) {
-          toggleRepostMutation.mutate({ 
-            post, 
-            subjectUri: post.at_uri, 
-            subjectCid: post.at_cid 
-          });
-        }
-      }
-    } else {
-      Alert.alert("Share Post", "How would you like to share this?", [
-        { text: "Cancel", style: "cancel" },
-        { text: "Repost", onPress: () => toggleRepostMutation.mutate({ 
-          post, 
-          subjectUri: post.at_uri, 
-          subjectCid: post.at_cid 
-        }) },
-        { text: "Quote Post", onPress: () => {
-          const quoteUrl = post.at_uri 
-            ? `/compose/quote?postId=${post.id}&atUri=${encodeURIComponent(post.at_uri)}&atCid=${encodeURIComponent(post.at_cid || '')}`
-            : `/compose/quote?postId=${post.id}`;
-          router.push(quoteUrl as any);
-        }}
-      ]);
-    }
+    setRepostMenuPost(post);
+    setRepostMenuVisible(true);
   };
+  
+  // Handlers for the repost menu
+  const handleDoRepost = useCallback(() => {
+    if (!repostMenuPost) return;
+    
+    const isReposted = repostMenuPost.is_reposted_by_me === true;
+    
+    if (isReposted) {
+      toggleRepostMutation.mutate({ post: repostMenuPost, undo: true });
+    } else {
+      toggleRepostMutation.mutate({ 
+        post: repostMenuPost, 
+        subjectUri: repostMenuPost.at_uri, 
+        subjectCid: repostMenuPost.at_cid 
+      });
+    }
+  }, [repostMenuPost, toggleRepostMutation]);
+  
+  const handleDoQuotePost = useCallback(() => {
+    if (!repostMenuPost) return;
+    const quoteUrl = repostMenuPost.at_uri 
+      ? `/compose/quote?postId=${repostMenuPost.id}&atUri=${encodeURIComponent(repostMenuPost.at_uri)}&atCid=${encodeURIComponent(repostMenuPost.at_cid || '')}`
+      : `/compose/quote?postId=${repostMenuPost.id}`;
+    router.push(quoteUrl as any);
+  }, [repostMenuPost, router]);
 
   // ✅ Pull-to-refresh handler with haptic feedback
   const handleRefresh = () => {
@@ -292,6 +266,15 @@ export default function UserProfileScreen() {
           }
         />
       </View>
+      
+      {/* Repost Menu */}
+      <RepostMenu
+        isVisible={repostMenuVisible}
+        onClose={() => setRepostMenuVisible(false)}
+        onRepost={handleDoRepost}
+        onQuotePost={handleDoQuotePost}
+        isReposted={repostMenuPost?.is_reposted_by_me === true}
+      />
     </SafeAreaView>
   );
 }

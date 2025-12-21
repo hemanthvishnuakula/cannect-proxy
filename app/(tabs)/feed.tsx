@@ -8,7 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import * as Haptics from "expo-haptics";
 import { useFeed, useFollowingFeed, useLikePost, useUnlikePost, useDeletePost, useToggleRepost, useProfile } from "@/lib/hooks";
 import { useAuthStore } from "@/lib/stores";
-import { SocialPost } from "@/components/social";
+import { SocialPost, RepostMenu } from "@/components/social";
 import { EmptyFeedState } from "@/components/social/EmptyFeedState";
 import { DiscoveryModal, useDiscoveryModal } from "@/components/social/DiscoveryModal";
 import { getFederatedPosts } from "@/lib/services/bluesky";
@@ -34,6 +34,10 @@ export default function FeedScreen() {
   
   // Discovery modal for new users with 0 following
   const { showDiscovery, closeDiscovery } = useDiscoveryModal(myProfile?.following_count);
+  
+  // Repost menu state
+  const [repostMenuVisible, setRepostMenuVisible] = useState(false);
+  const [repostMenuPost, setRepostMenuPost] = useState<PostWithAuthor | null>(null);
   
   // Cannect (For You) feed - all posts
   const forYouQuery = useFeed();
@@ -216,55 +220,31 @@ export default function FeedScreen() {
     
     const isReposted = post.is_reposted_by_me === true;
     
-    // AT Protocol fields for federation
-    const subjectUri = (post as any).at_uri;
-    const subjectCid = (post as any).at_cid;
-    
-    // If already reposted, UNDO (toggle off) - no menu needed
-    if (isReposted) {
-      toggleRepostMutation.mutate({ post, undo: true });
-      return;
-    }
-    
-    // Show repost/quote options
-    if (Platform.OS === 'ios') {
-      ActionSheetIOS.showActionSheetWithOptions(
-        {
-          options: ['Cancel', 'Repost', 'Quote Post'],
-          cancelButtonIndex: 0,
-        },
-        (buttonIndex) => {
-          if (buttonIndex === 1) {
-            toggleRepostMutation.mutate({ post, subjectUri, subjectCid });
-          } else if (buttonIndex === 2) {
-            router.push(`/compose/quote?postId=${post.id}` as any);
-          }
-        }
-      );
-    } else if (Platform.OS === 'web') {
-      const wantsQuote = window.confirm('Quote Post? (OK = Quote with comment, Cancel = Simple Repost)');
-      if (wantsQuote) {
-        router.push(`/compose/quote?postId=${post.id}` as any);
-      } else {
-        const confirmRepost = window.confirm('Repost this without comment?');
-        if (confirmRepost) {
-          toggleRepostMutation.mutate({ post, subjectUri, subjectCid });
-        }
-      }
-    } else {
-      Alert.alert("Share Post", "How would you like to share this?", [
-        { text: "Cancel", style: "cancel" },
-        { 
-          text: "Repost", 
-          onPress: () => toggleRepostMutation.mutate({ post, subjectUri, subjectCid })
-        },
-        { 
-          text: "Quote Post", 
-          onPress: () => router.push(`/compose/quote?postId=${post.id}` as any)
-        },
-      ]);
-    }
+    // If already reposted, show menu for undo option
+    // Otherwise show menu for repost/quote options
+    setRepostMenuPost(post);
+    setRepostMenuVisible(true);
   }, [user, toggleRepostMutation, router]);
+  
+  // Handlers for the repost menu
+  const handleDoRepost = useCallback(() => {
+    if (!repostMenuPost) return;
+    
+    const isReposted = repostMenuPost.is_reposted_by_me === true;
+    const subjectUri = (repostMenuPost as any).at_uri;
+    const subjectCid = (repostMenuPost as any).at_cid;
+    
+    if (isReposted) {
+      toggleRepostMutation.mutate({ post: repostMenuPost, undo: true });
+    } else {
+      toggleRepostMutation.mutate({ post: repostMenuPost, subjectUri, subjectCid });
+    }
+  }, [repostMenuPost, toggleRepostMutation]);
+  
+  const handleDoQuotePost = useCallback(() => {
+    if (!repostMenuPost) return;
+    router.push(`/compose/quote?postId=${repostMenuPost.id}` as any);
+  }, [repostMenuPost, router]);
 
   const handleShare = async (post: PostWithAuthor) => {
     try {
@@ -377,6 +357,15 @@ export default function FeedScreen() {
       <DiscoveryModal 
         isVisible={showDiscovery && activeTab === "following"} 
         onClose={closeDiscovery} 
+      />
+      
+      {/* Repost Menu */}
+      <RepostMenu
+        isVisible={repostMenuVisible}
+        onClose={() => setRepostMenuVisible(false)}
+        onRepost={handleDoRepost}
+        onQuotePost={handleDoQuotePost}
+        isReposted={repostMenuPost?.is_reposted_by_me === true}
       />
     </SafeAreaView>
   );
