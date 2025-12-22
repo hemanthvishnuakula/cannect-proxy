@@ -143,23 +143,22 @@ async function fetchAncestors(
 }
 
 /**
- * Fetch all replies in a FLAT list (Bluesky style)
+ * Fetch DIRECT replies to the focused post only (Bluesky Linear View style)
  * 
- * Gets all replies where thread_root_id matches, ordered by created_at.
- * Includes "Replying to @user" info for each reply.
+ * Only gets replies where thread_parent_id = focusedPostId (direct replies).
+ * Nested replies-to-replies are accessed by tapping a reply to see its thread.
  */
 async function fetchRepliesFlat(
   threadRootId: string,
   focusedPostId: string,
   userId?: string
 ): Promise<ThreadReply[]> {
-  // Fetch replies that are part of this thread
-  // If focused is root: get direct replies (thread_parent_id = focusedPostId)
-  // Plus all nested replies (thread_root_id = focusedPostId)
+  // Only fetch DIRECT replies to the focused post (not nested replies)
+  // Users tap a reply to see its sub-thread
   const { data: replies, error } = await supabase
     .from('posts')
     .select(POST_SELECT)
-    .or(`thread_parent_id.eq.${focusedPostId},thread_root_id.eq.${focusedPostId}`)
+    .eq('thread_parent_id', focusedPostId)
     .eq('is_reply', true)
     .order('created_at', { ascending: true })
     .limit(THREAD_CONFIG.REPLIES_PER_PAGE);
@@ -202,8 +201,8 @@ async function fetchRepliesFlat(
       is_liked: likeMap[reply.id] || false,
       is_reposted_by_me: repostMap[reply.id] || false,
     } as PostWithAuthor,
-    // Extract "Replying to @username" from the joined parent_post
-    replyingTo: (reply as any).parent_post?.author?.username || undefined,
+    // Direct replies don't need "Replying to" since they all reply to focused post
+    replyingTo: undefined,
   }));
 }
 

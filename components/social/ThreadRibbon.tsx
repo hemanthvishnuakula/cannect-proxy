@@ -90,7 +90,7 @@ export const ThreadRibbon = memo(function ThreadRibbon({
         return (
           <View style={styles.replyDivider}>
             <Text style={styles.replyDividerText}>
-              {item.count} {item.count === 1 ? 'Reply' : 'Replies'}
+              Replies
             </Text>
           </View>
         );
