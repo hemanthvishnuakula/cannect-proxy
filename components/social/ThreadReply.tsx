@@ -160,16 +160,18 @@ export const ThreadReply = memo(function ThreadReply({
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
+    paddingHorizontal: THREAD_DESIGN.HORIZONTAL_PADDING,
     paddingVertical: 12,
     backgroundColor: '#000',
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#2A2A2A',
+    borderBottomColor: '#222',
   },
   pressed: {
     backgroundColor: '#0A0A0A',
   },
   avatarContainer: {
+    width: THREAD_DESIGN.LEFT_COLUMN_WIDTH,
+    alignItems: 'center',
     marginRight: 12,
   },
   avatar: {

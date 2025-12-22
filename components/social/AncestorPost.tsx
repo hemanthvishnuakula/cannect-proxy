@@ -77,7 +77,7 @@ export const AncestorPost = memo(function AncestorPost({
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    paddingHorizontal: 16,
+    paddingHorizontal: THREAD_DESIGN.HORIZONTAL_PADDING,
     paddingVertical: 10,
     backgroundColor: '#000',
   },
@@ -87,7 +87,7 @@ const styles = StyleSheet.create({
   leftColumn: {
     alignItems: 'center',
     marginRight: 12,
-    width: THREAD_DESIGN.AVATAR_SIZES.ancestor,
+    width: THREAD_DESIGN.LEFT_COLUMN_WIDTH,
   },
   avatar: {
     width: THREAD_DESIGN.AVATAR_SIZES.ancestor,
@@ -98,12 +98,12 @@ const styles = StyleSheet.create({
   threadLine: {
     flex: 1,
     width: THREAD_DESIGN.LINE_WIDTH,
-    backgroundColor: '#2A2A2A',
-    marginTop: 8,
-    minHeight: 16,
+    backgroundColor: '#333',
+    marginTop: 6,
+    minHeight: 12,
   },
   threadLineLast: {
-    backgroundColor: '#10B981', // Emerald for connection to focused
+    // Keep same color - visual connection happens through alignment
   },
   content: {
     flex: 1,

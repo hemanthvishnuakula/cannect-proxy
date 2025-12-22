@@ -14,7 +14,7 @@ import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import type { ThreadView, ThreadListItem, ThreadReply as ThreadReplyType } from '@/lib/types/thread';
 import type { PostWithAuthor } from '@/lib/types/database';
-import { flattenThreadToList } from '@/lib/types/thread';
+import { flattenThreadToList, THREAD_DESIGN } from '@/lib/types/thread';
 import { useAuthStore } from '@/lib/stores';
 import { AncestorPost } from './AncestorPost';
 import { FocusedPost } from './FocusedPost';
@@ -192,10 +192,12 @@ const styles = StyleSheet.create({
     paddingVertical: 40,
   },
   replyDivider: {
-    paddingHorizontal: 16,
+    paddingHorizontal: THREAD_DESIGN.HORIZONTAL_PADDING,
+    paddingLeft: THREAD_DESIGN.HORIZONTAL_PADDING + THREAD_DESIGN.LEFT_COLUMN_WIDTH + 12,
     paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderColor: '#1A1A1A',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderColor: '#222',
     backgroundColor: '#000',
   },
   replyDividerText: {
@@ -205,10 +207,12 @@ const styles = StyleSheet.create({
   },
   loadMoreButton: {
     paddingVertical: 16,
-    alignItems: 'center',
+    paddingHorizontal: THREAD_DESIGN.HORIZONTAL_PADDING,
+    paddingLeft: THREAD_DESIGN.HORIZONTAL_PADDING + THREAD_DESIGN.LEFT_COLUMN_WIDTH + 12,
+    alignItems: 'flex-start',
     backgroundColor: '#000',
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: '#2A2A2A',
+    borderBottomColor: '#222',
   },
   loadMoreText: {
     fontSize: 14,

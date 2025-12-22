@@ -174,32 +174,30 @@ export const FocusedPost = memo(function FocusedPost({
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#000',
-    borderTopWidth: 1,
-    borderBottomWidth: 1,
-    borderColor: '#1A1A1A',
   },
   authorSection: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingHorizontal: THREAD_DESIGN.HORIZONTAL_PADDING,
+    paddingTop: 12,
     paddingBottom: 12,
   },
   avatarColumn: {
     alignItems: 'center',
+    width: THREAD_DESIGN.LEFT_COLUMN_WIDTH,
+    marginRight: 12,
   },
   threadLineUp: {
     width: THREAD_DESIGN.LINE_WIDTH,
-    height: 16,
-    backgroundColor: '#10B981', // Emerald - matches ancestor's last line
-    marginBottom: 4,
+    height: 12,
+    backgroundColor: '#333',
+    marginBottom: 6,
   },
   threadLineDown: {
     width: THREAD_DESIGN.LINE_WIDTH,
-    flex: 1,
-    backgroundColor: '#2A2A2A',
-    marginTop: 4,
-    minHeight: 8,
+    height: 12,
+    backgroundColor: '#333',
+    marginTop: 6,
   },
   avatar: {
     width: THREAD_DESIGN.AVATAR_SIZES.focused,
@@ -208,10 +206,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#1A1A1A',
   },
   authorInfo: {
-    marginLeft: 12,
     flex: 1,
     justifyContent: 'center',
-    paddingTop: 10,
   },
   displayName: {
     fontSize: 17,
@@ -227,20 +223,25 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   contentSection: {
-    paddingHorizontal: 16,
+    paddingHorizontal: THREAD_DESIGN.HORIZONTAL_PADDING,
+    paddingLeft: THREAD_DESIGN.HORIZONTAL_PADDING + THREAD_DESIGN.LEFT_COLUMN_WIDTH + 12,
   },
   content: {
-    fontSize: 18,
+    fontSize: 17,
     color: '#FAFAFA',
-    lineHeight: 26,
+    lineHeight: 24,
   },
   mediaContainer: {
     marginTop: 12,
-    marginHorizontal: -16,
+    marginLeft: -(THREAD_DESIGN.LEFT_COLUMN_WIDTH + 12),
+    marginRight: -THREAD_DESIGN.HORIZONTAL_PADDING,
   },
   timestampSection: {
-    paddingHorizontal: 16,
+    paddingHorizontal: THREAD_DESIGN.HORIZONTAL_PADDING,
+    paddingLeft: THREAD_DESIGN.HORIZONTAL_PADDING + THREAD_DESIGN.LEFT_COLUMN_WIDTH + 12,
     paddingVertical: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: '#222',
   },
   timestamp: {
     fontSize: 14,
@@ -249,10 +250,11 @@ const styles = StyleSheet.create({
   statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: THREAD_DESIGN.HORIZONTAL_PADDING,
+    paddingLeft: THREAD_DESIGN.HORIZONTAL_PADDING + THREAD_DESIGN.LEFT_COLUMN_WIDTH + 12,
     paddingVertical: 12,
-    borderTopWidth: 1,
-    borderColor: '#1A1A1A',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: '#222',
     gap: 16,
   },
   statItem: {
@@ -274,8 +276,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-around',
     paddingVertical: 12,
-    borderTopWidth: 1,
-    borderColor: '#1A1A1A',
+    paddingHorizontal: THREAD_DESIGN.HORIZONTAL_PADDING,
+    paddingLeft: THREAD_DESIGN.HORIZONTAL_PADDING + THREAD_DESIGN.LEFT_COLUMN_WIDTH + 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderColor: '#222',
   },
   actionButton: {
     padding: 8,

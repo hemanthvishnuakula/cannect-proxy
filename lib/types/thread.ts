@@ -79,6 +79,10 @@ export const THREAD_DESIGN = {
   },
   /** Thread connector line width */
   LINE_WIDTH: 2,
+  /** Consistent left column width for thread alignment */
+  LEFT_COLUMN_WIDTH: 48,
+  /** Horizontal padding */
+  HORIZONTAL_PADDING: 16,
 } as const;
 
 /**
