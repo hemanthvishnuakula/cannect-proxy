@@ -134,10 +134,10 @@ export default function FederatedUserScreen() {
     <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
       <Stack.Screen options={{ headerShown: false }} />
 
-      <View style={{ flex: 1, minHeight: 2 }}>
+      <View style={{ flex: 1, minHeight: 100 }}>
         <FlashList
           data={posts}
-          keyExtractor={(item: any, index) => `federated-${item.id}-${index}`}
+          keyExtractor={(item: any, index) => item.uri || `federated-${index}`}
           estimatedItemSize={200}
           ListHeaderComponent={() => (
           <View>
