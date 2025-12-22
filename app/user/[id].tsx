@@ -68,8 +68,8 @@ export default function UserProfileScreen() {
     refetch: refetchProfile,
   } = useResolveProfile(handleOrUsername!);
   
-  // Check if this is an external (Bluesky) user
-  const isExternalUser = profile && profile.is_local === false;
+  // Check if this is an external (Bluesky) user - ensure boolean
+  const isExternalUser = !!(profile && profile.is_local === false);
   
   // For local users: fetch posts from our database
   const { 
@@ -92,7 +92,7 @@ export default function UserProfileScreen() {
   } = useQuery({
     queryKey: ["external-posts", profile?.handle],
     queryFn: () => fetchExternalPosts(profile?.handle || ""),
-    enabled: isExternalUser && !!profile?.handle,
+    enabled: !!isExternalUser && !!profile?.handle,
     staleTime: 1000 * 60 * 5,
   });
   
