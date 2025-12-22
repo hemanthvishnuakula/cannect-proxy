@@ -21,10 +21,6 @@ import { PostCarousel } from './PostCarousel';
 
 interface ThreadPostProps {
   post: PostWithAuthor;
-  /** Show vertical line going UP to parent */
-  showParentLine?: boolean;
-  /** Show vertical line going DOWN to child */
-  showChildLine?: boolean;
   /** "Replying to @username" label */
   replyingTo?: string;
   /** Is this the focused/anchor post (larger text, full timestamp) */
@@ -42,8 +38,6 @@ interface ThreadPostProps {
 
 export const ThreadPost = memo(function ThreadPost({
   post,
-  showParentLine = false,
-  showChildLine = false,
   replyingTo,
   isFocused = false,
   onPress,
@@ -88,28 +82,17 @@ export const ThreadPost = memo(function ThreadPost({
     : formatDistanceToNow(new Date(post.created_at));
 
   const content = (
-    <View style={styles.container}>
-      {/* Parent Reply Line - matches Bluesky ThreadItemPostParentReplyLine */}
-      <View style={styles.parentLineContainer}>
-        <View style={styles.parentLineColumn}>
-          {showParentLine && <View style={styles.parentLine} />}
-        </View>
-      </View>
-
+    <View style={[styles.container, !isFocused && styles.borderBottom]}>
       {/* Main Post Content Row */}
       <View style={styles.mainRow}>
-        {/* Left: Avatar + Child Line (matches Bluesky layout) */}
-        <View style={styles.avatarColumn}>
-          <Pressable onPress={onProfilePress}>
-            <Image
-              source={{ uri: post.author?.avatar_url }}
-              style={styles.avatar}
-              contentFit="cover"
-            />
-          </Pressable>
-          {/* Child line extending down - uses flex to fill remaining space */}
-          {showChildLine && <View style={styles.childLine} />}
-        </View>
+        {/* Avatar */}
+        <Pressable onPress={onProfilePress} style={styles.avatarContainer}>
+          <Image
+            source={{ uri: post.author?.avatar_url }}
+            style={styles.avatar}
+            contentFit="cover"
+          />
+        </Pressable>
 
         {/* Right: Content */}
         <View style={styles.contentColumn}>
@@ -238,39 +221,23 @@ const styles = StyleSheet.create({
   container: {
     backgroundColor: '#000',
   },
+  borderBottom: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#222',
+  },
   pressed: {
     backgroundColor: '#0A0A0A',
-  },
-  
-  // Parent line container (matches ThreadItemPostParentReplyLine in Bluesky)
-  parentLineContainer: {
-    flexDirection: 'row',
-    height: 12,
-    paddingHorizontal: THREAD_DESIGN.OUTER_SPACE,
-  },
-  parentLineColumn: {
-    width: THREAD_DESIGN.AVATAR_SIZE,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  parentLine: {
-    width: THREAD_DESIGN.LINE_WIDTH,
-    flex: 1,
-    marginBottom: 4, // Bluesky uses a.mb_xs which is 4px
-    backgroundColor: '#333',
   },
   
   // Main row
   mainRow: {
     flexDirection: 'row',
     paddingHorizontal: THREAD_DESIGN.OUTER_SPACE,
-    paddingBottom: 12,
+    paddingVertical: 12,
   },
   
-  // Avatar column (matches Bluesky's avatar + child line layout)
-  avatarColumn: {
-    width: THREAD_DESIGN.AVATAR_SIZE,
-    alignItems: 'center',
+  // Avatar
+  avatarContainer: {
     marginRight: THREAD_DESIGN.AVATAR_GAP,
   },
   avatar: {
@@ -278,12 +245,6 @@ const styles = StyleSheet.create({
     height: THREAD_DESIGN.AVATAR_SIZE,
     borderRadius: THREAD_DESIGN.AVATAR_SIZE / 2,
     backgroundColor: '#1A1A1A',
-  },
-  childLine: {
-    width: THREAD_DESIGN.LINE_WIDTH,
-    flex: 1,
-    marginTop: 4, // Bluesky uses a.mt_xs which is 4px
-    backgroundColor: '#333',
   },
   
   // Content column

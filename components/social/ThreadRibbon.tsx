@@ -62,8 +62,6 @@ export const ThreadRibbon = memo(function ThreadRibbon({
         return (
           <ThreadPost
             post={item.post}
-            showParentLine={item.showParentLine}
-            showChildLine={item.showChildLine}
             onPress={() => navigateToPost(item.post.id)}
             onLike={() => onLike(item.post)}
             onReply={() => onReply(item.post, item.post.author?.username)}
@@ -77,8 +75,6 @@ export const ThreadRibbon = memo(function ThreadRibbon({
         return (
           <ThreadPost
             post={item.post}
-            showParentLine={item.showParentLine}
-            showChildLine={item.showChildLine}
             isFocused
             onLike={() => onLike(item.post)}
             onReply={() => onReply(item.post, item.post.author?.username)}
@@ -102,8 +98,6 @@ export const ThreadRibbon = memo(function ThreadRibbon({
         return (
           <ThreadPost
             post={item.reply.post}
-            showParentLine={item.showParentLine}
-            showChildLine={item.showChildLine}
             replyingTo={item.reply.replyingTo}
             onPress={() => navigateToPost(item.reply.post.id)}
             onLike={() => onLike(item.reply.post)}

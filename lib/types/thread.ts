@@ -49,12 +49,12 @@ export interface ThreadView {
 
 /**
  * Flattened item for FlashList rendering
- * UI flags match Bluesky's pattern for thread line visibility
+ * Simple linear view - tap any reply to see its own thread
  */
 export type ThreadListItem = 
-  | { type: 'ancestor'; post: PostWithAuthor; showParentLine: boolean; showChildLine: boolean }
-  | { type: 'focused'; post: PostWithAuthor; showParentLine: boolean; showChildLine: boolean }
-  | { type: 'reply'; reply: ThreadReply; showParentLine: boolean; showChildLine: boolean }
+  | { type: 'ancestor'; post: PostWithAuthor }
+  | { type: 'focused'; post: PostWithAuthor }
+  | { type: 'reply'; reply: ThreadReply }
   | { type: 'reply-divider'; count: number }
   | { type: 'load-more'; count: number };
 
@@ -96,32 +96,19 @@ export const THREAD_DESIGN = {
 } as const;
 
 /**
- * Flatten a ThreadView into a list of renderable items - Bluesky Style
- * Sets showParentLine/showChildLine flags for continuous thread connectors
+ * Flatten a ThreadView into a list of renderable items
+ * Simple linear view - each post is tappable to see its own thread
  */
 export function flattenThreadToList(thread: ThreadView): ThreadListItem[] {
   const items: ThreadListItem[] = [];
-  const hasAncestors = thread.ancestors.length > 0;
-  const hasReplies = thread.replies.length > 0;
   
-  // 1. Add ancestors with thread lines
-  thread.ancestors.forEach((post, index) => {
-    const isLast = index === thread.ancestors.length - 1;
-    items.push({
-      type: 'ancestor',
-      post,
-      showParentLine: index > 0, // Line going up (not for first ancestor)
-      showChildLine: true, // Always show line going down to next
-    });
+  // 1. Add ancestors
+  thread.ancestors.forEach((post) => {
+    items.push({ type: 'ancestor', post });
   });
   
   // 2. Add focused post
-  items.push({
-    type: 'focused',
-    post: thread.focusedPost,
-    showParentLine: hasAncestors, // Line going up to parent
-    showChildLine: hasReplies, // Line going down to replies
-  });
+  items.push({ type: 'focused', post: thread.focusedPost });
   
   // 3. Add reply divider if there are replies
   if (thread.replies.length > 0) {
@@ -132,14 +119,8 @@ export function flattenThreadToList(thread: ThreadView): ThreadListItem[] {
   }
   
   // 4. Add all replies flat
-  thread.replies.forEach((reply, index) => {
-    const isLast = index === thread.replies.length - 1;
-    items.push({
-      type: 'reply',
-      reply,
-      showParentLine: true, // Always show line going up in reply section
-      showChildLine: !isLast, // Show line down unless last reply
-    });
+  thread.replies.forEach((reply) => {
+    items.push({ type: 'reply', reply });
   });
   
   // 5. Add load more if there are more replies
