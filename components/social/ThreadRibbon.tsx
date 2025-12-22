@@ -3,11 +3,15 @@
  * 
  * Uses unified ThreadPost component for all post types.
  * Thread lines connect posts vertically through avatar centers.
- * Auto-scrolls to focused post when ancestors are present.
+ * 
+ * Bluesky-style deferred parents:
+ * - Initially renders focused post first (deferParents = true)
+ * - After stable render, shows ancestors above (deferParents = false)
+ * - Uses maintainVisibleContentPosition to keep focused post in place
  */
 
-import React, { memo, useMemo, useCallback, useRef, useEffect } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, Pressable } from 'react-native';
+import React, { memo, useMemo, useCallback, useRef, useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ActivityIndicator, Pressable, Platform } from 'react-native';
 import { FlashList, ListRenderItem } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import type { ThreadView, ThreadListItem } from '@/lib/types/thread';
@@ -43,50 +47,51 @@ export const ThreadRibbon = memo(function ThreadRibbon({
 }: ThreadRibbonProps) {
   const router = useRouter();
   const { user } = useAuthStore();
+  
+  // Track which post we're deferring parents for
+  const currentPostIdRef = useRef<string | null>(null);
+  const focusedPostId = thread.focusedPost.id;
+  
+  // Bluesky-style: defer rendering parents initially
+  // Reset deferParents when navigating to a new post
+  const [deferParents, setDeferParents] = useState(true);
+  
+  // Reset deferParents when focused post changes (navigating to new thread)
+  useEffect(() => {
+    if (currentPostIdRef.current !== focusedPostId) {
+      currentPostIdRef.current = focusedPostId;
+      setDeferParents(true);
+    }
+  }, [focusedPostId]);
 
   // Flatten thread into renderable list
-  const items = useMemo(() => flattenThreadToList(thread), [thread]);
+  const allItems = useMemo(() => flattenThreadToList(thread), [thread]);
+  
+  // Filter items based on deferParents state
+  const items = useMemo(() => {
+    if (deferParents) {
+      // Hide ancestors initially - start with focused post
+      return allItems.filter(item => item.type !== 'ancestor');
+    }
+    return allItems;
+  }, [allItems, deferParents]);
 
-  // Ref for FlashList to enable scrolling
+  // Ref for FlashList
   const listRef = useRef<FlashList<ThreadListItem>>(null);
   
-  // Track if we've scrolled for this thread (to avoid re-scrolling on re-renders)
-  const hasScrolledRef = useRef<string | null>(null);
-  const focusedPostId = thread.focusedPost.id;
+  // Check if we have ancestors to show
+  const hasAncestors = allItems.some(item => item.type === 'ancestor');
 
-  // Find the index of the focused post for auto-scroll
-  const focusedIndex = useMemo(() => 
-    items.findIndex(item => item.type === 'focused'), 
-    [items]
-  );
-
-  // Auto-scroll to focused post when ancestors are present
+  // After initial render stabilizes, show the parents
   useEffect(() => {
-    // Only scroll if we have ancestors and haven't scrolled for this post yet
-    if (focusedIndex > 0 && listRef.current && hasScrolledRef.current !== focusedPostId) {
-      hasScrolledRef.current = focusedPostId;
-      
-      // Use multiple attempts to ensure scroll happens after render
-      const attemptScroll = (attempt: number) => {
-        if (attempt > 3) return; // Give up after 3 attempts
-        
-        setTimeout(() => {
-          try {
-            listRef.current?.scrollToIndex({
-              index: focusedIndex,
-              animated: false,
-              viewPosition: 0, // Put focused post at top
-            });
-          } catch (e) {
-            // If scroll fails, try again
-            attemptScroll(attempt + 1);
-          }
-        }, attempt * 150); // 150ms, 300ms, 450ms
-      };
-      
-      attemptScroll(1);
+    if (deferParents && hasAncestors) {
+      // Small delay to let initial render complete, then show ancestors
+      const timer = setTimeout(() => {
+        setDeferParents(false);
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [focusedIndex, focusedPostId]);
+  }, [deferParents, hasAncestors]);
 
   // Navigation handlers
   const navigateToPost = useCallback((postId: string) => {
@@ -99,9 +104,9 @@ export const ThreadRibbon = memo(function ThreadRibbon({
 
   // Render individual items - uses index to determine connector lines
   const renderItem: ListRenderItem<ThreadListItem> = useCallback(({ item, index }) => {
-    // Count ancestors to determine line connections
+    // Check ancestors from allItems (not filtered items) for connector lines
     const ancestorCount = items.filter(i => i.type === 'ancestor').length;
-    const hasAncestors = ancestorCount > 0;
+    const showAncestorConnector = ancestorCount > 0 && !deferParents;
     
     switch (item.type) {
       case 'ancestor':
@@ -129,7 +134,7 @@ export const ThreadRibbon = memo(function ThreadRibbon({
           <ThreadPost
             post={item.post}
             isFocused
-            showParentLine={hasAncestors} // Show line from last ancestor
+            showParentLine={showAncestorConnector} // Show line from last ancestor
             showChildLine={false} // No line to replies
             onLike={() => onLike(item.post)}
             onReply={() => onReply(item.post, item.post.author?.username)}
@@ -183,7 +188,7 @@ export const ThreadRibbon = memo(function ThreadRibbon({
       default:
         return null;
     }
-  }, [items, navigateToPost, navigateToProfile, onLike, onReply, onRepost, onMore, onLoadMore, isLoadingMore]);
+  }, [items, deferParents, navigateToPost, navigateToProfile, onLike, onReply, onRepost, onMore, onLoadMore, isLoadingMore]);
 
   // Key extractor
   const keyExtractor = useCallback((item: ThreadListItem, index: number) => {
@@ -226,6 +231,10 @@ export const ThreadRibbon = memo(function ThreadRibbon({
         ListFooterComponent={ListFooterComponent}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
+        // Keep focused post in place when ancestors are prepended
+        maintainVisibleContentPosition={
+          hasAncestors ? { minIndexForVisible: 0 } : undefined
+        }
       />
     </View>
   );
