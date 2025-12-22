@@ -4,10 +4,10 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Stack, useLocalSearchParams, useRouter } from "expo-router";
 import { FlashList } from "@shopify/flash-list";
 import { Image } from "expo-image";
-import { ArrowLeft, Globe2, Users, UserPlus } from "lucide-react-native";
+import { ArrowLeft, Globe2, Users, UserPlus, UserMinus, Check } from "lucide-react-native";
 import { useQuery } from "@tanstack/react-query";
 import { SocialPost } from "@/components/social";
-import { useToggleRepost } from "@/lib/hooks";
+import { useToggleRepost, useIsFollowingDid, useFollowBlueskyUser, useUnfollowBlueskyUser } from "@/lib/hooks";
 
 const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL || "";
 const SUPABASE_ANON_KEY = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || "";
@@ -80,6 +80,28 @@ export default function FederatedUserScreen() {
     enabled: !!handle,
     staleTime: 1000 * 60 * 5,
   });
+
+  // Follow state for this external user
+  const targetDid = data?.profile?.id || "";
+  const { data: isFollowing, isLoading: isFollowLoading } = useIsFollowingDid(targetDid);
+  const followMutation = useFollowBlueskyUser();
+  const unfollowMutation = useUnfollowBlueskyUser();
+
+  const handleToggleFollow = () => {
+    if (!data?.profile) return;
+    
+    const profile = data.profile;
+    if (isFollowing) {
+      unfollowMutation.mutate(profile.id);
+    } else {
+      followMutation.mutate({
+        did: profile.id,
+        handle: profile.username,
+        displayName: profile.display_name,
+        avatar: profile.avatar_url,
+      });
+    }
+  };
 
   const handleImportPost = (post: any) => {
     Alert.alert(
@@ -177,7 +199,7 @@ export default function FederatedUserScreen() {
                   {profile.bio && (
                     <Text className="text-text-primary text-sm mb-3">{profile.bio}</Text>
                   )}
-                  <View className="flex-row gap-4">
+                  <View className="flex-row gap-4 mb-3">
                     <View className="flex-row items-center gap-1">
                       <Users size={14} color="#6B7280" />
                       <Text className="text-text-muted text-sm">
@@ -188,6 +210,31 @@ export default function FederatedUserScreen() {
                       <Text className="font-bold text-text-primary">{profile.following_count.toLocaleString()}</Text> following
                     </Text>
                   </View>
+                  
+                  {/* Follow Button */}
+                  <Pressable
+                    onPress={handleToggleFollow}
+                    disabled={followMutation.isPending || unfollowMutation.isPending || isFollowLoading}
+                    className={`flex-row items-center justify-center gap-2 px-4 py-2 rounded-full ${
+                      isFollowing 
+                        ? "bg-surface border border-border" 
+                        : "bg-blue-500"
+                    }`}
+                  >
+                    {(followMutation.isPending || unfollowMutation.isPending) ? (
+                      <ActivityIndicator size="small" color={isFollowing ? "#FAFAFA" : "#FFFFFF"} />
+                    ) : isFollowing ? (
+                      <>
+                        <Check size={16} color="#10B981" />
+                        <Text className="text-text-primary font-medium">Following</Text>
+                      </>
+                    ) : (
+                      <>
+                        <UserPlus size={16} color="#FFFFFF" />
+                        <Text className="text-white font-medium">Follow</Text>
+                      </>
+                    )}
+                  </Pressable>
                 </View>
               </View>
             </View>

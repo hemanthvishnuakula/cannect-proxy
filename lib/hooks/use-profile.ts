@@ -292,6 +292,191 @@ export function useUnfollowUser() {
   });
 }
 
+// ============================================================================
+// External Bluesky User Follow/Unfollow
+// ============================================================================
+
+export interface BlueskyUserInfo {
+  did: string;
+  handle: string;
+  displayName?: string;
+  avatar?: string;
+}
+
+/**
+ * Check if current user follows an external Bluesky user by DID
+ */
+export function useIsFollowingDid(targetDid: string) {
+  const { user } = useAuthStore();
+
+  return useQuery({
+    queryKey: ["follows", "isFollowingDid", user?.id, targetDid],
+    queryFn: async () => {
+      if (!user) return false;
+
+      const { data, error } = await supabase
+        .from("follows")
+        .select("id")
+        .eq("follower_id", user.id)
+        .eq("subject_did", targetDid)
+        .maybeSingle();
+
+      if (error) throw error;
+      return !!data;
+    },
+    enabled: !!targetDid && !!user,
+  });
+}
+
+/**
+ * Follow an external Bluesky user (who doesn't have a Cannect account)
+ */
+export function useFollowBlueskyUser() {
+  const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+
+  return useMutation({
+    mutationFn: async (blueskyUser: BlueskyUserInfo) => {
+      if (!user) throw new Error("Not authenticated");
+      
+      const { error } = await supabase.from("follows").insert({
+        follower_id: user.id,
+        following_id: null, // External user - no local ID
+        subject_did: blueskyUser.did,
+        subject_handle: blueskyUser.handle,
+        subject_display_name: blueskyUser.displayName || blueskyUser.handle,
+        subject_avatar: blueskyUser.avatar,
+      } as any);
+      
+      if (error) throw error;
+      return blueskyUser.did;
+    },
+    onMutate: async (blueskyUser) => {
+      // Cancel outgoing queries
+      await queryClient.cancelQueries({ 
+        queryKey: ["follows", "isFollowingDid", user?.id, blueskyUser.did] 
+      });
+      
+      // Snapshot previous value
+      const previousIsFollowing = queryClient.getQueryData(
+        ["follows", "isFollowingDid", user?.id, blueskyUser.did]
+      );
+      
+      // Optimistically set to following
+      queryClient.setQueryData(
+        ["follows", "isFollowingDid", user?.id, blueskyUser.did],
+        true
+      );
+      
+      // Update my following count
+      if (user?.id) {
+        queryClient.setQueryData(
+          queryKeys.profiles.detail(user.id),
+          (old: any) => old ? { 
+            ...old, 
+            following_count: (old.following_count || 0) + 1 
+          } : old
+        );
+      }
+      
+      return { previousIsFollowing };
+    },
+    onError: (err, blueskyUser, context) => {
+      if (context?.previousIsFollowing !== undefined) {
+        queryClient.setQueryData(
+          ["follows", "isFollowingDid", user?.id, blueskyUser.did],
+          context.previousIsFollowing
+        );
+      }
+      if (user?.id) {
+        queryClient.setQueryData(
+          queryKeys.profiles.detail(user.id),
+          (old: any) => old ? { 
+            ...old, 
+            following_count: Math.max(0, (old.following_count || 0) - 1)
+          } : old
+        );
+      }
+    },
+    onSettled: (did) => {
+      queryClient.invalidateQueries({ queryKey: ["follows", "isFollowingDid", user?.id, did] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.profiles.detail(user?.id!) });
+      queryClient.invalidateQueries({ queryKey: ['user-relationships', user?.id!] });
+    },
+  });
+}
+
+/**
+ * Unfollow an external Bluesky user by DID
+ */
+export function useUnfollowBlueskyUser() {
+  const queryClient = useQueryClient();
+  const { user } = useAuthStore();
+
+  return useMutation({
+    mutationFn: async (targetDid: string) => {
+      if (!user) throw new Error("Not authenticated");
+
+      const { error } = await supabase
+        .from("follows")
+        .delete()
+        .eq("follower_id", user.id)
+        .eq("subject_did", targetDid);
+
+      if (error) throw error;
+      return targetDid;
+    },
+    onMutate: async (targetDid) => {
+      await queryClient.cancelQueries({ 
+        queryKey: ["follows", "isFollowingDid", user?.id, targetDid] 
+      });
+      
+      const previousIsFollowing = queryClient.getQueryData(
+        ["follows", "isFollowingDid", user?.id, targetDid]
+      );
+      
+      queryClient.setQueryData(
+        ["follows", "isFollowingDid", user?.id, targetDid],
+        false
+      );
+      
+      if (user?.id) {
+        queryClient.setQueryData(
+          queryKeys.profiles.detail(user.id),
+          (old: any) => old ? { 
+            ...old, 
+            following_count: Math.max(0, (old.following_count || 0) - 1)
+          } : old
+        );
+      }
+      
+      return { previousIsFollowing };
+    },
+    onError: (err, targetDid, context) => {
+      if (context?.previousIsFollowing !== undefined) {
+        queryClient.setQueryData(
+          ["follows", "isFollowingDid", user?.id, targetDid],
+          context.previousIsFollowing
+        );
+      }
+      if (user?.id) {
+        queryClient.setQueryData(
+          queryKeys.profiles.detail(user.id),
+          (old: any) => old ? { 
+            ...old, 
+            following_count: (old.following_count || 0) + 1
+          } : old
+        );
+      }
+    },
+    onSettled: (targetDid) => {
+      queryClient.invalidateQueries({ queryKey: ["follows", "isFollowingDid", user?.id, targetDid] });
+      queryClient.invalidateQueries({ queryKey: queryKeys.profiles.detail(user?.id!) });
+      queryClient.invalidateQueries({ queryKey: ['user-relationships', user?.id!] });
+    },
+  });
+}
+
 // Get followers
 export function useFollowers(userId: string) {
   return useQuery({
