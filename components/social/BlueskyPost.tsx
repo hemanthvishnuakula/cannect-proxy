@@ -35,6 +35,18 @@ export interface BlueskyPostData {
   repostCount?: number;
   replyCount?: number;
   images?: string[];
+  // Quoted post for quote posts
+  quotedPost?: {
+    uri: string;
+    cid: string;
+    content: string;
+    author: {
+      did: string;
+      handle: string;
+      displayName: string;
+      avatar?: string;
+    };
+  };
 }
 
 interface BlueskyPostProps {

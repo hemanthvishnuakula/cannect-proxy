@@ -36,6 +36,18 @@ function toBlueskyPostData(post: FederatedPost): BlueskyPostData {
     repostCount: post.reposts_count,
     replyCount: post.replies_count,
     images: post.media_urls,
+    // Pass quoted post if present
+    quotedPost: post.quoted_post ? {
+      uri: post.quoted_post.uri,
+      cid: post.quoted_post.cid,
+      content: post.quoted_post.content,
+      author: {
+        did: post.quoted_post.author.did,
+        handle: post.quoted_post.author.handle,
+        displayName: post.quoted_post.author.display_name,
+        avatar: post.quoted_post.author.avatar_url || undefined,
+      },
+    } : undefined,
   };
 }
 

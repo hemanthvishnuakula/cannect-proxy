@@ -57,7 +57,7 @@ export interface FederatedPost {
   reposts_count: number;
   replies_count: number;
   is_federated: true;
-  type: 'post';
+  type: 'post' | 'quote';
   author: {
     id: string;
     did: string;
@@ -66,6 +66,18 @@ export interface FederatedPost {
     display_name: string;
     avatar_url: string | null;
     is_verified: boolean;
+  };
+  // Quoted post for quote posts
+  quoted_post?: {
+    uri: string;
+    cid: string;
+    content: string;
+    author: {
+      did: string;
+      handle: string;
+      display_name: string;
+      avatar_url: string | null;
+    };
   };
 }
 
@@ -172,6 +184,35 @@ export interface BlueskyThread {
 }
 
 function parseBlueskyPost(bskyPost: any): FederatedPost {
+  // Check for quoted post embed
+  const embed = bskyPost.embed;
+  let quoted_post: FederatedPost['quoted_post'] | undefined;
+  let isQuote = false;
+  
+  if (embed?.$type === 'app.bsky.embed.record#view' && embed.record) {
+    const quotedRecord = embed.record;
+    isQuote = true;
+    quoted_post = {
+      uri: quotedRecord.uri,
+      cid: quotedRecord.cid,
+      content: quotedRecord.value?.text || '',
+      author: {
+        did: quotedRecord.author?.did || '',
+        handle: quotedRecord.author?.handle || 'user',
+        display_name: quotedRecord.author?.displayName || quotedRecord.author?.handle || 'User',
+        avatar_url: quotedRecord.author?.avatar || null,
+      },
+    };
+  }
+  
+  // Extract images (handle both direct images and recordWithMedia embeds)
+  let media_urls: string[] = [];
+  if (embed?.images) {
+    media_urls = embed.images.map((img: any) => img.thumb || img.fullsize);
+  } else if (embed?.$type === 'app.bsky.embed.recordWithMedia#view' && embed.media?.images) {
+    media_urls = embed.media.images.map((img: any) => img.thumb || img.fullsize);
+  }
+  
   return {
     id: bskyPost.cid,
     uri: bskyPost.uri,
@@ -179,13 +220,12 @@ function parseBlueskyPost(bskyPost: any): FederatedPost {
     user_id: bskyPost.author.did,
     content: bskyPost.record?.text || "",
     created_at: bskyPost.record?.createdAt || bskyPost.indexedAt,
-    // Use thumb for feed performance, fullsize available if needed
-    media_urls: bskyPost.embed?.images?.map((img: any) => img.thumb || img.fullsize) || [],
+    media_urls,
     likes_count: bskyPost.likeCount || 0,
     reposts_count: bskyPost.repostCount || 0,
     replies_count: bskyPost.replyCount || 0,
     is_federated: true as const,
-    type: 'post' as const,
+    type: isQuote ? 'quote' as const : 'post' as const,
     author: {
       id: bskyPost.author.did,
       did: bskyPost.author.did,
@@ -195,6 +235,7 @@ function parseBlueskyPost(bskyPost: any): FederatedPost {
       avatar_url: bskyPost.author.avatar || null,
       is_verified: false,
     },
+    quoted_post,
   };
 }
 

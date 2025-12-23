@@ -297,9 +297,28 @@ export function fromBlueskyPost(
     did: post.author.did,
   };
 
-  // Build embed for images
+  // Build embed - check for quoted post first, then images
   let embed: UnifiedEmbed | undefined;
-  if (post.images && post.images.length > 0) {
+  let postType: "post" | "reply" | "quote" = "post";
+  
+  if (post.quotedPost) {
+    postType = "quote";
+    embed = {
+      type: "quote",
+      quote: {
+        uri: post.quotedPost.uri,
+        cid: post.quotedPost.cid,
+        content: post.quotedPost.content,
+        author: {
+          id: post.quotedPost.author.did,
+          handle: post.quotedPost.author.handle,
+          displayName: post.quotedPost.author.displayName || post.quotedPost.author.handle,
+          avatarUrl: post.quotedPost.author.avatar || getFallbackAvatar(post.quotedPost.author.handle, "bluesky"),
+        },
+        isExternal: true,
+      },
+    };
+  } else if (post.images && post.images.length > 0) {
     embed = {
       type: "images",
       images: post.images,
@@ -342,7 +361,7 @@ export function fromBlueskyPost(
     // Source
     isExternal: true,
     source: "bluesky",
-    type: "post",
+    type: postType,
   };
 }
 
