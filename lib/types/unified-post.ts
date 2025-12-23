@@ -153,16 +153,21 @@ export function fromLocalPost(
   currentUserId?: string
 ): UnifiedPost {
   const author = post.author;
-  const isFederated = !!(post as any).at_uri && !(post as any).at_uri?.includes("cannect.space");
+  // Check if post is from OUR PDS (cannect.space) - these are Cannect users' federated posts
+  const isOwnPdsFederated = !!(post as any).at_uri && (post as any).at_uri?.includes("cannect.space");
+  // External federated = has at_uri but NOT from cannect.space
+  const isExternalFederated = !!(post as any).at_uri && !(post as any).at_uri?.includes("cannect.space");
   
-  // Build author
+  // Build author - prefer AT Protocol handle for federated posts
   const unifiedAuthor: UnifiedAuthor = {
     id: author?.id || "",
-    handle: author?.username || "user",
+    // Use AT Protocol handle when available, otherwise fall back to local username
+    handle: author?.handle || author?.username || "user",
     displayName: author?.display_name || author?.username || "User",
-    avatarUrl: author?.avatar_url || getFallbackAvatar(author?.username || "U", isFederated ? "bluesky" : "cannect"),
+    avatarUrl: author?.avatar_url || getFallbackAvatar(author?.username || "U", isExternalFederated ? "bluesky" : "cannect"),
     isVerified: author?.is_verified,
-    did: isFederated ? (post as any).external_metadata?.author?.did : undefined,
+    // Include DID for our own federated users too
+    did: author?.did || (isExternalFederated ? (post as any).external_metadata?.author?.did : undefined),
   };
 
   // Build embed
@@ -171,7 +176,7 @@ export function fromLocalPost(
   // Check for quoted post
   if (post.type === "quote" && post.quoted_post?.id) {
     const quoted = post.quoted_post;
-    const quotedIsFederated = !!(quoted as any).at_uri && !(quoted as any).at_uri?.includes("cannect.space");
+    const quotedIsExternalFederated = !!(quoted as any).at_uri && !(quoted as any).at_uri?.includes("cannect.space");
     
     embed = {
       type: "quote",
@@ -180,12 +185,12 @@ export function fromLocalPost(
         content: quoted.content || "",
         author: {
           id: quoted.author?.id || "",
-          handle: quoted.author?.username || "user",
+          handle: quoted.author?.handle || quoted.author?.username || "user",
           displayName: quoted.author?.display_name || quoted.author?.username || "User",
-          avatarUrl: quoted.author?.avatar_url || getFallbackAvatar(quoted.author?.username || "U", quotedIsFederated ? "bluesky" : "cannect"),
+          avatarUrl: quoted.author?.avatar_url || getFallbackAvatar(quoted.author?.username || "U", quotedIsExternalFederated ? "bluesky" : "cannect"),
         },
         images: quoted.media_urls || undefined,
-        isExternal: quotedIsFederated,
+        isExternal: quotedIsExternalFederated,
       },
     };
   } else if (post.media_urls && post.media_urls.length > 0) {
@@ -207,7 +212,7 @@ export function fromLocalPost(
     const reposter = (post as any).reposted_by;
     repostedBy = {
       id: reposter.id,
-      handle: reposter.username,
+      handle: reposter.handle || reposter.username,
       displayName: reposter.display_name || reposter.username,
       isOwnRepost: reposter.id === currentUserId,
     };
@@ -216,9 +221,10 @@ export function fromLocalPost(
   // Build parent info
   let parent: ParentInfo | undefined;
   if (post.is_reply && post.parent_post?.author) {
+    const parentAuthor = post.parent_post.author as any;
     parent = {
-      handle: post.parent_post.author.username || "user",
-      displayName: post.parent_post.author.display_name,
+      handle: parentAuthor.handle || parentAuthor.username || "user",
+      displayName: parentAuthor.display_name,
     };
   }
 
@@ -261,9 +267,9 @@ export function fromLocalPost(
     repostedBy,
     parent,
     
-    // Source
-    isExternal: isFederated,
-    source: isFederated ? "bluesky" : "cannect",
+    // Source - isExternal means the content is from an external source (not Cannect)
+    isExternal: isExternalFederated,
+    source: isExternalFederated ? "bluesky" : "cannect",
     type,
   };
 }
