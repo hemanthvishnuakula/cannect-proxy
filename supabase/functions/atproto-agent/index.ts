@@ -187,12 +187,23 @@ async function pdsCall(
 
 /**
  * Generate TID (Timestamp ID) for rkey
+ * Uses base32-sortable encoding: 234567abcdefghijklmnopqrstuvwxyz
+ * See: https://atproto.com/specs/tid
  */
+const S32_CHAR = '234567abcdefghijklmnopqrstuvwxyz';
+
 function generateTID(): string {
   const now = Date.now() * 1000; // microseconds
   const clockId = Math.floor(Math.random() * 1024);
-  const tid = ((BigInt(now) << 10n) | BigInt(clockId)).toString(32);
-  return tid.padStart(13, '0');
+  let n = (BigInt(now) << 10n) | BigInt(clockId);
+  
+  // Encode as base32-sortable
+  let tid = '';
+  for (let i = 0; i < 13; i++) {
+    tid = S32_CHAR[Number(n & 31n)] + tid;
+    n = n >> 5n;
+  }
+  return tid;
 }
 
 // ============================================================================
