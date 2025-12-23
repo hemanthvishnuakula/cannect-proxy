@@ -1,6 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const BSKY_PUBLIC_API = "https://public.api.bsky.app/xrpc";
+
+// Initialize Supabase client with service role for admin operations
+const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -93,6 +99,84 @@ serve(async (req) => {
         bskyUrl = `${BSKY_PUBLIC_API}/app.bsky.graph.getFollows?actor=${encodeURIComponent(followsActor)}&limit=${limit}`;
         if (cursor) bskyUrl += `&cursor=${encodeURIComponent(cursor)}`;
         break;
+
+      case "syncFollowsList": {
+        // Sync followers/following list from Bluesky to local DB
+        const syncActor = url.searchParams.get("actor") || "";
+        const syncType = url.searchParams.get("type") as "followers" | "following";
+        const profileId = url.searchParams.get("profileId") || "";
+        
+        if (!syncActor || !syncType || !profileId) {
+          throw new Error("Missing required params: actor, type, profileId");
+        }
+        
+        const listAction = syncType === "followers" ? "getFollowers" : "getFollows";
+        const listUrl = `${BSKY_PUBLIC_API}/app.bsky.graph.${listAction}?actor=${encodeURIComponent(syncActor)}&limit=100`;
+        
+        const listRes = await fetchWithTimeout(listUrl, {
+          headers: { "Accept": "application/json", "User-Agent": "Cannect/1.0" },
+        });
+        
+        if (!listRes.ok) {
+          return new Response(JSON.stringify({ synced: 0, error: "Failed to fetch from Bluesky" }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        
+        const listData = await listRes.json();
+        const users = syncType === "followers" ? listData.followers : listData.follows;
+        
+        if (!users || !Array.isArray(users)) {
+          return new Response(JSON.stringify({ synced: 0 }), {
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        
+        let synced = 0;
+        for (const user of users) {
+          try {
+            // Upsert external profile using RPC
+            const { data: newProfileId } = await supabaseAdmin.rpc("upsert_external_profile", {
+              p_did: user.did,
+              p_handle: user.handle,
+              p_display_name: user.displayName || user.handle,
+              p_avatar_url: user.avatar || null,
+              p_bio: user.description || null,
+              p_followers_count: user.followersCount || 0,
+              p_following_count: user.followsCount || 0,
+              p_posts_count: user.postsCount || 0,
+            });
+            
+            if (newProfileId) {
+              const followerId = syncType === "followers" ? newProfileId : profileId;
+              const followingId = syncType === "followers" ? profileId : newProfileId;
+              
+              // Check if exists
+              const { data: existing } = await supabaseAdmin
+                .from("follows")
+                .select("id")
+                .eq("follower_id", followerId)
+                .eq("following_id", followingId)
+                .maybeSingle();
+              
+              if (!existing) {
+                await supabaseAdmin.from("follows").insert({
+                  follower_id: followerId,
+                  following_id: followingId,
+                  subject_did: syncType === "followers" ? syncActor : user.did,
+                });
+                synced++;
+              }
+            }
+          } catch (err) {
+            console.error("Sync user error:", err);
+          }
+        }
+        
+        return new Response(JSON.stringify({ synced, total: users.length }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
 
       case "xrpc":
         // ✅ Gold Standard Resilience: Generic XRPC Passthrough

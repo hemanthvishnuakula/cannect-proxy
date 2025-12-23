@@ -124,7 +124,7 @@ async function syncProfileCounts(profile: Profile): Promise<void> {
 
 /**
  * Lazy sync: Sync followers/following list from Bluesky
- * Fetches the list and upserts profiles + follow relationships
+ * Calls the edge function which handles the DB operations with service role
  */
 async function syncFollowsList(
   profile: Profile, 
@@ -134,59 +134,12 @@ async function syncFollowsList(
   if (!profile.did) return;
   
   try {
-    const action = type === 'followers' ? 'getFollowers' : 'getFollows';
-    const listUrl = `${SUPABASE_URL}/functions/v1/bluesky-proxy?action=${action}&actor=${encodeURIComponent(profile.did)}&limit=100`;
-    const res = await fetch(listUrl, { headers: getProxyHeaders() });
+    const syncUrl = `${SUPABASE_URL}/functions/v1/bluesky-proxy?action=syncFollowsList&actor=${encodeURIComponent(profile.did)}&type=${type}&profileId=${profile.id}`;
+    const res = await fetch(syncUrl, { headers: getProxyHeaders() });
     
-    if (!res.ok) return;
-    
-    const data = await res.json();
-    const users = type === 'followers' ? data.followers : data.follows;
-    
-    if (!users || !Array.isArray(users)) return;
-    
-    // Process each user
-    for (const user of users) {
-      try {
-        // Upsert the external profile
-        const { data: newProfileId } = await supabase.rpc('upsert_external_profile', {
-          p_did: user.did,
-          p_handle: user.handle,
-          p_display_name: user.displayName || user.handle,
-          p_avatar_url: user.avatar || null,
-          p_bio: user.description || null,
-          p_followers_count: user.followersCount || 0,
-          p_following_count: user.followsCount || 0,
-          p_posts_count: user.postsCount || 0,
-        });
-        
-        if (newProfileId) {
-          // Check if follow relationship already exists
-          const followerId = type === 'followers' ? newProfileId : profile.id;
-          const followingId = type === 'followers' ? profile.id : newProfileId;
-          
-          const { data: existingFollow } = await supabase
-            .from('follows')
-            .select('id')
-            .eq('follower_id', followerId)
-            .eq('following_id', followingId)
-            .maybeSingle();
-          
-          // Only insert if doesn't exist
-          if (!existingFollow) {
-            await supabase
-              .from('follows')
-              .insert({
-                follower_id: followerId,
-                following_id: followingId,
-                subject_did: type === 'followers' ? profile.did : user.did,
-              });
-          }
-        }
-      } catch (err) {
-        // Continue with other users if one fails
-        console.debug('[syncFollowsList] User sync error:', err);
-      }
+    if (res.ok) {
+      const result = await res.json();
+      console.debug(`[syncFollowsList] Synced ${result.synced}/${result.total} ${type}`);
     }
   } catch (err) {
     // Silently fail - this is just an optimization
