@@ -239,23 +239,28 @@ export function useUnifiedPostActions(post: UnifiedPost): UnifiedPostActions {
 /**
  * Creates a unified post with up-to-date viewer state
  * 
- * For external posts, merges fresh like/repost state from queries
+ * Merges fresh like/repost state from local database for any post with AT URI
+ * (both local Cannect users and external Bluesky users)
  */
 export function useUnifiedPostWithState(post: UnifiedPost): UnifiedPost {
-  const { data: externalLikeState } = useHasLikedBlueskyPost(post.isExternal ? post.uri : "");
-  const { data: externalRepostState } = useHasRepostedBlueskyPost(post.isExternal ? post.uri : "");
+  const hasAtUri = post.uri?.startsWith("at://") ?? false;
+  const uri = hasAtUri ? post.uri : "";
   
-  if (!post.isExternal) {
+  const { data: likeState } = useHasLikedBlueskyPost(uri);
+  const { data: repostState } = useHasRepostedBlueskyPost(uri);
+  
+  // If no AT URI, return as-is (pure local post without federation)
+  if (!hasAtUri) {
     return post;
   }
   
-  // Merge fresh state for external posts
+  // Merge fresh state for any federated post
   return {
     ...post,
     viewer: {
       ...post.viewer,
-      isLiked: externalLikeState ?? post.viewer.isLiked,
-      isReposted: externalRepostState ?? post.viewer.isReposted,
+      isLiked: likeState ?? post.viewer.isLiked,
+      isReposted: repostState ?? post.viewer.isReposted,
     },
   };
 }
@@ -263,14 +268,22 @@ export function useUnifiedPostWithState(post: UnifiedPost): UnifiedPost {
 /**
  * Wrapper component that enriches a post with viewer state
  * Use this in post detail views to get correct like/repost state
+ * 
+ * Checks local likes/reposts tables for ANY post with an AT URI,
+ * not just external posts, since local Cannect users also have AT URIs.
  */
 export function useEnrichedPost(post: UnifiedPost | null | undefined): UnifiedPost | null {
-  const uri = post?.isExternal ? post.uri : "";
+  // Enrich any post with an AT URI (both local Cannect users and external Bluesky users)
+  const hasAtUri = post?.uri?.startsWith("at://") ?? false;
+  const uri = hasAtUri ? post!.uri : "";
+  
   const { data: isLiked } = useHasLikedBlueskyPost(uri);
   const { data: isReposted } = useHasRepostedBlueskyPost(uri);
   
   if (!post) return null;
-  if (!post.isExternal) return post;
+  
+  // If no AT URI, return as-is (pure local post)
+  if (!hasAtUri) return post;
   
   return {
     ...post,
