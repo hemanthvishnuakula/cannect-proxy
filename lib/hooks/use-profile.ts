@@ -18,6 +18,12 @@ export function useProfile(userId: string) {
         .single();
 
       if (error) throw error;
+      
+      // Lazy sync: Update counts from Bluesky for federated users
+      if (data?.did) {
+        syncProfileCounts(data as Profile);
+      }
+      
       return data as Profile;
     },
     enabled: !!userId,
