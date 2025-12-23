@@ -799,12 +799,28 @@ export function useLikePost() {
     }) => {
       if (!user) throw new Error("Not authenticated");
       
+      // If we have AT URI but no CID, fetch the CID from database
+      // This handles the case where React Query cache has stale data
+      // (e.g., post was just federated and cache doesn't have at_cid yet)
+      let finalSubjectCid = subjectCid;
+      if (profile?.did && subjectUri && !subjectCid && postId) {
+        const { data: post } = await supabase
+          .from("posts")
+          .select("at_cid")
+          .eq("id", postId)
+          .single();
+        
+        if (post?.at_cid) {
+          finalSubjectCid = post.at_cid;
+        }
+      }
+      
       // If user is federated and post has AT URI, use PDS-first
-      if (profile?.did && subjectUri && subjectCid) {
+      if (profile?.did && subjectUri && finalSubjectCid) {
         await atprotoAgent.likePost({
           userId: user.id,
           subjectUri,
-          subjectCid,
+          subjectCid: finalSubjectCid,
           postId,
         });
         return postId;
@@ -815,7 +831,7 @@ export function useLikePost() {
         user_id: user.id,
         post_id: postId,
         subject_uri: subjectUri,
-        subject_cid: subjectCid,
+        subject_cid: finalSubjectCid,
       });
       if (error) throw error;
       return postId;
@@ -1650,6 +1666,7 @@ export function useLikeBlueskyPost() {
   return useMutation({
     mutationFn: async (postRef: BlueskyPostRef) => {
       if (!user) throw new Error("Not authenticated");
+      if (!postRef.cid) throw new Error("Missing CID for like operation");
       
       // PDS-first: Call atproto-agent edge function
       await atprotoAgent.likePost({

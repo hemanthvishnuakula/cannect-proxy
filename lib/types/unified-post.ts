@@ -236,6 +236,10 @@ export function fromLocalPost(
   if (post.type === "quote") type = "quote";
   else if (post.is_reply) type = "reply";
 
+  // For quote posts by the current user, show the repost button as active
+  // This indicates they've already shared the original content via quote
+  const isOwnQuotePost = post.type === "quote" && post.user_id === currentUserId;
+
   return {
     // Identity
     uri: (post as any).at_uri || `cannect://post/${post.id}`,
@@ -263,7 +267,8 @@ export function fromLocalPost(
     viewer: {
       isLiked: post.is_liked || false,
       isReposted: post.is_reposted_by_me || false,
-      isQuoted: (post as any).is_quoted_by_me || false,
+      // Show green repost indicator if user quoted the original post OR this is their own quote post
+      isQuoted: isOwnQuotePost || (post as any).is_quoted_by_me || false,
     },
     
     // Context
