@@ -4,15 +4,15 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { FlashList } from "@shopify/flash-list";
 import { RefreshCw } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
-import { useUserRelationships, useProfileByUsername } from "@/lib/hooks";
+import { useUserRelationships, useResolveProfile } from "@/lib/hooks";
 import { ProfileRow } from "@/components/Profile/ProfileRow";
 
 export default function UserRelationshipsScreen() {
   const { username, type } = useLocalSearchParams<{ username: string; type: 'followers' | 'following' }>();
   const router = useRouter();
   
-  // Look up profile by username to get the user ID
-  const { data: profile } = useProfileByUsername(username!);
+  // Look up profile by username or handle (useResolveProfile handles both)
+  const { data: profile } = useResolveProfile(username!);
   
   // Fetch the relationship data with infinite scroll
   const { 
