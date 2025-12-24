@@ -1971,7 +1971,7 @@ export function useToggleRepost() {
 /**
  * Legacy repost function - for creating quote posts
  * 
- * Version 2.1: Updated to use PDS-first for quotes via atproto-agent.
+ * Version 2.1: All users are federated. PDS-first is mandatory.
  * @deprecated Use useQuotePost for quotes, useUnifiedRepost for simple reposts
  */
 export function useRepost() {
@@ -1982,56 +1982,36 @@ export function useRepost() {
       const { user, profile } = useAuthStore.getState();
       if (!user) throw new Error("Not authenticated");
       
+      // Version 2.1: All users are federated - PDS-first is mandatory
+      if (!profile?.did) throw new Error("User not federated");
+      
       if (content) {
-        // Quote post - PDS-first for federated users
+        // Quote post - PDS-first
         const quoteUri = originalPost.at_uri || originalPost.uri;
         const quoteCid = originalPost.at_cid || originalPost.cid;
         
-        if (profile?.did && quoteUri && quoteCid) {
-          // PDS-first: Create quote via atproto-agent
-          const result = await atprotoAgent.quotePost({
-            userId: user.id,
-            content,
-            quoteUri,
-            quoteCid,
-          });
-          return { type: 'quote', result, originalPostId: originalPost.id, content };
-        } else {
-          // Fallback: Direct DB insert (user not federated or missing AT fields)
-          const { data, error } = await supabase.from("posts").insert({
-            user_id: user.id,
-            content: content,
-            repost_of_id: originalPost.id,
-            embed_record_uri: quoteUri,
-            embed_record_cid: quoteCid,
-            type: 'quote',
-          }).select('id').single();
-          if (error) throw error;
-          return { type: 'quote', postId: data.id, originalPostId: originalPost.id, content };
-        }
+        if (!quoteUri || !quoteCid) throw new Error("Post not federated - missing AT URI or CID");
+        
+        const result = await atprotoAgent.quotePost({
+          userId: user.id,
+          content,
+          quoteUri,
+          quoteCid,
+        });
+        return { type: 'quote', result, originalPostId: originalPost.id, content };
       } else {
-        // Simple repost - use unified repost (PDS-first)
+        // Simple repost - PDS-first
         const subjectUri = originalPost.at_uri || originalPost.uri;
         const subjectCid = originalPost.at_cid || originalPost.cid;
         
-        if (profile?.did && subjectUri && subjectCid) {
-          await atprotoAgent.repostPost({
-            userId: user.id,
-            subjectUri,
-            subjectCid,
-            postId: originalPost.id,
-          });
-        } else {
-          // Fallback: Direct DB insert
-          const { error } = await supabase.from("reposts").insert({
-            user_id: user.id,
-            actor_did: profile?.did || null,
-            post_id: originalPost.id,
-            subject_uri: subjectUri,
-            subject_cid: subjectCid,
-          });
-          if (error) throw error;
-        }
+        if (!subjectUri || !subjectCid) throw new Error("Post not federated - missing AT URI or CID");
+        
+        await atprotoAgent.repostPost({
+          userId: user.id,
+          subjectUri,
+          subjectCid,
+          postId: originalPost.id,
+        });
         return { type: 'repost', originalPostId: originalPost.id };
       }
     },
