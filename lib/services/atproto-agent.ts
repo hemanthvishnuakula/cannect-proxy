@@ -153,3 +153,24 @@ export async function replyToPost(params: ReplyParams): Promise<AtprotoAgentResp
     rootCid: params.rootCid,
   });
 }
+
+// ============================================================================
+// QUOTE POST (Version 2.1 Unified Architecture)
+// ============================================================================
+
+export interface QuoteParams {
+  userId: string;
+  content: string;
+  quoteUri: string;
+  quoteCid: string;
+}
+
+export async function quotePost(params: QuoteParams): Promise<AtprotoAgentResponse> {
+  return callAgent({
+    action: 'quote',
+    userId: params.userId,
+    content: params.content,
+    quoteUri: params.quoteUri,
+    quoteCid: params.quoteCid,
+  });
+}

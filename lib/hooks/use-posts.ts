@@ -1307,9 +1307,10 @@ export function useLikePost() {
         return postId;
       }
       
-      // Fallback: Direct DB insert for non-federated users
+      // Fallback: Direct DB insert for non-federated users (Version 2.1: include actor_did)
       const { error } = await supabase.from("likes").insert({
         user_id: user.id,
+        actor_did: profile?.did || null,  // Include for unified queries even in fallback
         post_id: postId,
         subject_uri: subjectUri,
         subject_cid: finalSubjectCid,
@@ -1744,24 +1745,69 @@ export function useCreateReply(postId: string) {
 /**
  * Create a Quote Post (with commentary)
  * 
- * Quotes remain in the posts table with type='quote'
+ * Version 2.1 Unified Architecture: PDS-first for federated users.
+ * Creates quote on PDS with embed record, then mirrors to database.
  */
 export function useQuotePost() {
   const queryClient = useQueryClient();
-  const { user } = useAuthStore();
+  const { user, profile } = useAuthStore();
 
   return useMutation({
-    mutationFn: async ({ originalPostId, content }: { originalPostId: string, content: string }) => {
+    mutationFn: async ({ 
+      originalPostId, 
+      content,
+      quoteUri,
+      quoteCid,
+    }: { 
+      originalPostId?: string;  // Optional - only for Cannect posts
+      content: string;
+      quoteUri: string;        // Required - AT URI of quoted post
+      quoteCid: string;        // Required - CID of quoted post
+    }) => {
       if (!user) throw new Error("Not authenticated");
+      if (!profile?.did) throw new Error("User not federated");
       
-      const { error } = await supabase.from("posts").insert({
-        user_id: user.id,
-        content: content,
-        repost_of_id: originalPostId,
-        type: 'quote',
+      // PDS-first: Create quote via atproto-agent
+      const result = await atprotoAgent.quotePost({
+        userId: user.id,
+        content,
+        quoteUri,
+        quoteCid,
       });
       
-      if (error) throw error;
+      return { 
+        ...result, 
+        originalPostId,
+        quoteUri,
+      };
+    },
+    onMutate: async ({ originalPostId, content, quoteUri }) => {
+      await queryClient.cancelQueries({ queryKey: queryKeys.posts.all });
+      const previousPosts = queryClient.getQueryData(queryKeys.posts.all);
+      
+      // Optimistic: increment quotes_count on original post if it's a Cannect post
+      if (originalPostId) {
+        queryClient.setQueryData(queryKeys.posts.all, (old: any) => {
+          if (!old?.pages) return old;
+          return {
+            ...old,
+            pages: old.pages.map((page: any) =>
+              (Array.isArray(page) ? page : page.posts || []).map((p: any) =>
+                p.id === originalPostId
+                  ? { ...p, quotes_count: (p.quotes_count || 0) + 1, is_quoted_by_me: true }
+                  : p
+              )
+            ),
+          };
+        });
+      }
+      
+      return { previousPosts, originalPostId };
+    },
+    onError: (err, vars, context: any) => {
+      if (context?.previousPosts) {
+        queryClient.setQueryData(queryKeys.posts.all, context.previousPosts);
+      }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.posts.all });
@@ -1826,9 +1872,10 @@ export function useToggleRepost() {
             postId: targetId,
           });
         } else {
-          // Direct DB insert for non-federated users
+          // Direct DB insert for non-federated users (Version 2.1: include actor_did)
           const { error } = await supabase.from("reposts").insert({
             user_id: user.id,
+            actor_did: profile?.did || null,  // Include for unified queries even in fallback
             post_id: targetId,
             subject_uri: effectiveUri,
             subject_cid: effectiveCid,
@@ -1960,33 +2007,68 @@ export function useToggleRepost() {
 
 /**
  * Legacy repost function - for creating quote posts
- * @deprecated Use useQuotePost for quotes, useToggleRepost for simple reposts
+ * 
+ * Version 2.1: Updated to use PDS-first for quotes via atproto-agent.
+ * @deprecated Use useQuotePost for quotes, useUnifiedRepost for simple reposts
  */
 export function useRepost() {
   const queryClient = useQueryClient();
-  const { user, profile } = useAuthStore.getState();
 
   return useMutation({
     mutationFn: async ({ originalPost, content = "" }: { originalPost: any, content?: string }) => {
+      const { user, profile } = useAuthStore.getState();
       if (!user) throw new Error("Not authenticated");
       
       if (content) {
-        // Quote post - goes in posts table
-        const { data, error } = await supabase.from("posts").insert({
-          user_id: user.id,
-          content: content,
-          repost_of_id: originalPost.id,
-          type: 'quote',
-        }).select('id').single();
-        if (error) throw error;
-        return { type: 'quote', postId: data.id, originalPostId: originalPost.id, content };
+        // Quote post - PDS-first for federated users
+        const quoteUri = originalPost.at_uri || originalPost.uri;
+        const quoteCid = originalPost.at_cid || originalPost.cid;
+        
+        if (profile?.did && quoteUri && quoteCid) {
+          // PDS-first: Create quote via atproto-agent
+          const result = await atprotoAgent.quotePost({
+            userId: user.id,
+            content,
+            quoteUri,
+            quoteCid,
+          });
+          return { type: 'quote', result, originalPostId: originalPost.id, content };
+        } else {
+          // Fallback: Direct DB insert (user not federated or missing AT fields)
+          const { data, error } = await supabase.from("posts").insert({
+            user_id: user.id,
+            content: content,
+            repost_of_id: originalPost.id,
+            embed_record_uri: quoteUri,
+            embed_record_cid: quoteCid,
+            type: 'quote',
+          }).select('id').single();
+          if (error) throw error;
+          return { type: 'quote', postId: data.id, originalPostId: originalPost.id, content };
+        }
       } else {
-        // Simple repost - goes in reposts table
-        const { error } = await supabase.from("reposts").insert({
-          user_id: user.id,
-          post_id: originalPost.id,
-        });
-        if (error) throw error;
+        // Simple repost - use unified repost (PDS-first)
+        const subjectUri = originalPost.at_uri || originalPost.uri;
+        const subjectCid = originalPost.at_cid || originalPost.cid;
+        
+        if (profile?.did && subjectUri && subjectCid) {
+          await atprotoAgent.repostPost({
+            userId: user.id,
+            subjectUri,
+            subjectCid,
+            postId: originalPost.id,
+          });
+        } else {
+          // Fallback: Direct DB insert
+          const { error } = await supabase.from("reposts").insert({
+            user_id: user.id,
+            actor_did: profile?.did || null,
+            post_id: originalPost.id,
+            subject_uri: subjectUri,
+            subject_cid: subjectCid,
+          });
+          if (error) throw error;
+        }
         return { type: 'repost', originalPostId: originalPost.id };
       }
     },

@@ -37,7 +37,7 @@ interface PdsSession {
 }
 
 interface ActionRequest {
-  action: 'like' | 'unlike' | 'repost' | 'unrepost' | 'follow' | 'unfollow' | 'reply' | 'post';
+  action: 'like' | 'unlike' | 'repost' | 'unrepost' | 'follow' | 'unfollow' | 'reply' | 'post' | 'quote';
   userId: string;
   // For like/repost:
   subjectUri?: string;
@@ -48,13 +48,16 @@ interface ActionRequest {
   targetHandle?: string;
   targetDisplayName?: string;
   targetAvatar?: string;
-  // For reply/post:
+  // For reply/post/quote:
   content?: string;
   parentUri?: string;
   parentCid?: string;
   rootUri?: string;
   rootCid?: string;
   mediaUrls?: string[];
+  // For quote (embed record):
+  quoteUri?: string;
+  quoteCid?: string;
 }
 
 /**
@@ -257,11 +260,12 @@ async function handleLike(
     }
   }
 
-  // Mirror to database
+  // Mirror to database (Version 2.1: include actor_did for unified architecture)
   const { error: dbError } = await supabase
     .from('likes')
     .insert({
       user_id: req.userId,
+      actor_did: session.did,  // Universal identifier for unified queries
       post_id: postId,
       subject_uri: req.subjectUri,
       subject_cid: req.subjectCid,
@@ -392,11 +396,12 @@ async function handleRepost(
 
   const atUri = `at://${session.did}/app.bsky.feed.repost/${rkey}`;
 
-  // Mirror to database
+  // Mirror to database (Version 2.1: include actor_did for unified architecture)
   const { error: dbError } = await supabase
     .from('reposts')
     .insert({
       user_id: req.userId,
+      actor_did: session.did,  // Universal identifier for unified queries
       post_id: req.postId || null,
       subject_uri: req.subjectUri,
       subject_cid: req.subjectCid,
@@ -641,6 +646,87 @@ async function handleReply(
   return { ok: true, data: { uri: atUri, cid: result.data?.cid, post } };
 }
 
+/**
+ * Handle Quote Post (Version 2.1 Unified Architecture)
+ * 
+ * Creates a quote post on PDS with embed record, then mirrors to database.
+ * Quote posts are posts with an embedded reference to another post.
+ */
+async function handleQuote(
+  supabase: any,
+  session: PdsSession,
+  req: ActionRequest
+): Promise<{ ok: boolean; data?: any; error?: string }> {
+  if (!req.content || !req.quoteUri || !req.quoteCid) {
+    return { ok: false, error: 'Missing content, quoteUri, or quoteCid' };
+  }
+
+  const rkey = generateTID();
+  const record: any = {
+    $type: 'app.bsky.feed.post',
+    text: req.content,
+    createdAt: new Date().toISOString(),
+    embed: {
+      $type: 'app.bsky.embed.record',
+      record: {
+        uri: req.quoteUri,
+        cid: req.quoteCid,
+      },
+    },
+    langs: ['en'],
+  };
+
+  // Create on PDS
+  const result = await pdsCall(supabase, session, 'com.atproto.repo.createRecord', 'POST', {
+    repo: session.did,
+    collection: 'app.bsky.feed.post',
+    rkey,
+    record,
+  });
+
+  if (!result.ok) {
+    return result;
+  }
+
+  const atUri = `at://${session.did}/app.bsky.feed.post/${rkey}`;
+
+  // Try to find the local post ID if quoting a Cannect post
+  let repostOfId: string | null = null;
+  const { data: quotedPost } = await supabase
+    .from('posts')
+    .select('id')
+    .eq('at_uri', req.quoteUri)
+    .maybeSingle();
+  
+  if (quotedPost) {
+    repostOfId = quotedPost.id;
+  }
+
+  // Mirror to database as a quote post
+  const { data: post, error: dbError } = await supabase
+    .from('posts')
+    .insert({
+      user_id: req.userId,
+      content: req.content,
+      type: 'quote',
+      repost_of_id: repostOfId,
+      embed_record_uri: req.quoteUri,
+      embed_record_cid: req.quoteCid,
+      rkey,
+      at_uri: atUri,
+      at_cid: result.data?.cid,
+      federated_at: new Date().toISOString(),
+    })
+    .select()
+    .single();
+
+  if (dbError) {
+    console.error(`[atproto-agent] DB mirror failed for quote:`, dbError);
+  }
+
+  return { ok: true, data: { uri: atUri, cid: result.data?.cid, post } };
+}
+
 // ============================================================================
 // MAIN HANDLER
 // ============================================================================
@@ -706,6 +792,9 @@ serve(async (req) => {
         break;
       case 'reply':
         result = await handleReply(supabase, session, body);
+        break;
+      case 'quote':
+        result = await handleQuote(supabase, session, body);
         break;
       default:
         result = { ok: false, error: `Unknown action: ${body.action}` };
