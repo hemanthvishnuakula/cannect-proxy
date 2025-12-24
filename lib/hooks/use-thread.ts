@@ -361,22 +361,36 @@ export function useThreadReply(threadPostId: string) {
     onMutate: async ({ content, parentId }) => {
       const threadParentId = parentId || threadPostId;
       
-      await queryClient.cancelQueries({ queryKey: ['thread', threadPostId] });
-      const previousThread = queryClient.getQueryData<ThreadView>(['thread', threadPostId]);
+      // Cancel ALL thread queries for this post (any sort/view combination)
+      await queryClient.cancelQueries({ 
+        queryKey: ['thread', threadPostId],
+        exact: false 
+      });
+      
+      // Get ALL thread query data for this post to update optimistically
+      const threadQueries = queryClient.getQueriesData<ThreadView>({ 
+        queryKey: ['thread', threadPostId],
+        exact: false,
+      });
+      
+      const previousThreads = new Map(threadQueries);
+      
+      // Get first thread data for replyingTo logic
+      const firstThread = threadQueries.length > 0 ? threadQueries[0][1] : undefined;
 
       // Get parent's username for "Replying to" label
       let replyingTo: string | undefined;
-      if (previousThread) {
-        if (threadParentId === previousThread.focusedPost.id) {
-          replyingTo = previousThread.focusedPost.author?.username ?? undefined;
+      if (firstThread) {
+        if (threadParentId === firstThread.focusedPost.id) {
+          replyingTo = firstThread.focusedPost.author?.username ?? undefined;
         } else {
-          const parentReply = previousThread.replies.find(r => r.post.id === threadParentId);
+          const parentReply = firstThread.replies.find(r => r.post.id === threadParentId);
           replyingTo = parentReply?.post.author?.username ?? undefined;
         }
       }
 
-      // Optimistically add the reply
-      if (previousThread && user) {
+      // Optimistically add the reply to ALL thread caches
+      if (user) {
         const ghostReply: ThreadReply = {
           post: {
             id: `ghost-${Date.now()}`,
@@ -399,18 +413,28 @@ export function useThreadReply(threadPostId: string) {
           replyingTo,
         };
 
-        queryClient.setQueryData<ThreadView>(['thread', threadPostId], {
-          ...previousThread,
-          replies: [...previousThread.replies, ghostReply],
-          totalReplies: previousThread.totalReplies + 1,
+        // Update ALL thread caches for this post
+        threadQueries.forEach(([queryKey, thread]) => {
+          if (thread) {
+            queryClient.setQueryData<ThreadView>(queryKey, {
+              ...thread,
+              replies: [...thread.replies, ghostReply],
+              totalReplies: thread.totalReplies + 1,
+            });
+          }
         });
       }
 
-      return { previousThread };
+      return { previousThreads };
     },
     onError: (err, variables, context) => {
-      if (context?.previousThread) {
-        queryClient.setQueryData(['thread', threadPostId], context.previousThread);
+      // Restore ALL thread caches on error
+      if (context?.previousThreads) {
+        context.previousThreads.forEach((thread, queryKey) => {
+          if (thread) {
+            queryClient.setQueryData(queryKey, thread);
+          }
+        });
       }
       // Emit federation error if user is federated
       if (profile?.did) {
@@ -418,7 +442,11 @@ export function useThreadReply(threadPostId: string) {
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['thread', threadPostId] });
+      // Invalidate ALL thread queries for this post
+      queryClient.invalidateQueries({ 
+        queryKey: ['thread', threadPostId],
+        exact: false,
+      });
     },
   });
 }

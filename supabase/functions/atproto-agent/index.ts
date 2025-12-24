@@ -621,14 +621,49 @@ async function handleReply(
 
   const atUri = `at://${session.did}/app.bsky.feed.post/${rkey}`;
 
-  // Mirror to database as a reply
+  // Look up local post IDs from AT URIs for proper thread linking
+  let threadParentId: string | null = null;
+  let threadRootId: string | null = null;
+  let threadDepth = 1;
+
+  // Find parent post by AT URI
+  const { data: parentPost } = await supabase
+    .from('posts')
+    .select('id, thread_root_id, thread_depth')
+    .eq('at_uri', req.parentUri)
+    .maybeSingle();
+
+  if (parentPost) {
+    threadParentId = parentPost.id;
+    threadRootId = parentPost.thread_root_id || parentPost.id;
+    threadDepth = (parentPost.thread_depth ?? 0) + 1;
+  }
+
+  // If we have a different root URI, look that up too
+  if (req.rootUri && req.rootUri !== req.parentUri) {
+    const { data: rootPost } = await supabase
+      .from('posts')
+      .select('id')
+      .eq('at_uri', req.rootUri)
+      .maybeSingle();
+
+    if (rootPost) {
+      threadRootId = rootPost.id;
+    }
+  }
+
+  // Mirror to database as a reply with proper local ID linkage
   const { data: post, error: dbError } = await supabase
     .from('posts')
     .insert({
       user_id: req.userId,
       content: req.content,
       is_reply: true,
-      // These point to external content, so local IDs may be null
+      // Local IDs for proper thread queries
+      thread_parent_id: threadParentId,
+      thread_root_id: threadRootId,
+      thread_depth: threadDepth,
+      // AT Protocol URIs for federation
       thread_parent_uri: req.parentUri,
       thread_parent_cid: req.parentCid,
       thread_root_uri: req.rootUri || req.parentUri,
