@@ -67,3 +67,6 @@ export {
 // Utility hooks (no Supabase dependency)
 export { useDebounce } from './use-debounce';
 export { useNetworkStatus } from './use-network-status';
+
+// PWA Diamond Standard APIs
+export { usePWA } from './use-pwa';

@@ -15,6 +15,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PWAUpdater } from "@/components/PWAUpdater";
 import { IOSInstallPrompt } from "@/components/IOSInstallPrompt";
 import { WhatsNewToast } from "@/components/WhatsNewToast";
+import { OfflineBanner } from "@/components/OfflineBanner";
 import { ToastProvider } from "@/components/ui/Toast";
 
 // Prevent splash screen from auto-hiding
@@ -79,6 +80,36 @@ function AppContent() {
     return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, []);
 
+  // 💎 DIAMOND: Service Worker message handler for background sync
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    if (typeof navigator === "undefined") return;
+    if (!("serviceWorker" in navigator)) return;
+
+    const handleMessage = (event: MessageEvent) => {
+      const { type } = event.data || {};
+
+      switch (type) {
+        case "PROCESS_SYNC_QUEUE":
+          // Process offline queue items
+          console.log("[App] Processing sync queue from SW");
+          // TODO: Implement queue processing with AT Protocol
+          event.ports?.[0]?.postMessage({ success: true, processed: 0 });
+          break;
+
+        case "BACKGROUND_REFRESH":
+          // Periodic background sync refreshed data
+          console.log("[App] Background refresh triggered");
+          queryClient.invalidateQueries({ queryKey: ["timeline"] });
+          queryClient.invalidateQueries({ queryKey: ["notifications"] });
+          break;
+      }
+    };
+
+    navigator.serviceWorker.addEventListener("message", handleMessage);
+    return () => navigator.serviceWorker.removeEventListener("message", handleMessage);
+  }, []);
+
   // 💎 Gatekeeper: Skip hydration comparison by returning null during SSR
   if (Platform.OS === 'web' && !isMounted) {
     return (
@@ -90,6 +121,10 @@ function AppContent() {
     <SafeAreaProvider>
       <ToastProvider>
         <StatusBar style="light" />
+        
+        {/* 💎 Global Offline Banner - Shows on all screens when offline */}
+        <OfflineBanner />
+        
         <Stack
           screenOptions={{
             headerShown: false,

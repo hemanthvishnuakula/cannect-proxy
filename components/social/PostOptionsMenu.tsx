@@ -2,6 +2,7 @@ import { Modal, View, Text, Pressable, Platform } from "react-native";
 import { Trash2, Flag, Share2, Link } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import * as Clipboard from "expo-clipboard";
+import { canShare, share } from "@/lib/utils/pwa-apis";
 
 interface PostOptionsMenuProps {
   isVisible: boolean;
@@ -9,6 +10,8 @@ interface PostOptionsMenuProps {
   onDelete?: () => void;
   isOwnPost: boolean;
   postUrl?: string;
+  postText?: string;
+  authorHandle?: string;
   isReply?: boolean;
 }
 
@@ -18,8 +21,13 @@ export function PostOptionsMenu({
   onDelete,
   isOwnPost,
   postUrl,
+  postText,
+  authorHandle,
   isReply = false,
 }: PostOptionsMenuProps) {
+  
+  // 💎 DIAMOND: Check if native share is available
+  const canUseNativeShare = Platform.OS === 'web' && canShare();
   
   const handleDelete = () => {
     if (Platform.OS !== "web") {
@@ -36,6 +44,21 @@ export function PostOptionsMenu({
     if (postUrl) {
       await Clipboard.setStringAsync(postUrl);
     }
+    onClose();
+  };
+
+  // 💎 DIAMOND: Native Web Share API
+  const handleNativeShare = async () => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    
+    await share({
+      title: authorHandle ? `Post by @${authorHandle}` : 'Post on Cannect',
+      text: postText?.substring(0, 280) || '',
+      url: postUrl || '',
+    });
+    
     onClose();
   };
 
@@ -70,6 +93,26 @@ export function PostOptionsMenu({
 
         {/* Menu Options */}
         <View className="px-4 pb-4">
+          {/* 💎 DIAMOND: Native Share Option - Only on Web with Share API */}
+          {canUseNativeShare && postUrl && (
+            <Pressable
+              onPress={handleNativeShare}
+              className="flex-row items-center gap-4 py-4 px-4 rounded-xl active:bg-zinc-800/50"
+            >
+              <View className="w-11 h-11 rounded-full bg-emerald-500/20 items-center justify-center">
+                <Share2 size={22} color="#10B981" />
+              </View>
+              <View className="flex-1">
+                <Text className="text-text-primary text-lg font-semibold">
+                  Share
+                </Text>
+                <Text className="text-text-muted text-sm">
+                  Share via apps on your device
+                </Text>
+              </View>
+            </Pressable>
+          )}
+
           {/* Copy Link Option */}
           {postUrl && (
             <Pressable

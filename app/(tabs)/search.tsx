@@ -2,14 +2,17 @@
  * Search Screen - Pure AT Protocol
  */
 
-import { useState, useMemo } from "react";
-import { View, Text, TextInput, Pressable, ActivityIndicator, Image, ScrollView } from "react-native";
+import { useState, useMemo, useCallback } from "react";
+import { View, Text, TextInput, Pressable, ActivityIndicator, Image, ScrollView, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlashList } from "@shopify/flash-list";
-import { Search as SearchIcon, X, Users, Sparkles } from "lucide-react-native";
+import { Search as SearchIcon, X, Users, Sparkles, UserPlus, Check } from "lucide-react-native";
 import { useRouter } from "expo-router";
-import { useSearchUsers, useSearchPosts, useSuggestedUsers, useSuggestedPosts } from "@/lib/hooks";
+import * as Haptics from "expo-haptics";
+import { useSearchUsers, useSearchPosts, useSuggestedUsers, useSuggestedPosts, useFollow } from "@/lib/hooks";
 import { useDebounce } from "@/lib/hooks";
+import { useAuthStore } from "@/lib/stores";
+import { useQueryClient } from "@tanstack/react-query";
 import type { AppBskyActorDefs, AppBskyFeedDefs } from '@atproto/api';
 
 type ProfileView = AppBskyActorDefs.ProfileView;
@@ -17,7 +20,25 @@ type PostView = AppBskyFeedDefs.PostView;
 
 type SearchTab = "users" | "posts";
 
-function UserRow({ user, onPress }: { user: ProfileView; onPress: () => void }) {
+function UserRow({ 
+  user, 
+  onPress, 
+  onFollow,
+  isFollowPending,
+  showFollowButton = true,
+  currentUserDid,
+}: { 
+  user: ProfileView; 
+  onPress: () => void;
+  onFollow?: () => void;
+  isFollowPending?: boolean;
+  showFollowButton?: boolean;
+  currentUserDid?: string;
+}) {
+  const isFollowing = !!user.viewer?.following;
+  const isSelf = user.did === currentUserDid;
+  const canShowFollow = showFollowButton && !isFollowing && !isSelf && onFollow;
+
   return (
     <Pressable 
       onPress={onPress}
@@ -39,6 +60,35 @@ function UserRow({ user, onPress }: { user: ProfileView; onPress: () => void }) 
           </Text>
         )}
       </View>
+      
+      {/* Follow Button */}
+      {canShowFollow && (
+        <Pressable
+          onPress={(e) => {
+            e.stopPropagation?.();
+            onFollow();
+          }}
+          disabled={isFollowPending}
+          className={`ml-2 px-4 py-2 rounded-full ${isFollowPending ? 'bg-primary/50' : 'bg-primary'}`}
+        >
+          {isFollowPending ? (
+            <ActivityIndicator size="small" color="white" />
+          ) : (
+            <View className="flex-row items-center gap-1">
+              <UserPlus size={14} color="white" />
+              <Text className="text-white font-semibold text-sm">Follow</Text>
+            </View>
+          )}
+        </Pressable>
+      )}
+      
+      {/* Already Following Badge */}
+      {isFollowing && !isSelf && (
+        <View className="ml-2 flex-row items-center gap-1 px-3 py-2 rounded-full bg-surface-elevated">
+          <Check size={14} color="#10B981" />
+          <Text className="text-primary text-sm font-medium">Following</Text>
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -80,10 +130,27 @@ export default function SearchScreen() {
   const postsQuery = useSearchPosts(hasQuery && activeTab === "posts" ? debouncedQuery : "");
   const suggestedUsersQuery = useSuggestedUsers();
   const suggestedPostsQuery = useSuggestedPosts();
+  
+  const { did: currentUserDid } = useAuthStore();
+  const followMutation = useFollow();
+  const queryClient = useQueryClient();
+  const [pendingFollows, setPendingFollows] = useState<Set<string>>(new Set());
 
+  // Filter out users already being followed and self
   const users = useMemo(() => {
-    return usersQuery.data?.pages?.flatMap(page => page.actors) || [];
-  }, [usersQuery.data]);
+    const allUsers = usersQuery.data?.pages?.flatMap(page => page.actors) || [];
+    return allUsers.filter(user => 
+      !user.viewer?.following && user.did !== currentUserDid
+    );
+  }, [usersQuery.data, currentUserDid]);
+
+  // Filter suggested users - exclude already following and self
+  const suggestedUsers = useMemo(() => {
+    const allUsers = suggestedUsersQuery.data || [];
+    return allUsers.filter(user => 
+      !user.viewer?.following && user.did !== currentUserDid
+    );
+  }, [suggestedUsersQuery.data, currentUserDid]);
 
   const posts = useMemo(() => {
     return postsQuery.data?.pages?.flatMap(page => page.posts) || [];
@@ -101,6 +168,29 @@ export default function SearchScreen() {
     const rkey = uriParts[uriParts.length - 1];
     router.push(`/post/${post.author.did}/${rkey}`);
   };
+
+  const handleFollow = useCallback(async (user: ProfileView) => {
+    if (Platform.OS !== "web") {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    }
+    
+    setPendingFollows(prev => new Set(prev).add(user.did));
+    
+    try {
+      await followMutation.mutateAsync(user.did);
+      // Invalidate queries to refresh the user lists
+      queryClient.invalidateQueries({ queryKey: ['searchUsers'] });
+      queryClient.invalidateQueries({ queryKey: ['suggestedUsers'] });
+    } catch (error) {
+      console.error('Failed to follow:', error);
+    } finally {
+      setPendingFollows(prev => {
+        const next = new Set(prev);
+        next.delete(user.did);
+        return next;
+      });
+    }
+  }, [followMutation, queryClient]);
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
@@ -164,12 +254,15 @@ export default function SearchScreen() {
                 <View className="py-8 items-center">
                   <ActivityIndicator size="large" color="#10B981" />
                 </View>
-              ) : suggestedUsersQuery.data && suggestedUsersQuery.data.length > 0 ? (
-                suggestedUsersQuery.data.map((user) => (
+              ) : suggestedUsers && suggestedUsers.length > 0 ? (
+                suggestedUsers.map((user) => (
                   <UserRow 
                     key={user.did} 
                     user={user} 
-                    onPress={() => handleUserPress(user)} 
+                    onPress={() => handleUserPress(user)}
+                    onFollow={() => handleFollow(user)}
+                    isFollowPending={pendingFollows.has(user.did)}
+                    currentUserDid={currentUserDid || undefined}
                   />
                 ))
               ) : (
@@ -233,7 +326,13 @@ export default function SearchScreen() {
           estimatedItemSize={80}
           renderItem={({ item }: { item: any }) => 
             activeTab === "users" ? (
-              <UserRow user={item} onPress={() => handleUserPress(item)} />
+              <UserRow 
+                user={item} 
+                onPress={() => handleUserPress(item)}
+                onFollow={() => handleFollow(item)}
+                isFollowPending={pendingFollows.has(item.did)}
+                currentUserDid={currentUserDid || undefined}
+              />
             ) : (
               <PostRow post={item} onPress={() => handlePostPress(item)} />
             )

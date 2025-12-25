@@ -332,4 +332,83 @@ self.addEventListener('notificationclose', (event) => {
   console.log('[SW] Notification closed');
 });
 
+// =====================================================
+// 💎 DIAMOND: Background Sync - Process offline queue
+// =====================================================
+self.addEventListener('sync', (event) => {
+  console.log(`[SW] Background sync triggered: ${event.tag}`);
+  
+  if (event.tag === 'cannect-sync') {
+    event.waitUntil(processOfflineQueue());
+  }
+});
+
+/**
+ * Process all items in the offline sync queue
+ */
+async function processOfflineQueue() {
+  console.log('[SW] Processing offline queue...');
+  
+  try {
+    // Get queue from IndexedDB or localStorage via client
+    const clients = await self.clients.matchAll({ type: 'window' });
+    
+    if (clients.length === 0) {
+      console.log('[SW] No clients available to process queue');
+      return;
+    }
+    
+    // Request the client to process the queue
+    // This keeps AT Protocol auth logic in the main thread
+    const channel = new MessageChannel();
+    
+    const result = await new Promise((resolve) => {
+      channel.port1.onmessage = (event) => {
+        resolve(event.data);
+      };
+      
+      clients[0].postMessage({ type: 'PROCESS_SYNC_QUEUE' }, [channel.port2]);
+      
+      // Timeout after 30 seconds
+      setTimeout(() => resolve({ success: false, reason: 'timeout' }), 30000);
+    });
+    
+    console.log('[SW] Queue processing result:', result);
+  } catch (error) {
+    console.error('[SW] Failed to process offline queue:', error);
+    throw error; // Throw to retry sync
+  }
+}
+
+// =====================================================
+// 💎 DIAMOND: Periodic Background Sync - Keep feed fresh
+// =====================================================
+self.addEventListener('periodicsync', (event) => {
+  console.log(`[SW] Periodic sync triggered: ${event.tag}`);
+  
+  if (event.tag === 'cannect-feed-refresh') {
+    event.waitUntil(refreshFeedInBackground());
+  }
+});
+
+/**
+ * Refresh the feed cache in the background
+ */
+async function refreshFeedInBackground() {
+  console.log('[SW] Refreshing feed in background...');
+  
+  try {
+    // Notify clients to refresh their data
+    const clients = await self.clients.matchAll({ type: 'window' });
+    
+    clients.forEach((client) => {
+      client.postMessage({ type: 'BACKGROUND_REFRESH' });
+    });
+    
+    console.log('[SW] Background refresh notification sent');
+  } catch (error) {
+    console.error('[SW] Background refresh failed:', error);
+  }
+}
+
 console.log(`[SW] Service Worker loaded - Version ${CACHE_VERSION}`);

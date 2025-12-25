@@ -1,12 +1,21 @@
 import { Tabs, Redirect } from "expo-router";
 import { Home, Search, PlusSquare, Bell, User } from "lucide-react-native";
 import { View, ActivityIndicator } from "react-native";
+import { useEffect } from "react";
 import { useAuthStore } from "@/lib/stores";
-import { useUnreadNotificationCount } from "@/lib/hooks";
+import { useUnreadNotificationCount, usePWA } from "@/lib/hooks";
 
 export default function TabsLayout() {
   const { isLoading, isAuthenticated } = useAuthStore();
   const { data: unreadCount } = useUnreadNotificationCount();
+  const { setBadge } = usePWA();
+
+  // 💎 DIAMOND: Update app badge when unread count changes
+  useEffect(() => {
+    if (unreadCount !== undefined) {
+      setBadge(unreadCount);
+    }
+  }, [unreadCount, setBadge]);
 
   // Show loading while checking auth
   if (isLoading) {
