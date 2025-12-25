@@ -98,19 +98,20 @@ function FeedItem({
 
         {/* Content */}
         <View className="flex-1 ml-3">
-          {/* Header */}
-          <View className="flex-row items-center flex-wrap">
-            <Text className="font-semibold text-text-primary" numberOfLines={1}>
+          {/* Header - Row 1: Name and Time */}
+          <View className="flex-row items-center">
+            <Text className="font-semibold text-text-primary flex-shrink" numberOfLines={1}>
               {author.displayName || author.handle}
             </Text>
-            <Text className="text-text-muted ml-1" numberOfLines={1}>
-              @{author.handle}
-            </Text>
             <Text className="text-text-muted mx-1">·</Text>
-            <Text className="text-text-muted">
+            <Text className="text-text-muted flex-shrink-0">
               {formatTime(record.createdAt)}
             </Text>
           </View>
+          {/* Header - Row 2: Handle */}
+          <Text className="text-text-muted text-sm" numberOfLines={1}>
+            @{author.handle}
+          </Text>
 
           {/* Post text */}
           <Text className="text-text-primary mt-1 leading-5">
