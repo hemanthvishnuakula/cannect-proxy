@@ -5,11 +5,11 @@ import {
 } from "react-native";
 import { Link, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ArrowLeft, AtSign, Lock, Eye, EyeOff } from "lucide-react-native";
+import { ArrowLeft, Mail, Lock, Eye, EyeOff } from "lucide-react-native";
 import { useLogin } from "@/lib/hooks";
 
 export default function LoginScreen() {
-  const [identifier, setIdentifier] = useState("");
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -17,9 +17,9 @@ export default function LoginScreen() {
 
   const handleLogin = async () => {
     setError(null);
-    if (!identifier || !password) { setError("Please fill in all fields"); return; }
+    if (!email || !password) { setError("Please fill in all fields"); return; }
     try {
-      await login.mutateAsync({ identifier, password });
+      await login.mutateAsync({ identifier: email, password });
       router.replace("/(tabs)/feed");
     } catch (err: any) { setError(err.message || "Failed to sign in"); }
   };
@@ -43,14 +43,15 @@ export default function LoginScreen() {
             )}
             <View className="gap-4">
               <View className="bg-surface-elevated border border-border rounded-xl flex-row items-center px-4">
-                <AtSign size={20} color="#6B6B6B" />
+                <Mail size={20} color="#6B6B6B" />
                 <TextInput 
-                  placeholder="Handle (e.g. user.cannect.space)" 
+                  placeholder="Email address" 
                   placeholderTextColor="#6B6B6B" 
-                  value={identifier}
-                  onChangeText={setIdentifier} 
+                  value={email}
+                  onChangeText={setEmail} 
                   autoCapitalize="none" 
-                  keyboardType="email-address" 
+                  keyboardType="email-address"
+                  autoComplete="email"
                   className="flex-1 py-4 px-3 text-text-primary text-base" 
                 />
               </View>
