@@ -1,203 +1,265 @@
-import { View, Text, RefreshControl, ActivityIndicator, Platform, Pressable } from "react-native";
+/**
+ * Feed Screen - Pure AT Protocol
+ * 
+ * Displays timeline from Bluesky PDS directly.
+ */
+
+import { View, Text, RefreshControl, ActivityIndicator, Platform, Pressable, Image } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
-import { Leaf, Globe2 } from "lucide-react-native";
-import { useState, useCallback, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { Leaf, Heart, MessageCircle, Repeat2, Share } from "lucide-react-native";
+import { useMemo, useCallback } from "react";
 import * as Haptics from "expo-haptics";
-import { useFeed, useFollowingFeed, useDeletePost, useToggleRepost, useProfile } from "@/lib/hooks";
+import { useTimeline, useLikePost, useUnlikePost, useRepost, useDeleteRepost } from "@/lib/hooks";
 import { useAuthStore } from "@/lib/stores";
-import { RepostMenu, PostOptionsMenu, UnifiedFeedItem } from "@/components/social";
-import { EmptyFeedState } from "@/components/social/EmptyFeedState";
-import { DiscoveryModal, useDiscoveryModal } from "@/components/social/DiscoveryModal";
-import { getFederatedPosts } from "@/lib/services/bluesky";
 import { OfflineBanner } from "@/components/OfflineBanner";
-import { FeedSkeleton } from "@/components/Skeleton";
-import type { PostWithAuthor } from "@/lib/types/database";
-import { 
-  fromLocalPost, 
-  fromServiceFederatedPost, 
-  type UnifiedPost,
-  type ServiceFederatedPost,
-} from "@/lib/types/unified-post";
+import type { AppBskyFeedDefs, AppBskyFeedPost } from '@atproto/api';
 
-type FeedTab = "for-you" | "following" | "federated";
+type FeedViewPost = AppBskyFeedDefs.FeedViewPost;
+type PostView = AppBskyFeedDefs.PostView;
 
-const TABS: { id: FeedTab; label: string }[] = [
-  { id: "for-you", label: "Cannect" },
-  { id: "following", label: "Following" },
-  { id: "federated", label: "Global" },
-];
+function formatTime(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffMins < 1) return 'now';
+  if (diffMins < 60) return `${diffMins}m`;
+  if (diffHours < 24) return `${diffHours}h`;
+  if (diffDays < 7) return `${diffDays}d`;
+  return date.toLocaleDateString();
+}
+
+function FeedItem({ 
+  item, 
+  onPress,
+  onLike,
+  onRepost,
+}: { 
+  item: FeedViewPost;
+  onPress: () => void;
+  onLike: () => void;
+  onRepost: () => void;
+}) {
+  const post = item.post;
+  const record = post.record as AppBskyFeedPost.Record;
+  const author = post.author;
+  const isRepost = !!item.reason && item.reason.$type === 'app.bsky.feed.defs#reasonRepost';
+  const repostBy = isRepost ? (item.reason as any).by : null;
+
+  // Get embed images if present
+  const embedImages = post.embed?.$type === 'app.bsky.embed.images#view' 
+    ? (post.embed as any).images 
+    : [];
+
+  return (
+    <Pressable 
+      onPress={onPress}
+      className="px-4 py-3 border-b border-border active:bg-surface-elevated"
+    >
+      {/* Repost indicator */}
+      {isRepost && repostBy && (
+        <View className="flex-row items-center mb-2 pl-10">
+          <Repeat2 size={14} color="#6B7280" />
+          <Text className="text-text-muted text-xs ml-1">
+            Reposted by {repostBy.displayName || repostBy.handle}
+          </Text>
+        </View>
+      )}
+
+      <View className="flex-row">
+        {/* Avatar */}
+        <Pressable onPress={() => {}}>
+          {author.avatar ? (
+            <Image 
+              source={{ uri: author.avatar }} 
+              className="w-10 h-10 rounded-full bg-surface-elevated"
+            />
+          ) : (
+            <View className="w-10 h-10 rounded-full bg-surface-elevated items-center justify-center">
+              <Text className="text-text-muted text-lg">{author.handle[0].toUpperCase()}</Text>
+            </View>
+          )}
+        </Pressable>
+
+        {/* Content */}
+        <View className="flex-1 ml-3">
+          {/* Header */}
+          <View className="flex-row items-center flex-wrap">
+            <Text className="font-semibold text-text-primary" numberOfLines={1}>
+              {author.displayName || author.handle}
+            </Text>
+            <Text className="text-text-muted ml-1" numberOfLines={1}>
+              @{author.handle}
+            </Text>
+            <Text className="text-text-muted mx-1">·</Text>
+            <Text className="text-text-muted">
+              {formatTime(record.createdAt)}
+            </Text>
+          </View>
+
+          {/* Post text */}
+          <Text className="text-text-primary mt-1 leading-5">
+            {record.text}
+          </Text>
+
+          {/* Images */}
+          {embedImages.length > 0 && (
+            <View className="mt-2 rounded-xl overflow-hidden">
+              {embedImages.length === 1 ? (
+                <Image 
+                  source={{ uri: embedImages[0].thumb }} 
+                  className="w-full h-48 rounded-xl"
+                  resizeMode="cover"
+                />
+              ) : (
+                <View className="flex-row flex-wrap gap-1">
+                  {embedImages.slice(0, 4).map((img: any, idx: number) => (
+                    <Image 
+                      key={idx}
+                      source={{ uri: img.thumb }} 
+                      className="w-[48%] h-32 rounded-lg"
+                      resizeMode="cover"
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Actions */}
+          <View className="flex-row items-center mt-3 gap-6">
+            {/* Reply */}
+            <Pressable className="flex-row items-center">
+              <MessageCircle size={18} color="#6B7280" />
+              <Text className="text-text-muted text-sm ml-1">
+                {post.replyCount || ''}
+              </Text>
+            </Pressable>
+
+            {/* Repost */}
+            <Pressable 
+              onPress={onRepost}
+              className="flex-row items-center"
+            >
+              <Repeat2 
+                size={18} 
+                color={post.viewer?.repost ? "#10B981" : "#6B7280"} 
+              />
+              <Text className={`text-sm ml-1 ${post.viewer?.repost ? 'text-primary' : 'text-text-muted'}`}>
+                {post.repostCount || ''}
+              </Text>
+            </Pressable>
+
+            {/* Like */}
+            <Pressable 
+              onPress={onLike}
+              className="flex-row items-center"
+            >
+              <Heart 
+                size={18} 
+                color={post.viewer?.like ? "#EF4444" : "#6B7280"}
+                fill={post.viewer?.like ? "#EF4444" : "none"}
+              />
+              <Text className={`text-sm ml-1 ${post.viewer?.like ? 'text-red-500' : 'text-text-muted'}`}>
+                {post.likeCount || ''}
+              </Text>
+            </Pressable>
+
+            {/* Share */}
+            <Pressable className="flex-row items-center">
+              <Share size={18} color="#6B7280" />
+            </Pressable>
+          </View>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+function FeedSkeleton() {
+  return (
+    <View className="px-4 py-3">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <View key={i} className="flex-row mb-4 pb-4 border-b border-border">
+          <View className="w-10 h-10 rounded-full bg-surface-elevated" />
+          <View className="flex-1 ml-3">
+            <View className="h-4 w-32 bg-surface-elevated rounded mb-2" />
+            <View className="h-4 w-full bg-surface-elevated rounded mb-1" />
+            <View className="h-4 w-3/4 bg-surface-elevated rounded" />
+          </View>
+        </View>
+      ))}
+    </View>
+  );
+}
 
 export default function FeedScreen() {
   const router = useRouter();
-  const { user } = useAuthStore();
-  const [activeTab, setActiveTab] = useState<FeedTab>("for-you");
+  const { did } = useAuthStore();
   
-  // Get current user's profile for discovery modal logic
-  const { data: myProfile } = useProfile(user?.id ?? "");
-  
-  // Discovery modal for new users with 0 following
-  const { showDiscovery, closeDiscovery } = useDiscoveryModal(myProfile?.following_count);
-  
-  // Repost menu state - now uses UnifiedPost
-  const [repostMenuVisible, setRepostMenuVisible] = useState(false);
-  const [repostMenuPost, setRepostMenuPost] = useState<UnifiedPost | null>(null);
-  
-  // Post options menu state - now uses UnifiedPost
-  const [optionsMenuVisible, setOptionsMenuVisible] = useState(false);
-  const [optionsMenuPost, setOptionsMenuPost] = useState<UnifiedPost | null>(null);
-  
-  // Cannect (For You) feed - all posts
-  const forYouQuery = useFeed();
-  
-  // Following feed - only posts from followed users
-  const followingQuery = useFollowingFeed();
-  
-  // Federated feed from Bluesky
-  const federatedQuery = useQuery({
-    queryKey: ["federated-feed"],
-    queryFn: () => getFederatedPosts(50),
-    enabled: activeTab === "federated",
-    staleTime: 1000 * 60 * 2, // 2 minutes
-  });
+  const timelineQuery = useTimeline();
+  const likeMutation = useLikePost();
+  const unlikeMutation = useUnlikePost();
+  const repostMutation = useRepost();
+  const unrepostMutation = useDeleteRepost();
 
-  const deleteMutation = useDeletePost();
-  const toggleRepostMutation = useToggleRepost();
-  
-  // Select the appropriate query based on active tab
-  const getCurrentQuery = () => {
-    switch (activeTab) {
-      case "for-you":
-        return forYouQuery;
-      case "following":
-        return followingQuery;
-      case "federated":
-        // Wrap federatedQuery to match infinite query shape
-        return {
-          data: { pages: [federatedQuery.data || []] },
-          isLoading: federatedQuery.isLoading,
-          isError: federatedQuery.isError,
-          isRefetching: federatedQuery.isRefetching,
-          refetch: federatedQuery.refetch,
-          fetchNextPage: () => {},
-          hasNextPage: false,
-          isFetchingNextPage: false,
-        };
-    }
-  };
-  
-  const currentQuery = getCurrentQuery();
-  const rawPosts = currentQuery.data?.pages?.flat() || [];
-  
-  // Convert all posts to UnifiedPost format
-  const unifiedPosts = useMemo(() => {
-    return rawPosts.map((item: any) => {
-      // Check if it's a federated post from the Global tab
-      if (item.is_federated === true && activeTab === "federated") {
-        return fromServiceFederatedPost(item as ServiceFederatedPost);
-      }
-      // Otherwise it's a local Cannect post
-      return fromLocalPost(item as PostWithAuthor, user?.id);
-    });
-  }, [rawPosts, activeTab, user?.id]);
-  
-  // Loading and error states based on active tab
-  const isCurrentLoading = currentQuery.isLoading;
-  const isCurrentRefetching = currentQuery.isRefetching;
-  const isCurrentError = currentQuery.isError;
-  const currentRefetch = currentQuery.refetch;
-  const fetchNextPage = 'fetchNextPage' in currentQuery ? currentQuery.fetchNextPage : () => {};
-  const hasNextPage = 'hasNextPage' in currentQuery ? currentQuery.hasNextPage : false;
-  const isFetchingNextPage = 'isFetchingNextPage' in currentQuery ? currentQuery.isFetchingNextPage : false;
-  
-  // Haptic feedback on pull-to-refresh
-  const handleRefresh = () => {
+  const posts = useMemo(() => {
+    return timelineQuery.data?.pages?.flatMap(page => page.feed) || [];
+  }, [timelineQuery.data]);
+
+  const handleRefresh = useCallback(() => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    currentRefetch();
-  };
+    timelineQuery.refetch();
+  }, [timelineQuery]);
 
-  if (isCurrentError) {
+  const handleLike = useCallback(async (post: PostView) => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    
+    if (post.viewer?.like) {
+      await unlikeMutation.mutateAsync(post.viewer.like);
+    } else {
+      await likeMutation.mutateAsync({ uri: post.uri, cid: post.cid });
+    }
+  }, [likeMutation, unlikeMutation]);
+
+  const handleRepost = useCallback(async (post: PostView) => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    
+    if (post.viewer?.repost) {
+      await unrepostMutation.mutateAsync(post.viewer.repost);
+    } else {
+      await repostMutation.mutateAsync({ uri: post.uri, cid: post.cid });
+    }
+  }, [repostMutation, unrepostMutation]);
+
+  const handlePostPress = useCallback((post: PostView) => {
+    // Navigate to thread view
+    const uriParts = post.uri.split('/');
+    const rkey = uriParts[uriParts.length - 1];
+    router.push(`/post/${post.author.handle}/${rkey}` as any);
+  }, [router]);
+
+  if (timelineQuery.isError) {
     return (
       <SafeAreaView className="flex-1 bg-background items-center justify-center px-6">
         <Text className="text-text-primary text-lg font-semibold mb-2">Failed to load feed</Text>
-        <Pressable onPress={() => currentRefetch()} className="bg-primary px-6 py-3 rounded-full">
+        <Pressable onPress={() => timelineQuery.refetch()} className="bg-primary px-6 py-3 rounded-full">
           <Text className="text-white font-bold">Retry</Text>
         </Pressable>
       </SafeAreaView>
     );
   }
-
-  // ---------------------------------------------------------------------------
-  // Handlers - Now using UnifiedPost for consistent interface
-  // ---------------------------------------------------------------------------
-
-  const handleProfilePress = (identifier: string) => {
-    // Unified routing - useResolveProfile handles UUID, handle, or username
-    if (identifier) {
-      router.push(`/user/${encodeURIComponent(identifier)}` as any);
-    }
-  };
-
-  const handleOptionsDelete = () => {
-    if (optionsMenuPost?.localId) {
-      deleteMutation.mutate(optionsMenuPost.localId);
-    }
-  };
-  
-  // Handlers for the repost menu - now using UnifiedPost
-  const handleDoRepost = useCallback(() => {
-    if (!repostMenuPost) return;
-    
-    const isReposted = repostMenuPost.viewer.isReposted;
-    
-    // For external/cached posts, use the Bluesky hooks
-    if (repostMenuPost.isCached) {
-      // This will be handled by the UnifiedFeedItem component
-      // The menu just triggers the action
-      return;
-    }
-    
-    // For local posts
-    if (repostMenuPost.localId) {
-      const fakePost = {
-        id: repostMenuPost.localId,
-        is_reposted_by_me: isReposted,
-        at_uri: repostMenuPost.uri.startsWith("at://") ? repostMenuPost.uri : undefined,
-        at_cid: repostMenuPost.cid,
-      };
-      
-      if (isReposted) {
-        toggleRepostMutation.mutate({ post: fakePost, undo: true });
-      } else {
-        toggleRepostMutation.mutate({ 
-          post: fakePost, 
-          subjectUri: repostMenuPost.uri.startsWith("at://") ? repostMenuPost.uri : null,
-          subjectCid: repostMenuPost.cid || null,
-        });
-      }
-    }
-  }, [repostMenuPost, toggleRepostMutation]);
-  
-  const handleDoQuotePost = useCallback(() => {
-    if (!repostMenuPost) return;
-    
-    if (repostMenuPost.isCached) {
-      // For external/cached posts, pass the AT URI
-      router.push({
-        pathname: "/compose/quote",
-        params: { 
-          uri: repostMenuPost.uri,
-          cid: repostMenuPost.cid,
-        }
-      } as any);
-    } else if (repostMenuPost.localId) {
-      router.push(`/compose/quote?postId=${repostMenuPost.localId}` as any);
-    }
-  }, [repostMenuPost, router]);
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
@@ -207,81 +269,49 @@ export default function FeedScreen() {
         <Text className="text-2xl font-bold text-text-primary ml-3">Cannect</Text>
       </View>
 
-      {/* Tab Bar */}
-      <View className="flex-row border-b border-border">
-        {TABS.map((tab) => (
-          <Pressable
-            key={tab.id}
-            onPress={() => setActiveTab(tab.id)}
-            className={`flex-1 py-3 items-center ${
-              activeTab === tab.id ? "border-b-2 border-primary" : ""
-            }`}
-          >
-            <View className="flex-row items-center gap-1.5">
-              {tab.id === "federated" && <Globe2 size={14} color={activeTab === tab.id ? "#10B981" : "#6B7280"} />}
-              <Text
-                className={`font-semibold ${
-                  activeTab === tab.id ? "text-primary" : "text-text-muted"
-                }`}
-              >
-                {tab.label}
-              </Text>
-            </View>
-          </Pressable>
-        ))}
-      </View>
-
       {/* Offline Banner */}
       <OfflineBanner />
 
-      {isCurrentLoading ? (
+      {timelineQuery.isLoading ? (
         <FeedSkeleton />
       ) : (
         <View style={{ flex: 1, minHeight: 2 }}>
           <FlashList
-            data={unifiedPosts}
-            keyExtractor={(item, index) => `${activeTab}-${item.uri}-${index}`}
+            data={posts}
+            keyExtractor={(item, index) => `${item.post.uri}-${index}`}
             renderItem={({ item }) => (
-              <UnifiedFeedItem
-                post={item}
-                onRepostMenu={(post) => {
-                  setRepostMenuPost(post);
-                  setRepostMenuVisible(true);
-                }}
-                onMoreMenu={(post) => {
-                  if (Platform.OS !== 'web') {
-                    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-                  }
-                  setOptionsMenuPost(post);
-                  setOptionsMenuVisible(true);
-                }}
+              <FeedItem
+                item={item}
+                onPress={() => handlePostPress(item.post)}
+                onLike={() => handleLike(item.post)}
+                onRepost={() => handleRepost(item.post)}
               />
             )}
             estimatedItemSize={200}
             refreshControl={
               <RefreshControl 
-                refreshing={isCurrentRefetching} 
+                refreshing={timelineQuery.isRefetching} 
                 onRefresh={handleRefresh} 
                 tintColor="#10B981"
                 colors={["#10B981"]}
               />
             }
             onEndReached={() => {
-              if (activeTab !== "federated" && hasNextPage && !isFetchingNextPage) {
-                fetchNextPage();
+              if (timelineQuery.hasNextPage && !timelineQuery.isFetchingNextPage) {
+                timelineQuery.fetchNextPage();
               }
             }}
             onEndReachedThreshold={0.5}
             contentContainerStyle={{ paddingBottom: 20 }}
             ListEmptyComponent={
-              <EmptyFeedState 
-                type={activeTab} 
-                isLoading={isCurrentLoading}
-                onRetry={handleRefresh}
-              />
+              <View className="flex-1 items-center justify-center py-20">
+                <Text className="text-text-muted text-center">
+                  Your timeline is empty.{'\n'}Follow some people to see their posts!
+                </Text>
+              </View>
             }
             ListFooterComponent={
-              isFetchingNextPage && activeTab !== "federated" ? (
+              timelineQuery.isFetchingNextPage ? (
                 <View className="py-4 items-center">
                   <ActivityIndicator size="small" color="#10B981" />
                 </View>
@@ -290,31 +320,6 @@ export default function FeedScreen() {
           />
         </View>
       )}
-      
-      {/* Discovery Modal for new users */}
-      <DiscoveryModal 
-        isVisible={showDiscovery && activeTab === "following"} 
-        onClose={closeDiscovery} 
-      />
-      
-      {/* Repost Menu */}
-      <RepostMenu
-        isVisible={repostMenuVisible}
-        onClose={() => setRepostMenuVisible(false)}
-        onRepost={handleDoRepost}
-        onQuotePost={handleDoQuotePost}
-        isReposted={repostMenuPost?.viewer?.isReposted === true}
-      />
-      
-      {/* Post Options Menu */}
-      <PostOptionsMenu
-        isVisible={optionsMenuVisible}
-        onClose={() => setOptionsMenuVisible(false)}
-        onDelete={handleOptionsDelete}
-        isOwnPost={optionsMenuPost?.author?.id === user?.id}
-        postUrl={optionsMenuPost?.localId ? `https://cannect.app/post/${optionsMenuPost.localId}` : undefined}
-        isReply={optionsMenuPost?.type === "reply"}
-      />
     </SafeAreaView>
   );
 }

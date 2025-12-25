@@ -1,27 +1,65 @@
-export * from "./use-auth";
-export * from "./use-posts";
-export * from "./use-profile";
-export * from "./use-notifications";
-export * from "./use-push-notifications";
-export * from "./use-search";
-export * from "./use-share-snapshot";
-export * from "./use-debounce";
-export * from "./use-media-upload";
-export * from "./use-pwa-persistence";
-export * from "./use-network-status";
-export * from "./use-thread";
-export * from "./use-thread-preferences";
-export * from "./use-unified-post";
+/**
+ * Hooks Index - Pure AT Protocol
+ * 
+ * All hooks now use AT Protocol directly - no Supabase.
+ */
 
-// Web push utilities
+// Auth
 export { 
-  isWebPushSupported, 
-  getWebPushPermission 
-} from "@/lib/services/web-push-notifications";
+  useAuth,
+  useLogin,
+  useLogin as useSignIn,
+  useLogout,
+  useCreateAccount,
+  useCurrentDid,
+  useIsAuthenticated,
+} from './use-atp-auth';
 
-// Media upload utilities
+// Feed & Posts
 export {
-  getImageVariant,
-  getThumbnailUrl,
-  getBlurUrl,
-} from "@/lib/services/media-upload";
+  useTimeline,
+  useTimeline as useFeed,
+  useTimeline as useFollowingFeed,
+  useAuthorFeed,
+  usePostThread,
+  useCreatePost,
+  useDeletePost,
+  useLikePost,
+  useUnlikePost,
+  useRepost,
+  useDeleteRepost,
+  useToggleLike,
+  useToggleRepost,
+  useSearchPosts,
+  type FeedViewPost,
+  type PostView,
+  type ThreadViewPost,
+} from './use-atp-feed';
+
+// Profile
+export {
+  useProfile,
+  useMyProfile,
+  useMyProfile as useCurrentProfile,
+  useUpdateProfile,
+  useFollowers,
+  useFollowing,
+  useFollow,
+  useUnfollow,
+  useToggleFollow,
+  useSearchUsers,
+  type ProfileView,
+  type ProfileViewDetailed,
+} from './use-atp-profile';
+
+// Notifications
+export {
+  useNotifications,
+  useUnreadNotificationCount,
+  useMarkNotificationsRead,
+  type Notification,
+} from './use-atp-notifications';
+
+// Utility hooks (no Supabase dependency)
+export { useDebounce } from './use-debounce';
+export { useNetworkStatus } from './use-network-status';

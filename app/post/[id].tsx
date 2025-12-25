@@ -1,30 +1,21 @@
-import { View, Text, KeyboardAvoidingView, Platform, Pressable } from "react-native";
+import { View, Text, ScrollView, Pressable, ActivityIndicator } from "react-native";
 import { useLocalSearchParams, Stack, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ArrowLeft } from "lucide-react-native";
-import { useState, useCallback } from "react";
-import * as Haptics from "expo-haptics";
-
-import { useThread, useThreadReply, useThreadDelete, useLikePost, useUnlikePost, useToggleRepost, useLoadMoreReplies } from "@/lib/hooks";
-import { ThreadRibbon, ThreadSkeleton, ReplyBar, RepostMenu, PostOptionsMenu, ThreadControls } from "@/components/social";
-import { useAuthStore } from "@/lib/stores";
-import type { PostWithAuthor } from "@/lib/types/database";
+import { ArrowLeft, Heart, MessageCircle, Repeat2 } from "lucide-react-native";
+import { Image } from "expo-image";
+import { usePostThread, useLikePost, useUnlikePost, useRepost, useDeleteRepost } from "@/lib/hooks";
 
 export default function PostDetailsScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
-  const { user } = useAuthStore();
-  const [replyText, setReplyText] = useState("");
-  const [replyTargetId, setReplyTargetId] = useState<string | null>(null);
-  const [replyTargetUsername, setReplyTargetUsername] = useState<string | null>(null);
   
-  // ✅ Gold Standard: Use the new thread hook with state/actions pattern
-  const thread = useThread(id ?? "");
+  // The id param is actually the AT URI for this post
+  const { data: thread, isLoading, error } = usePostThread(id ?? "");
+  const likeMutation = useLikePost();
+  const unlikeMutation = useUnlikePost();
+  const repostMutation = useRepost();
+  const unrepostMutation = useDeleteRepost();
   
-  // Destructure for convenience
-  const { data: threadData, isLoading, error, state, actions } = thread;
-  
-  // ✅ Diamond Standard: Custom back handler for direct URL access
   const handleBack = () => {
     if (router.canGoBack()) {
       router.back();
@@ -32,135 +23,31 @@ export default function PostDetailsScreen() {
       router.replace('/feed');
     }
   };
-  
-  // ✅ Use the thread-aware hooks
-  const createReply = useThreadReply(id ?? "");
-  const deleteReply = useThreadDelete(id ?? "");
-  const likeMutation = useLikePost();
-  const unlikeMutation = useUnlikePost();
-  const toggleRepostMutation = useToggleRepost();
-  
-  // Repost menu state
-  const [repostMenuVisible, setRepostMenuVisible] = useState(false);
-  const [repostMenuPost, setRepostMenuPost] = useState<PostWithAuthor | null>(null);
-  
-  // Post options menu state
-  const [optionsMenuVisible, setOptionsMenuVisible] = useState(false);
-  const [optionsMenuPost, setOptionsMenuPost] = useState<PostWithAuthor | null>(null);
 
-  const handleReply = (text: string) => {
-    if (!text.trim() || !id) return;
+  const handleLike = () => {
+    if (!thread?.post) return;
+    const post = thread.post;
     
-    // ✅ Diamond Standard: Haptic feedback on send
-    if (Platform.OS !== "web") {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    }
-    
-    // Optimistic mutation - replies to the focused post (or nested target)
-    createReply.mutate({ 
-      content: text, 
-      parentId: replyTargetId || id,
-    });
-    
-    // Clear state immediately for snappy feel
-    setReplyText("");
-    setReplyTargetId(null);
-    setReplyTargetUsername(null);
-  };
-  
-  // Helper to start replying to a specific comment
-  const startReplyToComment = (postId: string, username?: string) => {
-    setReplyTargetId(postId);
-    setReplyTargetUsername(username || null);
-    setReplyText(username ? `@${username} ` : "");
-  };
-  
-  // Cancel reply target and reset
-  const cancelReplyTarget = () => {
-    setReplyTargetId(null);
-    setReplyTargetUsername(null);
-    setReplyText("");
-  };
-
-  const handleLike = (targetPost: PostWithAuthor) => {
-    // For quote posts of internal posts, like the QUOTED post
-    // Simple reposts are now in separate table, so we only check for quotes here
-    const isQuoteOfInternal = targetPost.type === 'quote' && 
-      targetPost.repost_of_id && 
-      !(targetPost as any).external_id;
-    
-    const likeTargetId = isQuoteOfInternal && targetPost.repost_of_id 
-      ? targetPost.repost_of_id 
-      : targetPost.id;
-    
-    if (targetPost.is_liked) {
-      unlikeMutation.mutate({ postId: likeTargetId, subjectUri: (targetPost as any).at_uri });
+    if (post.viewer?.like) {
+      unlikeMutation.mutate(post.viewer.like);
     } else {
-      // Pass AT fields for federation
-      likeMutation.mutate({
-        postId: likeTargetId,
-        subjectUri: (targetPost as any).at_uri,
-        subjectCid: (targetPost as any).at_cid,
-      });
+      likeMutation.mutate({ uri: post.uri, cid: post.cid });
     }
   };
 
-  const handleRepost = (post: PostWithAuthor) => {
-    // ✅ Fix: Prevent rapid clicking during mutation
-    if (toggleRepostMutation.isPending) return;
+  const handleRepost = () => {
+    if (!thread?.post) return;
+    const post = thread.post;
     
-    setRepostMenuPost(post);
-    setRepostMenuVisible(true);
-  };
-  
-  // Handlers for the repost menu
-  const handleDoRepost = useCallback(() => {
-    if (!repostMenuPost) return;
-    
-    const isReposted = (repostMenuPost as any).is_reposted_by_me === true;
-    
-    if (isReposted) {
-      toggleRepostMutation.mutate({ post: repostMenuPost, undo: true });
+    if (post.viewer?.repost) {
+      unrepostMutation.mutate(post.viewer.repost);
     } else {
-      toggleRepostMutation.mutate({ 
-        post: repostMenuPost, 
-        subjectUri: (repostMenuPost as any).at_uri, 
-        subjectCid: (repostMenuPost as any).at_cid 
-      });
+      repostMutation.mutate({ uri: post.uri, cid: post.cid });
     }
-  }, [repostMenuPost, toggleRepostMutation]);
-  
-  const handleDoQuotePost = useCallback(() => {
-    if (!repostMenuPost) return;
-    const quoteUrl = (repostMenuPost as any).at_uri 
-      ? `/compose/quote?postId=${repostMenuPost.id}&atUri=${encodeURIComponent((repostMenuPost as any).at_uri)}&atCid=${encodeURIComponent((repostMenuPost as any).at_cid || '')}`
-      : `/compose/quote?postId=${repostMenuPost.id}`;
-    router.push(quoteUrl as any);
-  }, [repostMenuPost, router]);
-
-  const handleMore = (post: PostWithAuthor) => {
-    setOptionsMenuPost(post);
-    setOptionsMenuVisible(true);
   };
-  
-  const handleDoDelete = useCallback(() => {
-    if (!optionsMenuPost) return;
-    
-    const isFocusedPost = optionsMenuPost.id === id;
-    
-    if (isFocusedPost) {
-      // Deleting the main focused post - go back after delete
-      deleteReply.mutate(optionsMenuPost.id, {
-        onSuccess: () => router.back(),
-      });
-    } else {
-      // Deleting a reply - optimistic update, stay on page
-      deleteReply.mutate(optionsMenuPost.id);
-    }
-  }, [optionsMenuPost, id, deleteReply, router]);
 
   // Loading state
-  if (isLoading || !threadData) {
+  if (isLoading) {
     return (
       <SafeAreaView className="flex-1 bg-background">
         <Stack.Screen 
@@ -176,23 +63,51 @@ export default function PostDetailsScreen() {
             ),
           }} 
         />
-        <ThreadSkeleton />
+        <View className="flex-1 items-center justify-center">
+          <ActivityIndicator size="large" color="#10B981" />
+        </View>
       </SafeAreaView>
     );
   }
 
-  // Determine if focused post is a reply for header title
-  const isReply = threadData.focusedPost.is_reply || threadData.ancestors.length > 0;
-  
-  // Whether to show sort controls (only if there are replies)
-  const hasReplies = threadData.replies.length > 0 || threadData.totalReplies > 0;
+  // Error state
+  if (error || !thread?.post) {
+    return (
+      <SafeAreaView className="flex-1 bg-background">
+        <Stack.Screen 
+          options={{ 
+            headerShown: true,
+            headerTitle: "Thread",
+            headerStyle: { backgroundColor: "#0A0A0A" },
+            headerTintColor: "#FAFAFA",
+            headerLeft: () => (
+              <Pressable onPress={handleBack} className="p-2 -ml-2 active:opacity-70">
+                <ArrowLeft size={24} color="#FAFAFA" />
+              </Pressable>
+            ),
+          }} 
+        />
+        <View className="flex-1 items-center justify-center px-6">
+          <Text className="text-text-secondary text-center">
+            {error?.message || "Post not found"}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const post = thread.post;
+  const author = post.author;
+  const record = post.record as { text?: string; createdAt?: string };
+  const isLiked = !!post.viewer?.like;
+  const isReposted = !!post.viewer?.repost;
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["bottom"]}>
       <Stack.Screen 
         options={{ 
           headerShown: true,
-          headerTitle: isReply ? "Reply" : "Thread",
+          headerTitle: "Thread",
           headerStyle: { backgroundColor: "#0A0A0A" },
           headerTintColor: "#FAFAFA",
           headerLeft: () => (
@@ -203,60 +118,100 @@ export default function PostDetailsScreen() {
         }} 
       />
       
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === "ios" ? "padding" : undefined}
-        keyboardVerticalOffset={Platform.OS === "ios" ? 90 : 0}
-        className="flex-1"
-        style={{ flex: 1 }}
-      >
-        {/* ✅ Gold Standard: Thread Controls (sort) */}
-        {hasReplies && (
-          <ThreadControls
-            sort={state.sort}
-            onSortChange={actions.setSort}
+      <ScrollView className="flex-1" contentContainerStyle={{ padding: 16 }}>
+        {/* Author info */}
+        <View className="flex-row items-center mb-4">
+          <Image
+            source={{ uri: author.avatar }}
+            style={{ width: 48, height: 48, borderRadius: 24 }}
+            contentFit="cover"
           />
-        )}
+          <View className="ml-3 flex-1">
+            <Text className="text-text-primary font-semibold">{author.displayName || author.handle}</Text>
+            <Text className="text-text-muted text-sm">@{author.handle}</Text>
+          </View>
+        </View>
         
-        {/* ✅ Gold Standard: Complete thread visualization */}
-        <ThreadRibbon
-          thread={threadData}
-          onLike={handleLike}
-          onRepost={handleRepost}
-          onReply={(post, username) => startReplyToComment(post.id, username)}
-          onMore={handleMore}
-          sort={state.sort}
-          view={state.view}
-        />
-
-        {/* ✅ Diamond Standard: Sticky Reply Bar with haptics */}
-        <ReplyBar
-          onSend={handleReply}
-          isPending={createReply.isPending}
-          placeholder={replyTargetId && replyTargetId !== id ? "Reply to comment..." : "Post your reply..."}
-          replyTargetUsername={replyTargetId && replyTargetId !== id ? replyTargetUsername : null}
-          onCancelTarget={cancelReplyTarget}
-          initialText={replyText}
-        />
-      </KeyboardAvoidingView>
-      
-      {/* Repost Menu */}
-      <RepostMenu
-        isVisible={repostMenuVisible}
-        onClose={() => setRepostMenuVisible(false)}
-        onRepost={handleDoRepost}
-        onQuotePost={handleDoQuotePost}
-        isReposted={(repostMenuPost as any)?.is_reposted_by_me === true}
-      />
-      
-      {/* Post Options Menu (Delete, Copy Link, Report) */}
-      <PostOptionsMenu
-        isVisible={optionsMenuVisible}
-        onClose={() => setOptionsMenuVisible(false)}
-        onDelete={handleDoDelete}
-        isOwnPost={optionsMenuPost?.user_id === user?.id}
-        postUrl={optionsMenuPost ? `https://cannect.app/post/${optionsMenuPost.id}` : undefined}
-        isReply={!!optionsMenuPost?.thread_parent_id}
-      />
+        {/* Post content */}
+        <Text className="text-text-primary text-lg mb-4">{record?.text}</Text>
+        
+        {/* Timestamp */}
+        <Text className="text-text-muted text-sm mb-4">
+          {record?.createdAt ? new Date(record.createdAt).toLocaleString() : ''}
+        </Text>
+        
+        {/* Stats */}
+        <View className="flex-row border-t border-b border-border py-3 mb-4">
+          <Text className="text-text-secondary mr-4">
+            <Text className="text-text-primary font-semibold">{post.repostCount || 0}</Text> Reposts
+          </Text>
+          <Text className="text-text-secondary mr-4">
+            <Text className="text-text-primary font-semibold">{post.likeCount || 0}</Text> Likes
+          </Text>
+          <Text className="text-text-secondary">
+            <Text className="text-text-primary font-semibold">{post.replyCount || 0}</Text> Replies
+          </Text>
+        </View>
+        
+        {/* Action buttons */}
+        <View className="flex-row justify-around py-2 border-b border-border mb-4">
+          <Pressable className="flex-row items-center" onPress={() => {}}>
+            <MessageCircle size={22} color="#6B6B6B" />
+          </Pressable>
+          
+          <Pressable className="flex-row items-center" onPress={handleRepost}>
+            <Repeat2 size={22} color={isReposted ? "#10B981" : "#6B6B6B"} />
+          </Pressable>
+          
+          <Pressable className="flex-row items-center" onPress={handleLike}>
+            <Heart 
+              size={22} 
+              color={isLiked ? "#EF4444" : "#6B6B6B"} 
+              fill={isLiked ? "#EF4444" : "transparent"} 
+            />
+          </Pressable>
+        </View>
+        
+        {/* Replies */}
+        {thread.replies && thread.replies.length > 0 && (
+          <View>
+            <Text className="text-text-primary font-semibold mb-4">Replies</Text>
+            {thread.replies.map((reply: any, index: number) => {
+              if (reply.$type === 'app.bsky.feed.defs#blockedPost' || 
+                  reply.$type === 'app.bsky.feed.defs#notFoundPost') {
+                return null;
+              }
+              
+              const replyPost = reply.post;
+              const replyAuthor = replyPost?.author;
+              const replyRecord = replyPost?.record as { text?: string };
+              
+              if (!replyPost || !replyAuthor) return null;
+              
+              return (
+                <View key={replyPost.uri || index} className="mb-4 pb-4 border-b border-border">
+                  <View className="flex-row items-start">
+                    <Image
+                      source={{ uri: replyAuthor.avatar }}
+                      style={{ width: 36, height: 36, borderRadius: 18 }}
+                      contentFit="cover"
+                    />
+                    <View className="ml-3 flex-1">
+                      <View className="flex-row items-center mb-1">
+                        <Text className="text-text-primary font-semibold">
+                          {replyAuthor.displayName || replyAuthor.handle}
+                        </Text>
+                        <Text className="text-text-muted text-sm ml-2">@{replyAuthor.handle}</Text>
+                      </View>
+                      <Text className="text-text-primary">{replyRecord?.text}</Text>
+                    </View>
+                  </View>
+                </View>
+              );
+            })}
+          </View>
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }

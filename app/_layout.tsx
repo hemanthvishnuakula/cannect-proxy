@@ -9,9 +9,8 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import * as SplashScreen from "expo-splash-screen";
 import { queryClient } from "@/lib/query-client";
-import { supabase } from "@/lib/supabase";
 import { useAuthStore } from "@/lib/stores";
-import { usePushNotifications } from "@/lib/hooks";
+import * as atproto from "@/lib/atproto/agent";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { PWAUpdater } from "@/components/PWAUpdater";
 import { IOSInstallPrompt } from "@/components/IOSInstallPrompt";
@@ -32,9 +31,6 @@ if (Platform.OS === "web") {
 function AppContent() {
   // 💎 Hydration Gate - Prevent SSR/client mismatch on web
   const [isMounted, setIsMounted] = useState(false);
-
-  // Initialize push notifications (registers token when authenticated)
-  usePushNotifications();
 
   // 💎 Set mounted after first render to gate hydration
   useEffect(() => {
@@ -116,46 +112,28 @@ function AppContent() {
 }
 
 export default function RootLayout() {
-  const { setSession, setProfile, setLoading } = useAuthStore();
+  const { setSession, setLoading } = useAuthStore();
 
   useEffect(() => {
-    // Helper to fetch profile when user is authenticated
-    const fetchProfile = async (userId: string) => {
+    // Initialize AT Protocol agent and restore session
+    async function initAuth() {
       try {
-        const { data, error } = await supabase
-          .from("profiles")
-          .select("*")
-          .eq("id", userId)
-          .single();
-        
-        if (!error && data) {
-          setProfile(data);
+        const agent = await atproto.initializeAgent();
+        if (agent.session) {
+          setSession(agent.session);
+        } else {
+          setLoading(false);
         }
       } catch (err) {
-        console.error("[RootLayout] Failed to fetch profile:", err);
+        console.error("[RootLayout] Failed to initialize auth:", err);
+        setLoading(false);
+      } finally {
+        SplashScreen.hideAsync();
       }
-    };
+    }
 
-    // Single listener to sync Supabase Auth with Zustand Store
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-      if (session?.user?.id) {
-        fetchProfile(session.user.id);
-      }
-      SplashScreen.hideAsync();
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      if (session?.user?.id) {
-        fetchProfile(session.user.id);
-      } else {
-        setProfile(null);
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [setSession, setProfile]);
+    initAuth();
+  }, [setSession, setLoading]);
 
   return (
     <ErrorBoundary>

@@ -11,7 +11,22 @@ import Animated, {
 } from 'react-native-reanimated';
 import { Share2, X, ChevronDown } from 'lucide-react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { isIOSSafari, isInstalledPWA } from '@/lib/hooks/use-pwa-persistence';
+
+// Helper functions (inline since we're not using the old hooks)
+function isIOSSafari(): boolean {
+  if (typeof window === 'undefined') return false;
+  const ua = window.navigator.userAgent;
+  const iOS = /iPad|iPhone|iPod/.test(ua);
+  const webkit = /WebKit/.test(ua);
+  const notChrome = !/CriOS/.test(ua);
+  const notFirefox = !/FxiOS/.test(ua);
+  return iOS && webkit && notChrome && notFirefox;
+}
+
+function isInstalledPWA(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.matchMedia('(display-mode: standalone)').matches;
+}
 
 const DISMISS_KEY = 'cannect_ios_install_dismissed';
 const SHOW_DELAY = 5000; // Show after 5 seconds on page

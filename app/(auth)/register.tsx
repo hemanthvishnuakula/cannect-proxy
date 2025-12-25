@@ -5,28 +5,31 @@ import {
 } from "react-native";
 import { Link, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ArrowLeft, User, Mail, Lock, Eye, EyeOff, Globe } from "lucide-react-native";
-import { useFederatedSignUp } from "@/lib/hooks/use-federated-auth";
+import { ArrowLeft, Mail, Lock, Eye, EyeOff, Globe, Ticket } from "lucide-react-native";
+import { useCreateAccount } from "@/lib/hooks";
 
 export default function RegisterScreen() {
-  const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [inviteCode, setInviteCode] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [showConfirmation, setShowConfirmation] = useState(false);
-  const [federationResult, setFederationResult] = useState<{ 
-    did?: string; 
-    handle?: string;
-    federationError?: string;
-  } | null>(null);
-  const signUp = useFederatedSignUp();
+  
+  const createAccount = useCreateAccount();
 
   const handleRegister = async () => {
     setError(null);
-    if (!name || !username || !email || !password) { setError("Please fill in all fields"); return; }
-    if (password.length < 6) { setError("Password must be at least 6 characters"); return; }
+    
+    if (!username || !email || !password) { 
+      setError("Please fill in all required fields"); 
+      return; 
+    }
+    
+    if (password.length < 8) { 
+      setError("Password must be at least 8 characters"); 
+      return; 
+    }
     
     // Validate username for AT Protocol (3-20 chars, alphanumeric and hyphens)
     const normalizedUsername = username.toLowerCase().replace(/[^a-z0-9-]/g, '');
@@ -36,78 +39,29 @@ export default function RegisterScreen() {
     }
     
     try {
-      const result = await signUp.mutateAsync({ 
+      await createAccount.mutateAsync({ 
         email, 
         password, 
-        username: normalizedUsername,
-        displayName: name,
+        handle: normalizedUsername,
+        inviteCode: inviteCode || undefined,
       });
       
-      // Store federation result for display
-      setFederationResult({
-        did: (result as any).did,
-        handle: (result as any).handle,
-        federationError: (result as any).federationError,
-      });
-      
-      // Check if email confirmation is required
-      if (result.needsEmailConfirmation) {
-        setShowConfirmation(true);
+      // Success - redirect to feed
+      router.replace("/(tabs)/feed");
+    } catch (err: any) { 
+      // Parse AT Protocol errors
+      const message = err.message || "Failed to create account";
+      if (message.includes("Handle already taken")) {
+        setError("This username is already taken. Please choose another.");
+      } else if (message.includes("Invalid invite code")) {
+        setError("Invalid invite code. Please check and try again.");
+      } else if (message.includes("Email already exists")) {
+        setError("An account with this email already exists.");
       } else {
-        router.replace("/(tabs)/feed");
+        setError(message);
       }
-    } catch (err: any) { setError(err.message || "Failed to create account"); }
+    }
   };
-
-  // Show confirmation screen
-  if (showConfirmation) {
-    return (
-      <SafeAreaView className="flex-1 bg-background">
-        <View className="flex-1 items-center justify-center px-6">
-          <Text className="text-4xl mb-4">✉️</Text>
-          <Text className="text-2xl font-bold text-text-primary mb-4 text-center">Check your email</Text>
-          <Text className="text-text-secondary text-center mb-6">
-            We've sent a confirmation link to{"\n"}
-            <Text className="text-primary font-semibold">{email}</Text>
-          </Text>
-          
-          {/* Federation status */}
-          {federationResult?.handle && (
-            <View className="bg-surface-elevated border border-primary/30 rounded-xl p-4 mb-4 w-full">
-              <View className="flex-row items-center mb-2">
-                <Globe size={16} color="#10B981" />
-                <Text className="text-primary font-semibold ml-2">Federated to Bluesky</Text>
-              </View>
-              <Text className="text-text-secondary text-sm">
-                Your handle: <Text className="text-text-primary font-mono">@{federationResult.handle}</Text>
-              </Text>
-              <Text className="text-text-muted text-xs mt-1">
-                Your posts will be visible on Bluesky and other AT Protocol apps!
-              </Text>
-            </View>
-          )}
-          
-          {federationResult?.federationError && (
-            <View className="bg-accent-warning/20 border border-accent-warning/50 rounded-xl p-4 mb-4 w-full">
-              <Text className="text-accent-warning text-sm text-center">
-                Federation pending - you can enable it later in Settings
-              </Text>
-            </View>
-          )}
-          
-          <Text className="text-text-muted text-center text-sm mb-8">
-            Click the link in your email to activate your account, then come back and sign in.
-          </Text>
-          <Pressable 
-            onPress={() => router.replace("/(auth)/login")}
-            className="bg-primary px-8 py-4 rounded-2xl"
-          >
-            <Text className="text-white font-semibold text-lg">Go to Sign In</Text>
-          </Pressable>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   return (
     <SafeAreaView className="flex-1 bg-background">
@@ -118,15 +72,16 @@ export default function RegisterScreen() {
               <ArrowLeft size={20} color="#FAFAFA" />
             </Pressable>
           </View>
+          
           <View className="flex-1 px-6 pt-8">
             <Text className="text-3xl font-bold text-text-primary mb-2">Create Account</Text>
             <Text className="text-text-secondary mb-4 text-base">Join Cannect today</Text>
             
-            {/* Federation badge */}
+            {/* PDS info badge */}
             <View className="flex-row items-center bg-primary/10 border border-primary/30 rounded-xl px-4 py-3 mb-6">
               <Globe size={16} color="#10B981" />
               <Text className="text-text-secondary text-sm ml-2 flex-1">
-                Your account federates to <Text className="text-primary font-semibold">Bluesky</Text> automatically
+                Your account is on <Text className="text-primary font-semibold">cannect.space</Text> PDS
               </Text>
             </View>
             
@@ -135,18 +90,9 @@ export default function RegisterScreen() {
                 <Text className="text-accent-error text-center">{error}</Text>
               </View>
             )}
+            
             <View className="gap-4">
-              <View className="bg-surface-elevated border border-border rounded-xl flex-row items-center px-4">
-                <User size={20} color="#6B6B6B" />
-                <TextInput 
-                  placeholder="Full name" 
-                  placeholderTextColor="#6B6B6B" 
-                  value={name}
-                  onChangeText={setName} 
-                  autoCapitalize="words" 
-                  className="flex-1 py-4 px-3 text-text-primary text-base" 
-                />
-              </View>
+              {/* Username */}
               <View className="bg-surface-elevated border border-border rounded-xl flex-row items-center px-4">
                 <Text className="text-text-muted text-lg font-medium">@</Text>
                 <TextInput 
@@ -154,10 +100,14 @@ export default function RegisterScreen() {
                   placeholderTextColor="#6B6B6B" 
                   value={username}
                   onChangeText={setUsername} 
-                  autoCapitalize="none" 
+                  autoCapitalize="none"
+                  autoCorrect={false}
                   className="flex-1 py-4 px-3 text-text-primary text-base" 
                 />
+                <Text className="text-text-muted text-sm">.cannect.space</Text>
               </View>
+              
+              {/* Email */}
               <View className="bg-surface-elevated border border-border rounded-xl flex-row items-center px-4">
                 <Mail size={20} color="#6B6B6B" />
                 <TextInput 
@@ -166,14 +116,17 @@ export default function RegisterScreen() {
                   value={email}
                   onChangeText={setEmail} 
                   autoCapitalize="none" 
-                  keyboardType="email-address" 
+                  keyboardType="email-address"
+                  autoCorrect={false}
                   className="flex-1 py-4 px-3 text-text-primary text-base" 
                 />
               </View>
+              
+              {/* Password */}
               <View className="bg-surface-elevated border border-border rounded-xl flex-row items-center px-4">
                 <Lock size={20} color="#6B6B6B" />
                 <TextInput 
-                  placeholder="Password" 
+                  placeholder="Password (min 8 characters)" 
                   placeholderTextColor="#6B6B6B" 
                   value={password}
                   onChangeText={setPassword} 
@@ -184,20 +137,40 @@ export default function RegisterScreen() {
                   {showPassword ? <EyeOff size={20} color="#6B6B6B" /> : <Eye size={20} color="#6B6B6B" />}
                 </Pressable>
               </View>
+              
+              {/* Invite Code (optional) */}
+              <View className="bg-surface-elevated border border-border rounded-xl flex-row items-center px-4">
+                <Ticket size={20} color="#6B6B6B" />
+                <TextInput 
+                  placeholder="Invite code (optional)" 
+                  placeholderTextColor="#6B6B6B" 
+                  value={inviteCode}
+                  onChangeText={setInviteCode} 
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  className="flex-1 py-4 px-3 text-text-primary text-base" 
+                />
+              </View>
             </View>
+            
+            <Text className="text-text-muted text-xs mt-4 text-center">
+              Your handle will be @{username || 'username'}.cannect.space
+            </Text>
           </View>
+          
           <View className="px-6 pb-8">
             <Pressable 
               onPress={handleRegister} 
-              disabled={signUp.isPending} 
-              className={`py-4 rounded-2xl bg-primary ${signUp.isPending ? 'opacity-50' : ''}`}
+              disabled={createAccount.isPending} 
+              className={`py-4 rounded-2xl bg-primary ${createAccount.isPending ? 'opacity-50' : ''}`}
             >
-              {signUp.isPending ? (
+              {createAccount.isPending ? (
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text className="text-white text-center font-semibold text-lg">Create Account</Text>
               )}
             </Pressable>
+            
             <View className="flex-row justify-center mt-6">
               <Text className="text-text-secondary">Already have an account? </Text>
               <Link href="/(auth)/login" asChild>

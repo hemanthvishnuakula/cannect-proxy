@@ -5,21 +5,21 @@ import {
 } from "react-native";
 import { Link, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ArrowLeft, Mail, Lock, Eye, EyeOff } from "lucide-react-native";
-import { useSignIn } from "@/lib/hooks";
+import { ArrowLeft, AtSign, Lock, Eye, EyeOff } from "lucide-react-native";
+import { useLogin } from "@/lib/hooks";
 
 export default function LoginScreen() {
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const signIn = useSignIn();
+  const login = useLogin();
 
   const handleLogin = async () => {
     setError(null);
-    if (!email || !password) { setError("Please fill in all fields"); return; }
+    if (!identifier || !password) { setError("Please fill in all fields"); return; }
     try {
-      await signIn.mutateAsync({ email, password });
+      await login.mutateAsync({ identifier, password });
       router.replace("/(tabs)/feed");
     } catch (err: any) { setError(err.message || "Failed to sign in"); }
   };
@@ -35,7 +35,7 @@ export default function LoginScreen() {
           </View>
           <View className="flex-1 px-6 pt-8">
             <Text className="text-3xl font-bold text-text-primary mb-2">Welcome back</Text>
-            <Text className="text-text-secondary mb-8 text-base">Sign in to continue to Cannect</Text>
+            <Text className="text-text-secondary mb-8 text-base">Sign in with your Bluesky account</Text>
             {error && (
               <View className="bg-accent-error/20 border border-accent-error/50 rounded-xl p-4 mb-6">
                 <Text className="text-accent-error text-center">{error}</Text>
@@ -43,12 +43,12 @@ export default function LoginScreen() {
             )}
             <View className="gap-4">
               <View className="bg-surface-elevated border border-border rounded-xl flex-row items-center px-4">
-                <Mail size={20} color="#6B6B6B" />
+                <AtSign size={20} color="#6B6B6B" />
                 <TextInput 
-                  placeholder="Email address" 
+                  placeholder="Handle (e.g. user.bsky.social)" 
                   placeholderTextColor="#6B6B6B" 
-                  value={email}
-                  onChangeText={setEmail} 
+                  value={identifier}
+                  onChangeText={setIdentifier} 
                   autoCapitalize="none" 
                   keyboardType="email-address" 
                   className="flex-1 py-4 px-3 text-text-primary text-base" 
@@ -57,7 +57,7 @@ export default function LoginScreen() {
               <View className="bg-surface-elevated border border-border rounded-xl flex-row items-center px-4">
                 <Lock size={20} color="#6B6B6B" />
                 <TextInput 
-                  placeholder="Password" 
+                  placeholder="App Password" 
                   placeholderTextColor="#6B6B6B" 
                   value={password}
                   onChangeText={setPassword} 
@@ -68,18 +68,18 @@ export default function LoginScreen() {
                   {showPassword ? <EyeOff size={20} color="#6B6B6B" /> : <Eye size={20} color="#6B6B6B" />}
                 </Pressable>
               </View>
-              <Pressable className="self-end">
-                <Text className="text-primary font-medium">Forgot password?</Text>
-              </Pressable>
+              <Text className="text-text-tertiary text-sm">
+                Use an App Password from bsky.app → Settings → App Passwords
+              </Text>
             </View>
           </View>
           <View className="px-6 pb-8">
             <Pressable 
               onPress={handleLogin} 
-              disabled={signIn.isPending} 
-              className={`py-4 rounded-2xl bg-primary ${signIn.isPending ? 'opacity-50' : ''}`}
+              disabled={login.isPending} 
+              className={`py-4 rounded-2xl bg-primary ${login.isPending ? 'opacity-50' : ''}`}
             >
-              {signIn.isPending ? (
+              {login.isPending ? (
                 <ActivityIndicator color="#fff" />
               ) : (
                 <Text className="text-white text-center font-semibold text-lg">Sign In</Text>
@@ -87,11 +87,9 @@ export default function LoginScreen() {
             </Pressable>
             <View className="flex-row justify-center mt-6">
               <Text className="text-text-secondary">Don't have an account? </Text>
-              <Link href="/(auth)/register" asChild>
-                <Pressable>
-                  <Text className="text-primary font-semibold">Sign Up</Text>
-                </Pressable>
-              </Link>
+              <Pressable onPress={() => { /* Open Bluesky signup */ }}>
+                <Text className="text-primary font-semibold">Join Bluesky</Text>
+              </Pressable>
             </View>
           </View>
         </ScrollView>
