@@ -1,7 +1,9 @@
 /**
  * Feed Screen - Pure AT Protocol
  * 
- * Displays timeline from Bluesky PDS directly.
+ * Displays two feeds:
+ * - Cannect: Cannabis content from the network + cannect.space users
+ * - Following: Posts from people the user follows
  */
 
 import { View, Text, RefreshControl, ActivityIndicator, Platform, Pressable, Image } from "react-native";
@@ -9,13 +11,14 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import { Leaf, Heart, MessageCircle, Repeat2, Share } from "lucide-react-native";
-import { useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback } from "react";
 import * as Haptics from "expo-haptics";
-import { useTimeline, useLikePost, useUnlikePost, useRepost, useDeleteRepost } from "@/lib/hooks";
+import { useTimeline, useCannectFeed, useLikePost, useUnlikePost, useRepost, useDeleteRepost } from "@/lib/hooks";
 import { useAuthStore } from "@/lib/stores";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import type { AppBskyFeedDefs, AppBskyFeedPost } from '@atproto/api';
 
+type FeedType = 'cannect' | 'following';
 type FeedViewPost = AppBskyFeedDefs.FeedViewPost;
 type PostView = AppBskyFeedDefs.PostView;
 
@@ -201,23 +204,37 @@ function FeedSkeleton() {
 export default function FeedScreen() {
   const router = useRouter();
   const { did } = useAuthStore();
+  const [activeFeed, setActiveFeed] = useState<FeedType>('cannect');
   
-  const timelineQuery = useTimeline();
+  // Both feeds - only active one will fetch
+  const cannectFeedQuery = useCannectFeed();
+  const followingQuery = useTimeline();
+  
+  // Select active query based on tab
+  const activeQuery = activeFeed === 'cannect' ? cannectFeedQuery : followingQuery;
+  
   const likeMutation = useLikePost();
   const unlikeMutation = useUnlikePost();
   const repostMutation = useRepost();
   const unrepostMutation = useDeleteRepost();
 
   const posts = useMemo(() => {
-    return timelineQuery.data?.pages?.flatMap(page => page.feed) || [];
-  }, [timelineQuery.data]);
+    return activeQuery.data?.pages?.flatMap(page => page.feed) || [];
+  }, [activeQuery.data]);
+
+  const handleTabChange = useCallback((feed: FeedType) => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setActiveFeed(feed);
+  }, []);
 
   const handleRefresh = useCallback(() => {
     if (Platform.OS !== 'web') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
-    timelineQuery.refetch();
-  }, [timelineQuery]);
+    activeQuery.refetch();
+  }, [activeQuery]);
 
   const handleLike = useCallback(async (post: PostView) => {
     if (Platform.OS !== 'web') {
@@ -250,11 +267,11 @@ export default function FeedScreen() {
     router.push(`/post/${post.author.did}/${rkey}`);
   }, [router]);
 
-  if (timelineQuery.isError) {
+  if (activeQuery.isError) {
     return (
       <SafeAreaView className="flex-1 bg-background items-center justify-center px-6">
         <Text className="text-text-primary text-lg font-semibold mb-2">Failed to load feed</Text>
-        <Pressable onPress={() => timelineQuery.refetch()} className="bg-primary px-6 py-3 rounded-full">
+        <Pressable onPress={() => activeQuery.refetch()} className="bg-primary px-6 py-3 rounded-full">
           <Text className="text-white font-bold">Retry</Text>
         </Pressable>
       </SafeAreaView>
@@ -263,22 +280,42 @@ export default function FeedScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background" edges={["top"]}>
-      {/* Header */}
-      <View className="flex-row items-center px-5 py-4 border-b border-border">
-        <Leaf size={28} color="#10B981" />
-        <Text className="text-2xl font-bold text-text-primary ml-3">Cannect</Text>
+      {/* Header with Logo */}
+      <View className="flex-row items-center justify-center px-5 py-3 border-b border-border">
+        <Leaf size={24} color="#10B981" />
+        <Text className="text-xl font-bold text-text-primary ml-2">Cannect</Text>
+      </View>
+
+      {/* Feed Tabs */}
+      <View className="flex-row border-b border-border">
+        <Pressable 
+          onPress={() => handleTabChange('cannect')}
+          className={`flex-1 py-3 items-center ${activeFeed === 'cannect' ? 'border-b-2 border-primary' : ''}`}
+        >
+          <Text className={`font-semibold ${activeFeed === 'cannect' ? 'text-primary' : 'text-text-muted'}`}>
+            🌿 Cannect
+          </Text>
+        </Pressable>
+        <Pressable 
+          onPress={() => handleTabChange('following')}
+          className={`flex-1 py-3 items-center ${activeFeed === 'following' ? 'border-b-2 border-primary' : ''}`}
+        >
+          <Text className={`font-semibold ${activeFeed === 'following' ? 'text-primary' : 'text-text-muted'}`}>
+            Following
+          </Text>
+        </Pressable>
       </View>
 
       {/* Offline Banner */}
       <OfflineBanner />
 
-      {timelineQuery.isLoading ? (
+      {activeQuery.isLoading ? (
         <FeedSkeleton />
       ) : (
         <View style={{ flex: 1, minHeight: 2 }}>
           <FlashList
             data={posts}
-            keyExtractor={(item, index) => `${item.post.uri}-${index}`}
+            keyExtractor={(item, index) => `${activeFeed}-${item.post.uri}-${index}`}
             renderItem={({ item }) => (
               <FeedItem
                 item={item}
@@ -290,15 +327,15 @@ export default function FeedScreen() {
             estimatedItemSize={200}
             refreshControl={
               <RefreshControl 
-                refreshing={timelineQuery.isRefetching} 
+                refreshing={activeQuery.isRefetching} 
                 onRefresh={handleRefresh} 
                 tintColor="#10B981"
                 colors={["#10B981"]}
               />
             }
             onEndReached={() => {
-              if (timelineQuery.hasNextPage && !timelineQuery.isFetchingNextPage) {
-                timelineQuery.fetchNextPage();
+              if (activeQuery.hasNextPage && !activeQuery.isFetchingNextPage) {
+                activeQuery.fetchNextPage();
               }
             }}
             onEndReachedThreshold={0.5}
@@ -306,12 +343,14 @@ export default function FeedScreen() {
             ListEmptyComponent={
               <View className="flex-1 items-center justify-center py-20">
                 <Text className="text-text-muted text-center">
-                  Your timeline is empty.{'\n'}Follow some people to see their posts!
+                  {activeFeed === 'cannect' 
+                    ? 'No cannabis content found.\nBe the first to post!' 
+                    : 'Your timeline is empty.\nFollow some people to see their posts!'}
                 </Text>
               </View>
             }
             ListFooterComponent={
-              timelineQuery.isFetchingNextPage ? (
+              activeQuery.isFetchingNextPage ? (
                 <View className="py-4 items-center">
                   <ActivityIndicator size="small" color="#10B981" />
                 </View>

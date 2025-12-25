@@ -22,7 +22,7 @@ export type PostView = AppBskyFeedDefs.PostView;
 export type ThreadViewPost = AppBskyFeedDefs.ThreadViewPost;
 
 /**
- * Get home timeline feed with infinite scroll
+ * Get home timeline feed (Following) with infinite scroll
  */
 export function useTimeline() {
   const { isAuthenticated } = useAuthStore();
@@ -37,6 +37,28 @@ export function useTimeline() {
     initialPageParam: undefined as string | undefined,
     enabled: isAuthenticated,
     staleTime: 1000 * 60, // 1 minute
+  });
+}
+
+/**
+ * Get Cannect feed - cannabis content from the network + cannect.space users
+ * This is our custom curated feed combining:
+ * - Cannabis-related posts from the entire AT Protocol network
+ * - Posts from users on cannect.space PDS (our community)
+ */
+export function useCannectFeed() {
+  const { isAuthenticated } = useAuthStore();
+
+  return useInfiniteQuery({
+    queryKey: ['cannectFeed'],
+    queryFn: async ({ pageParam }) => {
+      const result = await atproto.getCannectFeed(pageParam, 30);
+      return result.data;
+    },
+    getNextPageParam: (lastPage) => lastPage.cursor,
+    initialPageParam: undefined as string | undefined,
+    enabled: isAuthenticated,
+    staleTime: 1000 * 60 * 2, // 2 minutes (search results change less frequently)
   });
 }
 

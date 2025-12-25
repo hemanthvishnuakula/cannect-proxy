@@ -20,6 +20,7 @@ export {
   useTimeline,
   useTimeline as useFeed,
   useTimeline as useFollowingFeed,
+  useCannectFeed,
   useAuthorFeed,
   usePostThread,
   useCreatePost,

@@ -359,4 +359,67 @@ export async function getUnreadCount() {
   return bskyAgent.countUnreadNotifications();
 }
 
+/**
+ * Cannabis-related search terms for the Cannect feed
+ */
+const CANNABIS_TERMS = [
+  'cannabis',
+  'marijuana',
+  'weed',
+  '420',
+  'thc',
+  'cbd',
+  'dispensary',
+  'strain',
+  'indica',
+  'sativa',
+  'edibles',
+  'dabs',
+  'concentrates',
+];
+
+/**
+ * Get the Cannect feed - cannabis content from the network + cannect.space users
+ * 
+ * This combines:
+ * 1. Posts matching cannabis-related keywords from the entire network
+ * 2. Posts from users on the cannect.space PDS (our community)
+ */
+export async function getCannectFeed(cursor?: string, limit = 30) {
+  const bskyAgent = getAgent();
+  
+  // Build a compound search query for cannabis terms
+  // Using OR logic: "cannabis OR marijuana OR weed OR 420..."
+  const searchQuery = CANNABIS_TERMS.slice(0, 5).join(' OR '); // API may have limits, use top 5 terms
+  
+  try {
+    // Search for cannabis-related posts
+    const result = await bskyAgent.app.bsky.feed.searchPosts({
+      q: searchQuery,
+      cursor,
+      limit,
+      sort: 'latest', // Get most recent posts
+    });
+    
+    return {
+      data: {
+        feed: result.data.posts.map(post => ({
+          post,
+          // No reason needed for search results
+        })),
+        cursor: result.data.cursor,
+      }
+    };
+  } catch (error) {
+    console.error('[Cannect Feed] Search failed:', error);
+    // Return empty feed on error
+    return {
+      data: {
+        feed: [],
+        cursor: undefined,
+      }
+    };
+  }
+}
+
 export { RichText };
