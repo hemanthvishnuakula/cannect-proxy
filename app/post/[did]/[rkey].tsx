@@ -115,6 +115,113 @@ function ReplyPost({
   );
 }
 
+/**
+ * Component for displaying parent/ancestor posts in the thread
+ * Shows a connecting line to indicate thread hierarchy
+ */
+function ParentPost({ 
+  post,
+  isRoot = false,
+}: { 
+  post: PostView;
+  isRoot?: boolean;
+}) {
+  const record = post.record as AppBskyFeedPost.Record;
+  const router = useRouter();
+  
+  const handlePress = () => {
+    const uriParts = post.uri.split('/');
+    const rkey = uriParts[uriParts.length - 1];
+    router.push(`/post/${post.author.did}/${rkey}`);
+  };
+
+  const handleAuthorPress = () => {
+    router.push(`/user/${post.author.handle}`);
+  };
+
+  // Get embed images if present
+  const embedImages = post.embed?.$type === 'app.bsky.embed.images#view' 
+    ? (post.embed as any).images 
+    : [];
+  
+  return (
+    <Pressable onPress={handlePress} className="px-4 pt-3 active:bg-surface-elevated">
+      <View className="flex-row">
+        {/* Avatar with thread line */}
+        <View className="items-center">
+          <Pressable onPress={handleAuthorPress}>
+            {post.author.avatar ? (
+              <Image 
+                source={{ uri: post.author.avatar }} 
+                className="w-10 h-10 rounded-full"
+                contentFit="cover"
+              />
+            ) : (
+              <View className="w-10 h-10 rounded-full bg-surface-elevated items-center justify-center">
+                <Text className="text-text-muted text-lg">{post.author.handle[0].toUpperCase()}</Text>
+              </View>
+            )}
+          </Pressable>
+          {/* Thread connecting line */}
+          <View className="w-0.5 flex-1 bg-border mt-2 mb-0" style={{ minHeight: 20 }} />
+        </View>
+        
+        <View className="flex-1 ml-3 pb-3">
+          <View className="flex-row items-center flex-wrap">
+            <Text className="font-semibold text-text-primary">
+              {post.author.displayName || post.author.handle}
+            </Text>
+            <Text className="text-text-muted ml-1">@{post.author.handle}</Text>
+          </View>
+          <Text className="text-text-primary mt-1 leading-5">{record.text}</Text>
+          
+          {/* Images in parent */}
+          {embedImages.length > 0 && (
+            <View className="mt-2 rounded-lg overflow-hidden">
+              {embedImages.length === 1 ? (
+                <Image 
+                  source={{ uri: embedImages[0].thumb }} 
+                  className="w-full h-32 rounded-lg"
+                  contentFit="cover"
+                />
+              ) : (
+                <View className="flex-row flex-wrap gap-1">
+                  {embedImages.slice(0, 4).map((img: any, idx: number) => (
+                    <Image 
+                      key={idx}
+                      source={{ uri: img.thumb }} 
+                      className="w-[48%] h-24 rounded"
+                      contentFit="cover"
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+/**
+ * Recursively collect parent posts into a flat array (root first)
+ */
+function collectParents(thread: ThreadViewPost): PostView[] {
+  const parents: PostView[] = [];
+  
+  let current = thread.parent;
+  while (current && current.$type === 'app.bsky.feed.defs#threadViewPost') {
+    const parentThread = current as ThreadViewPost;
+    if (parentThread.post) {
+      parents.unshift(parentThread.post); // Add to beginning (root first)
+    }
+    current = parentThread.parent;
+  }
+  
+  return parents;
+}
+
 export default function PostDetailsScreen() {
   const { did, rkey } = useLocalSearchParams<{ did: string; rkey: string }>();
   const router = useRouter();
@@ -327,6 +434,10 @@ export default function PostDetailsScreen() {
   const post = thread.post;
   const record = post.record as AppBskyFeedPost.Record;
   
+  // Collect parent posts (root first, then ancestors down to immediate parent)
+  const parents = collectParents(thread);
+  const hasParents = parents.length > 0;
+  
   // Filter and type replies properly
   const replies = (thread.replies || [])
     .filter((r: any) => r.$type === 'app.bsky.feed.defs#threadViewPost' && r.post)
@@ -354,8 +465,30 @@ export default function PostDetailsScreen() {
       />
       
       <ScrollView className="flex-1">
+        {/* Parent Posts (Thread Ancestors) */}
+        {hasParents && (
+          <View className="border-b border-border">
+            {parents.map((parentPost, index) => (
+              <ParentPost 
+                key={parentPost.uri} 
+                post={parentPost}
+                isRoot={index === 0}
+              />
+            ))}
+          </View>
+        )}
+
         {/* Main Post */}
         <View className="px-4 pt-4 pb-3 border-b border-border">
+          {/* Replying To indicator */}
+          {hasParents && (
+            <View className="flex-row items-center mb-2">
+              <Text className="text-text-muted text-sm">
+                Replying to <Text className="text-primary">@{parents[parents.length - 1].author.handle}</Text>
+              </Text>
+            </View>
+          )}
+          
           {/* Author Row */}
           <Pressable onPress={handleAuthorPress} className="flex-row items-center">
             {post.author.avatar ? (
