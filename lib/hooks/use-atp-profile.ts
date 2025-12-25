@@ -212,22 +212,23 @@ export function useSearchUsers(query: string) {
 }
 
 /**
- * Get suggested users to follow - cannabis industry focused
+ * Get suggested users to follow - Cannect users only
  */
 export function useSuggestedUsers() {
   const { isAuthenticated } = useAuthStore();
   
   return useQuery({
-    queryKey: ['suggestedUsers', 'cannabis'],
+    queryKey: ['suggestedUsers', 'cannect'],
     queryFn: async () => {
-      // Search for cannabis-related users
-      const searchTerms = ['cannabis', 'weed', '420', 'dispensary', 'marijuana'];
-      const randomTerm = searchTerms[Math.floor(Math.random() * searchTerms.length)];
-      
-      const result = await atproto.searchActors(randomTerm, undefined, 15);
-      return result.data.actors;
+      // Search for users on Cannect PDS (handles end with .cannect.space)
+      const result = await atproto.searchActors('cannect.space', undefined, 25);
+      // Filter to only show users with cannect.space handles
+      const cannectUsers = result.data.actors.filter(
+        (actor) => actor.handle.endsWith('.cannect.space')
+      );
+      return cannectUsers;
     },
     enabled: isAuthenticated,
-    staleTime: 1000 * 60 * 10, // 10 minutes - cache longer since it's random
+    staleTime: 1000 * 60 * 5, // 5 minutes
   });
 }
