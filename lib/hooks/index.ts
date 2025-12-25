@@ -32,6 +32,7 @@ export {
   useToggleLike,
   useToggleRepost,
   useSearchPosts,
+  useSuggestedPosts,
   type FeedViewPost,
   type PostView,
   type ThreadViewPost,
