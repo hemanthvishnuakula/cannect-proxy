@@ -219,13 +219,19 @@ export default function ProfileScreen() {
 
               {/* Stats */}
               <View className="flex-row gap-4 mt-3">
-                <Pressable className="flex-row items-center">
+                <Pressable 
+                  className="flex-row items-center active:opacity-70"
+                  onPress={() => router.push(`/user/${profileData?.handle}/followers` as any)}
+                >
                   <Text className="font-bold text-text-primary">
                     {formatNumber(profileData?.followersCount)}
                   </Text>
                   <Text className="text-text-muted ml-1">followers</Text>
                 </Pressable>
-                <Pressable className="flex-row items-center">
+                <Pressable 
+                  className="flex-row items-center active:opacity-70"
+                  onPress={() => router.push(`/user/${profileData?.handle}/following` as any)}
+                >
                   <Text className="font-bold text-text-primary">
                     {formatNumber(profileData?.followsCount)}
                   </Text>
