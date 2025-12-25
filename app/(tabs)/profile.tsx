@@ -4,17 +4,19 @@
  */
 
 import { useState, useMemo, useCallback } from "react";
-import { View, Text, Image, Pressable, RefreshControl, ActivityIndicator, Platform } from "react-native";
+import { View, Text, Image, Pressable, RefreshControl, ActivityIndicator, Platform, Share as RNShare } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
-import { LogOut, RefreshCw, Edit3 } from "lucide-react-native";
+import { LogOut, RefreshCw, Edit3, Heart, MessageCircle, Repeat2, Share } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
-import { useMyProfile, useAuthorFeed, useActorLikes, useLogout } from "@/lib/hooks";
+import { useMyProfile, useAuthorFeed, useActorLikes, useLogout, useLikePost, useUnlikePost, useRepost, useDeleteRepost } from "@/lib/hooks";
 import { useAuthStore } from "@/lib/stores";
+import { RepostMenu } from "@/components/social/RepostMenu";
 import type { AppBskyFeedDefs, AppBskyFeedPost } from '@atproto/api';
 
 type FeedViewPost = AppBskyFeedDefs.FeedViewPost;
+type PostView = AppBskyFeedDefs.PostView;
 type ProfileTab = "posts" | "reposts" | "replies" | "likes";
 
 function formatNumber(num: number | undefined): string {
@@ -39,10 +41,32 @@ function formatTime(dateString: string): string {
   return date.toLocaleDateString();
 }
 
-function ProfilePost({ item, showAuthor = false }: { item: FeedViewPost; showAuthor?: boolean }) {
+function ProfilePost({ 
+  item, 
+  showAuthor = false,
+  onLike,
+  onRepost,
+  onReply,
+  onShare,
+}: { 
+  item: FeedViewPost; 
+  showAuthor?: boolean;
+  onLike: () => void;
+  onRepost: () => void;
+  onReply: () => void;
+  onShare: () => void;
+}) {
   const post = item.post;
   const record = post.record as AppBskyFeedPost.Record;
+  const author = post.author;
   const router = useRouter();
+  const isRepost = !!item.reason && item.reason.$type === 'app.bsky.feed.defs#reasonRepost';
+  const repostBy = isRepost ? (item.reason as any).by : null;
+
+  // Get embed images if present
+  const embedImages = post.embed?.$type === 'app.bsky.embed.images#view' 
+    ? (post.embed as any).images 
+    : [];
 
   const handlePress = () => {
     const uriParts = post.uri.split('/');
@@ -50,27 +74,135 @@ function ProfilePost({ item, showAuthor = false }: { item: FeedViewPost; showAut
     router.push(`/post/${post.author.did}/${rkey}`);
   };
 
+  const handleAuthorPress = () => {
+    router.push(`/user/${author.handle}`);
+  };
+
   return (
     <Pressable 
       onPress={handlePress}
       className="px-4 py-3 border-b border-border active:bg-surface-elevated"
     >
-      {showAuthor && (
-        <View className="flex-row items-center mb-2">
-          {post.author.avatar ? (
-            <Image source={{ uri: post.author.avatar }} className="w-8 h-8 rounded-full" />
-          ) : (
-            <View className="w-8 h-8 rounded-full bg-surface-elevated items-center justify-center">
-              <Text className="text-text-muted">{post.author.handle[0].toUpperCase()}</Text>
-            </View>
-          )}
-          <Text className="font-semibold text-text-primary ml-2">
-            {post.author.displayName || post.author.handle}
+      {/* Repost indicator */}
+      {isRepost && repostBy && (
+        <View className="flex-row items-center mb-2 pl-10">
+          <Repeat2 size={14} color="#6B7280" />
+          <Text className="text-text-muted text-xs ml-1">
+            Reposted by {repostBy.displayName || repostBy.handle}
           </Text>
         </View>
       )}
-      <Text className="text-text-primary leading-5">{record.text}</Text>
-      <Text className="text-text-muted text-sm mt-2">{formatTime(record.createdAt)}</Text>
+
+      <View className="flex-row">
+        {/* Avatar */}
+        <Pressable onPress={handleAuthorPress}>
+          {author.avatar ? (
+            <Image 
+              source={{ uri: author.avatar }} 
+              className="w-10 h-10 rounded-full bg-surface-elevated"
+            />
+          ) : (
+            <View className="w-10 h-10 rounded-full bg-surface-elevated items-center justify-center">
+              <Text className="text-text-muted text-lg">{author.handle[0].toUpperCase()}</Text>
+            </View>
+          )}
+        </Pressable>
+
+        {/* Content */}
+        <View className="flex-1 ml-3">
+          {/* Header - Row 1: Name and Time */}
+          <View className="flex-row items-center">
+            <Text className="font-semibold text-text-primary flex-shrink" numberOfLines={1}>
+              {author.displayName || author.handle}
+            </Text>
+            <Text className="text-text-muted mx-1">·</Text>
+            <Text className="text-text-muted flex-shrink-0">
+              {formatTime(record.createdAt)}
+            </Text>
+          </View>
+          {/* Header - Row 2: Handle */}
+          <Text className="text-text-muted text-sm" numberOfLines={1}>
+            @{author.handle}
+          </Text>
+
+          {/* Post text */}
+          <Text className="text-text-primary mt-1 leading-5">
+            {record.text}
+          </Text>
+
+          {/* Images */}
+          {embedImages.length > 0 && (
+            <View className="mt-2 rounded-xl overflow-hidden">
+              {embedImages.length === 1 ? (
+                <Image 
+                  source={{ uri: embedImages[0].thumb }} 
+                  className="w-full h-48 rounded-xl"
+                  resizeMode="cover"
+                />
+              ) : (
+                <View className="flex-row flex-wrap gap-1">
+                  {embedImages.slice(0, 4).map((img: any, idx: number) => (
+                    <Image 
+                      key={idx}
+                      source={{ uri: img.thumb }} 
+                      className="w-[48%] h-32 rounded-lg"
+                      resizeMode="cover"
+                    />
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Actions */}
+          <View className="flex-row items-center justify-between mt-3 pr-4">
+            {/* Reply */}
+            <Pressable 
+              onPress={onReply}
+              className="flex-row items-center py-1"
+            >
+              <MessageCircle size={18} color="#6B7280" />
+              <Text className="text-text-muted text-sm ml-1.5">
+                {post.replyCount || ''}
+              </Text>
+            </Pressable>
+
+            {/* Repost */}
+            <Pressable 
+              onPress={onRepost}
+              className="flex-row items-center py-1"
+            >
+              <Repeat2 
+                size={18} 
+                color={post.viewer?.repost ? "#10B981" : "#6B7280"} 
+              />
+              <Text className={`text-sm ml-1.5 ${post.viewer?.repost ? 'text-primary' : 'text-text-muted'}`}>
+                {post.repostCount || ''}
+              </Text>
+            </Pressable>
+
+            {/* Like */}
+            <Pressable 
+              onPress={onLike}
+              className="flex-row items-center py-1"
+            >
+              <Heart 
+                size={18} 
+                color={post.viewer?.like ? "#EF4444" : "#6B7280"}
+                fill={post.viewer?.like ? "#EF4444" : "none"}
+              />
+              <Text className={`text-sm ml-1.5 ${post.viewer?.like ? 'text-red-500' : 'text-text-muted'}`}>
+                {post.likeCount || ''}
+              </Text>
+            </Pressable>
+
+            {/* Share */}
+            <Pressable onPress={onShare} className="flex-row items-center py-1">
+              <Share size={18} color="#6B7280" />
+            </Pressable>
+          </View>
+        </View>
+      </View>
     </Pressable>
   );
 }
@@ -80,8 +212,16 @@ export default function ProfileScreen() {
   const { did, handle } = useAuthStore();
   const logoutMutation = useLogout();
   const [activeTab, setActiveTab] = useState<ProfileTab>("posts");
+  const [repostMenuVisible, setRepostMenuVisible] = useState(false);
+  const [selectedPost, setSelectedPost] = useState<PostView | null>(null);
   
   const profileQuery = useMyProfile();
+  
+  // Mutations
+  const likeMutation = useLikePost();
+  const unlikeMutation = useUnlikePost();
+  const repostMutation = useRepost();
+  const deleteRepostMutation = useDeleteRepost();
   
   // Different feeds based on active tab
   const postsQuery = useAuthorFeed(did || undefined, 'posts_no_replies');
@@ -128,6 +268,62 @@ export default function ProfileScreen() {
   const handleEditProfile = () => {
     router.push("/settings/edit-profile" as any);
   };
+
+  // Post action handlers
+  const handleLike = useCallback((post: PostView) => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    if (post.viewer?.like) {
+      unlikeMutation.mutate({ likeUri: post.viewer.like, postUri: post.uri });
+    } else {
+      likeMutation.mutate({ uri: post.uri, cid: post.cid });
+    }
+  }, [likeMutation, unlikeMutation]);
+
+  const handleRepost = useCallback((post: PostView) => {
+    if (Platform.OS !== 'web') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+    setSelectedPost(post);
+    setRepostMenuVisible(true);
+  }, []);
+
+  const handleReply = useCallback((post: PostView) => {
+    const uriParts = post.uri.split('/');
+    const rkey = uriParts[uriParts.length - 1];
+    router.push(`/post/${post.author.did}/${rkey}?reply=true`);
+  }, [router]);
+
+  const handleShare = useCallback(async (post: PostView) => {
+    const bskyUrl = `https://bsky.app/profile/${post.author.handle}/post/${post.uri.split('/').pop()}`;
+    try {
+      await RNShare.share({ url: bskyUrl, message: bskyUrl });
+    } catch (e) {
+      // ignore
+    }
+  }, []);
+
+  const handleRepostAction = useCallback(() => {
+    if (!selectedPost) return;
+    if (selectedPost.viewer?.repost) {
+      deleteRepostMutation.mutate({ repostUri: selectedPost.viewer.repost, postUri: selectedPost.uri });
+    } else {
+      repostMutation.mutate({ uri: selectedPost.uri, cid: selectedPost.cid });
+    }
+    setRepostMenuVisible(false);
+    setSelectedPost(null);
+  }, [selectedPost, repostMutation, deleteRepostMutation]);
+
+  const handleQuote = useCallback(() => {
+    if (!selectedPost) return;
+    router.push({
+      pathname: '/compose',
+      params: { quoteUri: selectedPost.uri, quoteCid: selectedPost.cid }
+    } as any);
+    setRepostMenuVisible(false);
+    setSelectedPost(null);
+  }, [selectedPost, router]);
 
   const profileData = profileQuery.data;
 
@@ -263,7 +459,14 @@ export default function ProfileScreen() {
           </View>
         }
         renderItem={({ item }) => (
-          <ProfilePost item={item} showAuthor={activeTab === "likes"} />
+          <ProfilePost 
+            item={item} 
+            showAuthor={activeTab === "likes"} 
+            onLike={() => handleLike(item.post)}
+            onRepost={() => handleRepost(item.post)}
+            onReply={() => handleReply(item.post)}
+            onShare={() => handleShare(item.post)}
+          />
         )}
         refreshControl={
           <RefreshControl
@@ -302,6 +505,18 @@ export default function ProfileScreen() {
             </View>
           ) : null
         }
+      />
+
+      {/* Repost Menu */}
+      <RepostMenu
+        isVisible={repostMenuVisible}
+        onClose={() => {
+          setRepostMenuVisible(false);
+          setSelectedPost(null);
+        }}
+        onRepost={handleRepostAction}
+        onQuotePost={handleQuote}
+        isReposted={!!selectedPost?.viewer?.repost}
       />
     </SafeAreaView>
   );

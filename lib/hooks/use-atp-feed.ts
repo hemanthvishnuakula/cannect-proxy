@@ -140,8 +140,10 @@ export function useCreatePost() {
       return atproto.createPost(text, { reply, embed });
     },
     onSuccess: (_, variables) => {
-      // Invalidate timeline and relevant threads
+      // Invalidate all feeds so new post appears immediately
       queryClient.invalidateQueries({ queryKey: ['timeline'] });
+      queryClient.invalidateQueries({ queryKey: ['cannectFeed'] });
+      queryClient.invalidateQueries({ queryKey: ['authorFeed'] });
       if (variables.reply) {
         queryClient.invalidateQueries({ queryKey: ['thread', variables.reply.root.uri] });
       }
