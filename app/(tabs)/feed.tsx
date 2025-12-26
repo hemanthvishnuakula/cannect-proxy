@@ -7,11 +7,11 @@
  * - Following: Posts from users you follow
  */
 
-import { View, Text, RefreshControl, ActivityIndicator, Platform, Pressable, Image, Share as RNShare, Linking } from "react-native";
+import { View, Text, RefreshControl, ActivityIndicator, Platform, Pressable, Image, Share as RNShare, Linking, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
-import { Leaf, Heart, MessageCircle, Repeat2, Share, ExternalLink } from "lucide-react-native";
+import { Leaf, Heart, MessageCircle, Repeat2, Share, ExternalLink, ImageOff } from "lucide-react-native";
 import { useState, useMemo, useCallback } from "react";
 import * as Haptics from "expo-haptics";
 import { useCannectFeed, useGlobalFeed, useTimeline, useLikePost, useUnlikePost, useRepost, useDeleteRepost } from "@/lib/hooks";
@@ -414,6 +414,7 @@ function FeedSkeleton() {
 export default function FeedScreen() {
   const router = useRouter();
   const { did } = useAuthStore();
+  const { height } = useWindowDimensions();
   const [activeFeed, setActiveFeed] = useState<FeedType>('global');
   
   // Repost menu state
@@ -619,7 +620,7 @@ export default function FeedScreen() {
       {activeQuery.isLoading ? (
         <FeedSkeleton />
       ) : (
-        <View style={{ flex: 1, minHeight: 100 }} className="flex-1">
+        <View style={{ flex: 1, minHeight: Math.max(200, height - 200) }} className="flex-1">
           <FlashList
             data={posts}
             keyExtractor={(item, index) => `${activeFeed}-${item.post.uri}-${index}`}
