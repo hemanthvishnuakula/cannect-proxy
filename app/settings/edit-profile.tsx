@@ -17,10 +17,60 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { ArrowLeft, Camera } from "lucide-react-native";
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
 import * as Haptics from "expo-haptics";
 import { router } from "expo-router";
 import { useMyProfile, useUpdateProfile } from "@/lib/hooks";
 import { useAuthStore } from "@/lib/stores";
+
+// AT Protocol max blob size is ~1MB, aim for 900KB to be safe
+const MAX_IMAGE_SIZE_BYTES = 900 * 1024;
+
+/**
+ * Compress and resize image to fit within size limit
+ * Uses progressive quality reduction until under limit
+ */
+async function compressImage(
+  uri: string, 
+  maxSize: number = MAX_IMAGE_SIZE_BYTES,
+  isAvatar: boolean = false
+): Promise<{ uri: string; mimeType: string }> {
+  // Start with reasonable dimensions
+  const maxDimension = isAvatar ? 800 : 1500; // Avatar smaller, banner wider
+  let quality = 0.9;
+  
+  // First resize to max dimensions
+  let result = await ImageManipulator.manipulateAsync(
+    uri,
+    [{ resize: { width: maxDimension, height: maxDimension } }],
+    { compress: quality, format: ImageManipulator.SaveFormat.JPEG }
+  );
+  
+  // Check file size and progressively reduce quality if needed
+  let response = await fetch(result.uri);
+  let blob = await response.blob();
+  
+  while (blob.size > maxSize && quality > 0.1) {
+    quality -= 0.1;
+    console.log(`[Compress] Size ${(blob.size / 1024).toFixed(0)}KB > ${(maxSize / 1024).toFixed(0)}KB, reducing quality to ${(quality * 100).toFixed(0)}%`);
+    
+    result = await ImageManipulator.manipulateAsync(
+      uri,
+      [{ resize: { width: maxDimension, height: maxDimension } }],
+      { compress: quality, format: ImageManipulator.SaveFormat.JPEG }
+    );
+    
+    response = await fetch(result.uri);
+    blob = await response.blob();
+  }
+  
+  console.log(`[Compress] Final size: ${(blob.size / 1024).toFixed(0)}KB at ${(quality * 100).toFixed(0)}% quality`);
+  
+  return {
+    uri: result.uri,
+    mimeType: 'image/jpeg',
+  };
+}
 
 export default function EditProfileScreen() {
   const { handle } = useAuthStore();
@@ -32,6 +82,7 @@ export default function EditProfileScreen() {
   const [avatar, setAvatar] = useState<{ uri: string; mimeType: string } | null>(null);
   const [banner, setBanner] = useState<{ uri: string; mimeType: string } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [isCompressing, setIsCompressing] = useState(false);
 
   // Initialize form with current profile data
   useEffect(() => {
@@ -46,14 +97,20 @@ export default function EditProfileScreen() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [1, 1],
-      quality: 0.8,
+      quality: 1, // Get full quality, we'll compress ourselves
     });
 
     if (!result.canceled && result.assets[0]) {
-      setAvatar({
-        uri: result.assets[0].uri,
-        mimeType: result.assets[0].mimeType || 'image/jpeg',
-      });
+      setIsCompressing(true);
+      try {
+        const compressed = await compressImage(result.assets[0].uri, MAX_IMAGE_SIZE_BYTES, true);
+        setAvatar(compressed);
+      } catch (err) {
+        console.error('Failed to compress avatar:', err);
+        setError('Failed to process image');
+      } finally {
+        setIsCompressing(false);
+      }
     }
   };
 
@@ -62,14 +119,20 @@ export default function EditProfileScreen() {
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
       aspect: [3, 1],
-      quality: 0.8,
+      quality: 1, // Get full quality, we'll compress ourselves
     });
 
     if (!result.canceled && result.assets[0]) {
-      setBanner({
-        uri: result.assets[0].uri,
-        mimeType: result.assets[0].mimeType || 'image/jpeg',
-      });
+      setIsCompressing(true);
+      try {
+        const compressed = await compressImage(result.assets[0].uri, MAX_IMAGE_SIZE_BYTES, false);
+        setBanner(compressed);
+      } catch (err) {
+        console.error('Failed to compress banner:', err);
+        setError('Failed to process image');
+      } finally {
+        setIsCompressing(false);
+      }
     }
   };
 
@@ -115,14 +178,17 @@ export default function EditProfileScreen() {
     }
   };
 
-  const canSave = !updateProfileMutation.isPending;
+  const canSave = !updateProfileMutation.isPending && !isCompressing;
   const currentAvatar = avatar?.uri || profileQuery.data?.avatar;
   const currentBanner = banner?.uri || profileQuery.data?.banner;
 
-  if (profileQuery.isLoading) {
+  if (profileQuery.isLoading || isCompressing) {
     return (
       <SafeAreaView className="flex-1 bg-background items-center justify-center">
         <ActivityIndicator size="large" color="#10B981" />
+        {isCompressing && (
+          <Text className="text-text-muted mt-2">Optimizing image...</Text>
+        )}
       </SafeAreaView>
     );
   }
