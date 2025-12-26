@@ -5,14 +5,18 @@ import {
 } from "react-native";
 import { Link, router } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ArrowLeft, Mail, Lock, Eye, EyeOff, Globe, Ticket } from "lucide-react-native";
+import { ArrowLeft, Mail, Lock, Eye, EyeOff, Globe } from "lucide-react-native";
 import { useCreateAccount } from "@/lib/hooks";
+
+// Built-in invite code for app users
+const APP_INVITE_CODE = process.env.EXPO_PUBLIC_PDS_INVITE_CODE || '';
 
 export default function RegisterScreen() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [inviteCode, setInviteCode] = useState("");
+  // Auto-fill with app's invite code, hidden from user
+  const inviteCode = APP_INVITE_CODE;
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   
@@ -138,19 +142,6 @@ export default function RegisterScreen() {
                 </Pressable>
               </View>
               
-              {/* Invite Code (optional) */}
-              <View className="bg-surface-elevated border border-border rounded-xl flex-row items-center px-4">
-                <Ticket size={20} color="#6B6B6B" />
-                <TextInput 
-                  placeholder="Invite code (optional)" 
-                  placeholderTextColor="#6B6B6B" 
-                  value={inviteCode}
-                  onChangeText={setInviteCode} 
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  className="flex-1 py-4 px-3 text-text-primary text-base" 
-                />
-              </View>
             </View>
             
             <Text className="text-text-muted text-xs mt-4 text-center">
