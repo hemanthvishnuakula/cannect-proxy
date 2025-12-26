@@ -75,7 +75,7 @@ export default function LoginScreen() {
                 </Pressable>
               </Link>
               <Text className="text-text-muted text-xs text-center mt-2">
-                We've migrated to a new system. Simply reset your password to continue.
+                ★ We've migrated to a new system. Simply reset your password to continue.
               </Text>
             </View>
           </View>
