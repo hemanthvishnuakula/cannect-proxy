@@ -2,7 +2,7 @@
  * Compose Screen - Pure AT Protocol
  */
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { 
   View, 
   Text, 
@@ -18,6 +18,7 @@ import { X, Image as ImageIcon, Video as VideoIcon } from "lucide-react-native";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from "expo-router";
+import { RichText } from "@atproto/api";
 import { useCreatePost } from "@/lib/hooks";
 import { useAuthStore } from "@/lib/stores";
 import * as atproto from "@/lib/atproto/agent";
@@ -48,7 +49,13 @@ export default function ComposeScreen() {
   const createPostMutation = useCreatePost();
   const { isAuthenticated, profile, handle } = useAuthStore();
 
-  const remainingChars = MAX_LENGTH - content.length;
+  // Use RichText for accurate grapheme counting (matches AT Protocol's 300 grapheme limit)
+  const graphemeLength = useMemo(() => {
+    const rt = new RichText({ text: content });
+    return rt.graphemeLength;
+  }, [content]);
+
+  const remainingChars = MAX_LENGTH - graphemeLength;
   const isOverLimit = remainingChars < 0;
   const canPost = content.trim().length > 0 && !isOverLimit && !createPostMutation.isPending && !isUploading;
   const hasMedia = images.length > 0 || video !== null;
