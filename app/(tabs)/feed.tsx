@@ -240,7 +240,11 @@ export default function FeedScreen() {
   const unrepostMutation = useDeleteRepost();
 
   const posts = useMemo(() => {
-    return activeQuery.data?.pages?.flatMap(page => page.feed) || [];
+    const allPosts = activeQuery.data?.pages?.flatMap(page => page.feed) || [];
+    // Sort by date (newest first) to ensure proper chronological order
+    return allPosts.sort((a, b) => 
+      new Date(b.post.indexedAt).getTime() - new Date(a.post.indexedAt).getTime()
+    );
   }, [activeQuery.data]);
 
   const handleTabChange = useCallback((feed: FeedType) => {
