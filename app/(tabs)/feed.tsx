@@ -7,17 +7,18 @@
  * - Following: Posts from users you follow
  */
 
-import { View, Text, RefreshControl, ActivityIndicator, Platform, Pressable, Image, Share as RNShare } from "react-native";
+import { View, Text, RefreshControl, ActivityIndicator, Platform, Pressable, Image, Share as RNShare, Linking } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
-import { Leaf, Heart, MessageCircle, Repeat2, Share } from "lucide-react-native";
+import { Leaf, Heart, MessageCircle, Repeat2, Share, ExternalLink } from "lucide-react-native";
 import { useState, useMemo, useCallback } from "react";
 import * as Haptics from "expo-haptics";
 import { useCannectFeed, useGlobalFeed, useTimeline, useLikePost, useUnlikePost, useRepost, useDeleteRepost } from "@/lib/hooks";
 import { useAuthStore } from "@/lib/stores";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { RepostMenu } from "@/components/social/RepostMenu";
+import { MediaViewer } from "@/components/ui/MediaViewer";
 import type { AppBskyFeedDefs, AppBskyFeedPost } from '@atproto/api';
 
 type FeedType = 'global' | 'local' | 'following';
@@ -47,6 +48,7 @@ function FeedItem({
   onReply,
   onAuthorPress,
   onShare,
+  onImagePress,
 }: { 
   item: FeedViewPost;
   onPress: () => void;
@@ -55,6 +57,7 @@ function FeedItem({
   onReply: () => void;
   onAuthorPress: () => void;
   onShare: () => void;
+  onImagePress: (images: string[], index: number) => void;
 }) {
   const post = item.post;
   const record = post.record as AppBskyFeedPost.Record;
@@ -62,10 +65,29 @@ function FeedItem({
   const isRepost = !!item.reason && item.reason.$type === 'app.bsky.feed.defs#reasonRepost';
   const repostBy = isRepost ? (item.reason as any).by : null;
 
-  // Get embed images if present
-  const embedImages = post.embed?.$type === 'app.bsky.embed.images#view' 
-    ? (post.embed as any).images 
+  // Get embed content
+  const embed = post.embed;
+  const embedType = embed?.$type;
+  
+  // Images embed
+  const embedImages = embedType === 'app.bsky.embed.images#view' 
+    ? (embed as any).images 
     : [];
+  
+  // Link preview embed
+  const linkPreview = embedType === 'app.bsky.embed.external#view'
+    ? (embed as any).external
+    : null;
+  
+  // Quote post embed
+  const quotedPost = embedType === 'app.bsky.embed.record#view'
+    ? (embed as any).record
+    : null;
+  
+  // Record with media (quote + images)
+  const recordWithMedia = embedType === 'app.bsky.embed.recordWithMedia#view'
+    ? embed as any
+    : null;
 
   return (
     <Pressable 
@@ -119,27 +141,94 @@ function FeedItem({
             {record.text}
           </Text>
 
-          {/* Images */}
+          {/* Images - tap to view full size */}
           {embedImages.length > 0 && (
             <View className="mt-2 rounded-xl overflow-hidden">
               {embedImages.length === 1 ? (
-                <Image 
-                  source={{ uri: embedImages[0].thumb }} 
-                  className="w-full h-48 rounded-xl"
-                  resizeMode="cover"
-                />
+                <Pressable 
+                  onPress={() => onImagePress([embedImages[0].fullsize || embedImages[0].thumb], 0)}
+                >
+                  <Image 
+                    source={{ uri: embedImages[0].thumb }} 
+                    className="w-full h-48 rounded-xl"
+                    resizeMode="cover"
+                  />
+                </Pressable>
               ) : (
                 <View className="flex-row flex-wrap gap-1">
                   {embedImages.slice(0, 4).map((img: any, idx: number) => (
-                    <Image 
+                    <Pressable 
                       key={idx}
-                      source={{ uri: img.thumb }} 
-                      className="w-[48%] h-32 rounded-lg"
-                      resizeMode="cover"
-                    />
+                      onPress={() => onImagePress(
+                        embedImages.map((i: any) => i.fullsize || i.thumb), 
+                        idx
+                      )}
+                      className="w-[48%]"
+                    >
+                      <Image 
+                        source={{ uri: img.thumb }} 
+                        className="w-full h-32 rounded-lg"
+                        resizeMode="cover"
+                      />
+                    </Pressable>
                   ))}
                 </View>
               )}
+            </View>
+          )}
+          
+          {/* Link Preview Card */}
+          {linkPreview && (
+            <Pressable 
+              onPress={() => Linking.openURL(linkPreview.uri)}
+              className="mt-2 border border-border rounded-xl overflow-hidden"
+            >
+              {linkPreview.thumb && (
+                <Image 
+                  source={{ uri: linkPreview.thumb }}
+                  className="w-full h-32"
+                  resizeMode="cover"
+                />
+              )}
+              <View className="p-3">
+                <Text className="text-text-primary font-medium" numberOfLines={2}>
+                  {linkPreview.title}
+                </Text>
+                {linkPreview.description && (
+                  <Text className="text-text-muted text-sm mt-1" numberOfLines={2}>
+                    {linkPreview.description}
+                  </Text>
+                )}
+                <View className="flex-row items-center mt-2">
+                  <ExternalLink size={12} color="#6B7280" />
+                  <Text className="text-text-muted text-xs ml-1">
+                    {new URL(linkPreview.uri).hostname}
+                  </Text>
+                </View>
+              </View>
+            </Pressable>
+          )}
+          
+          {/* Quote Post */}
+          {quotedPost && quotedPost.$type === 'app.bsky.embed.record#viewRecord' && (
+            <View className="mt-2 border border-border rounded-xl p-3">
+              <View className="flex-row items-center mb-1">
+                {quotedPost.author?.avatar && (
+                  <Image 
+                    source={{ uri: quotedPost.author.avatar }}
+                    className="w-5 h-5 rounded-full mr-2"
+                  />
+                )}
+                <Text className="text-text-primary font-medium text-sm">
+                  {quotedPost.author?.displayName || quotedPost.author?.handle}
+                </Text>
+                <Text className="text-text-muted text-sm ml-1">
+                  @{quotedPost.author?.handle}
+                </Text>
+              </View>
+              <Text className="text-text-primary text-sm" numberOfLines={3}>
+                {(quotedPost.value as any)?.text}
+              </Text>
             </View>
           )}
 
@@ -222,6 +311,11 @@ export default function FeedScreen() {
   const [repostMenuVisible, setRepostMenuVisible] = useState(false);
   const [selectedPost, setSelectedPost] = useState<PostView | null>(null);
   
+  // Media viewer state
+  const [mediaViewerVisible, setMediaViewerVisible] = useState(false);
+  const [mediaViewerImages, setMediaViewerImages] = useState<string[]>([]);
+  const [mediaViewerIndex, setMediaViewerIndex] = useState(0);
+  
   // All three feeds
   const globalQuery = useGlobalFeed();
   const localQuery = useCannectFeed();
@@ -282,6 +376,13 @@ export default function FeedScreen() {
     }
     setSelectedPost(post);
     setRepostMenuVisible(true);
+  }, []);
+
+  // Open image viewer
+  const handleImagePress = useCallback((images: string[], index: number) => {
+    setMediaViewerImages(images);
+    setMediaViewerIndex(index);
+    setMediaViewerVisible(true);
   }, []);
 
   // Handle actual repost from menu
@@ -422,6 +523,7 @@ export default function FeedScreen() {
                 onReply={() => handleReply(item.post)}
                 onAuthorPress={() => handleAuthorPress(item.post)}
                 onShare={() => handleShare(item.post)}
+                onImagePress={handleImagePress}
               />
             )}
             estimatedItemSize={200}
@@ -469,6 +571,14 @@ export default function FeedScreen() {
         onRepost={handleRepost}
         onQuotePost={handleQuotePost}
         isReposted={!!selectedPost?.viewer?.repost}
+      />
+      
+      {/* Media Viewer */}
+      <MediaViewer
+        isVisible={mediaViewerVisible}
+        images={mediaViewerImages}
+        initialIndex={mediaViewerIndex}
+        onClose={() => setMediaViewerVisible(false)}
       />
     </SafeAreaView>
   );
