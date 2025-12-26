@@ -38,43 +38,26 @@ export function VideoPlayer({
   const [isMuted, setIsMuted] = useState(initialMuted);
   const [isMounted, setIsMounted] = useState(false);
 
-  // ✅ Fix hydration mismatch - Reanimated hooks cause SSR issues
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
-
-  // Return static fallback during SSR to prevent hydration mismatch
-  if (Platform.OS === 'web' && !isMounted) {
-    return (
-      <View 
-        className="relative rounded-xl overflow-hidden bg-black items-center justify-center"
-        style={{ aspectRatio }}
-      >
-        {thumbnailUrl && (
-          <RNImage
-            source={{ uri: thumbnailUrl }}
-            style={StyleSheet.absoluteFill}
-            resizeMode="cover"
-          />
-        )}
-        <View className="absolute inset-0 items-center justify-center bg-black/40">
-          <Play size={48} color="#FFFFFF" />
-        </View>
-      </View>
-    );
-  }
-
-  // Derived state
+  // Derived state (moved before hooks that depend on them)
   const isPlaying = status?.isLoaded && status.isPlaying;
   const progress = status?.isLoaded ? (status.positionMillis / (status.durationMillis || 1)) * 100 : 0;
   const duration = status?.isLoaded ? status.durationMillis || 0 : 0;
   const position = status?.isLoaded ? status.positionMillis || 0 : 0;
 
-  // Progress bar animation
+  // Progress bar animation - ALL HOOKS MUST BE CALLED BEFORE ANY RETURN
   const progressWidth = useSharedValue(0);
   const progressStyle = useAnimatedStyle(() => ({
     width: `${progressWidth.value}%`,
   }));
+
+  // =====================================================
+  // ALL HOOKS MUST BE BEFORE ANY EARLY RETURNS
+  // =====================================================
+
+  // ✅ Fix hydration mismatch - Reanimated hooks cause SSR issues
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   // Enable audio in silent mode (standard social media behavior)
   useEffect(() => {
@@ -93,10 +76,7 @@ export function VideoPlayer({
     }
   }, [isPlaying, showControls]);
 
-  // =====================================================
-  // Handlers
-  // =====================================================
-  
+  // Handlers (useCallback hooks must also be before early returns)
   const handlePlayPause = useCallback(async () => {
     if (!videoRef.current) return;
 
@@ -133,6 +113,31 @@ export function VideoPlayer({
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
+
+  // =====================================================
+  // EARLY RETURNS (after all hooks)
+  // =====================================================
+
+  // Return static fallback during SSR to prevent hydration mismatch
+  if (Platform.OS === 'web' && !isMounted) {
+    return (
+      <View 
+        className="relative rounded-xl overflow-hidden bg-black items-center justify-center"
+        style={{ aspectRatio }}
+      >
+        {thumbnailUrl && (
+          <RNImage
+            source={{ uri: thumbnailUrl }}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+          />
+        )}
+        <View className="absolute inset-0 items-center justify-center bg-black/40">
+          <Play size={48} color="#FFFFFF" />
+        </View>
+      </View>
+    );
+  }
 
   // =====================================================
   // Render
