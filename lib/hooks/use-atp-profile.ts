@@ -237,9 +237,9 @@ export function useSuggestedUsers() {
       // Sort by follower count descending
       const sortedCannect = cannectUsers.sort((a, b) => (b.followersCount || 0) - (a.followersCount || 0));
       
-      // If we have Cannect users, return them
+      // If we have Cannect users, return them (up to 100)
       if (sortedCannect.length > 0) {
-        return sortedCannect.slice(0, 25);
+        return sortedCannect.slice(0, 100);
       }
       
       // Fallback: Get suggestions from Bluesky network
@@ -248,7 +248,7 @@ export function useSuggestedUsers() {
         const bskyActors = bskySuggestions.data?.actors || [];
         
         // Filter out current user and return
-        return bskyActors.filter(p => p.did !== did).slice(0, 25);
+        return bskyActors.filter(p => p.did !== did).slice(0, 100);
       } catch (error) {
         console.error('[useSuggestedUsers] Bluesky suggestions fallback failed:', error);
         return [];
