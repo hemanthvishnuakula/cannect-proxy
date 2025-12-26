@@ -212,11 +212,14 @@ export function useLikePost() {
       // Cancel any outgoing refetches
       await queryClient.cancelQueries({ queryKey: ['timeline'] });
       await queryClient.cancelQueries({ queryKey: ['cannectFeed'] });
+      await queryClient.cancelQueries({ queryKey: ['cannectFollowing'] });
+      await queryClient.cancelQueries({ queryKey: ['authorFeed'] });
       await queryClient.cancelQueries({ queryKey: ['thread'] });
 
       // Snapshot previous values for rollback
       const previousTimeline = queryClient.getQueryData(['timeline']);
       const previousCannectFeed = queryClient.getQueryData(['cannectFeed']);
+      const previousCannectFollowing = queryClient.getQueryData(['cannectFollowing']);
 
       // Helper to update post in feed data
       const updatePostInFeed = (old: any) => {
@@ -242,11 +245,14 @@ export function useLikePost() {
         };
       };
 
-      // Optimistically update feeds
+      // Optimistically update all feeds (use partial key match for authorFeed)
       queryClient.setQueryData(['timeline'], updatePostInFeed);
       queryClient.setQueryData(['cannectFeed'], updatePostInFeed);
+      queryClient.setQueryData(['cannectFollowing'], updatePostInFeed);
+      // Update all authorFeed queries
+      queryClient.setQueriesData({ queryKey: ['authorFeed'] }, updatePostInFeed);
 
-      return { previousTimeline, previousCannectFeed };
+      return { previousTimeline, previousCannectFeed, previousCannectFollowing };
     },
     onError: (err, variables, context) => {
       // Rollback on error
@@ -256,11 +262,18 @@ export function useLikePost() {
       if (context?.previousCannectFeed) {
         queryClient.setQueryData(['cannectFeed'], context.previousCannectFeed);
       }
+      if (context?.previousCannectFollowing) {
+        queryClient.setQueryData(['cannectFollowing'], context.previousCannectFollowing);
+      }
+      // Note: authorFeed rollback handled by invalidation
     },
     onSettled: () => {
       // Refetch to sync with server
       queryClient.invalidateQueries({ queryKey: ['timeline'] });
       queryClient.invalidateQueries({ queryKey: ['cannectFeed'] });
+      queryClient.invalidateQueries({ queryKey: ['cannectFollowing'] });
+      queryClient.invalidateQueries({ queryKey: ['authorFeed'] });
+      queryClient.invalidateQueries({ queryKey: ['actorLikes'] });
       queryClient.invalidateQueries({ queryKey: ['thread'] });
     },
   });
@@ -279,9 +292,12 @@ export function useUnlikePost() {
     onMutate: async ({ postUri }) => {
       await queryClient.cancelQueries({ queryKey: ['timeline'] });
       await queryClient.cancelQueries({ queryKey: ['cannectFeed'] });
+      await queryClient.cancelQueries({ queryKey: ['cannectFollowing'] });
+      await queryClient.cancelQueries({ queryKey: ['authorFeed'] });
 
       const previousTimeline = queryClient.getQueryData(['timeline']);
       const previousCannectFeed = queryClient.getQueryData(['cannectFeed']);
+      const previousCannectFollowing = queryClient.getQueryData(['cannectFollowing']);
 
       const updatePostInFeed = (old: any) => {
         if (!old?.pages) return old;
@@ -308,8 +324,10 @@ export function useUnlikePost() {
 
       queryClient.setQueryData(['timeline'], updatePostInFeed);
       queryClient.setQueryData(['cannectFeed'], updatePostInFeed);
+      queryClient.setQueryData(['cannectFollowing'], updatePostInFeed);
+      queryClient.setQueriesData({ queryKey: ['authorFeed'] }, updatePostInFeed);
 
-      return { previousTimeline, previousCannectFeed };
+      return { previousTimeline, previousCannectFeed, previousCannectFollowing };
     },
     onError: (err, variables, context) => {
       if (context?.previousTimeline) {
@@ -318,10 +336,16 @@ export function useUnlikePost() {
       if (context?.previousCannectFeed) {
         queryClient.setQueryData(['cannectFeed'], context.previousCannectFeed);
       }
+      if (context?.previousCannectFollowing) {
+        queryClient.setQueryData(['cannectFollowing'], context.previousCannectFollowing);
+      }
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['timeline'] });
       queryClient.invalidateQueries({ queryKey: ['cannectFeed'] });
+      queryClient.invalidateQueries({ queryKey: ['cannectFollowing'] });
+      queryClient.invalidateQueries({ queryKey: ['authorFeed'] });
+      queryClient.invalidateQueries({ queryKey: ['actorLikes'] });
       queryClient.invalidateQueries({ queryKey: ['thread'] });
     },
   });
@@ -340,9 +364,12 @@ export function useRepost() {
     onMutate: async ({ uri }) => {
       await queryClient.cancelQueries({ queryKey: ['timeline'] });
       await queryClient.cancelQueries({ queryKey: ['cannectFeed'] });
+      await queryClient.cancelQueries({ queryKey: ['cannectFollowing'] });
+      await queryClient.cancelQueries({ queryKey: ['authorFeed'] });
 
       const previousTimeline = queryClient.getQueryData(['timeline']);
       const previousCannectFeed = queryClient.getQueryData(['cannectFeed']);
+      const previousCannectFollowing = queryClient.getQueryData(['cannectFollowing']);
 
       const updatePostInFeed = (old: any) => {
         if (!old?.pages) return old;
@@ -369,8 +396,10 @@ export function useRepost() {
 
       queryClient.setQueryData(['timeline'], updatePostInFeed);
       queryClient.setQueryData(['cannectFeed'], updatePostInFeed);
+      queryClient.setQueryData(['cannectFollowing'], updatePostInFeed);
+      queryClient.setQueriesData({ queryKey: ['authorFeed'] }, updatePostInFeed);
 
-      return { previousTimeline, previousCannectFeed };
+      return { previousTimeline, previousCannectFeed, previousCannectFollowing };
     },
     onError: (err, variables, context) => {
       if (context?.previousTimeline) {
@@ -379,10 +408,15 @@ export function useRepost() {
       if (context?.previousCannectFeed) {
         queryClient.setQueryData(['cannectFeed'], context.previousCannectFeed);
       }
+      if (context?.previousCannectFollowing) {
+        queryClient.setQueryData(['cannectFollowing'], context.previousCannectFollowing);
+      }
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['timeline'] });
       queryClient.invalidateQueries({ queryKey: ['cannectFeed'] });
+      queryClient.invalidateQueries({ queryKey: ['cannectFollowing'] });
+      queryClient.invalidateQueries({ queryKey: ['authorFeed'] });
     },
   });
 }
@@ -400,9 +434,12 @@ export function useDeleteRepost() {
     onMutate: async ({ postUri }) => {
       await queryClient.cancelQueries({ queryKey: ['timeline'] });
       await queryClient.cancelQueries({ queryKey: ['cannectFeed'] });
+      await queryClient.cancelQueries({ queryKey: ['cannectFollowing'] });
+      await queryClient.cancelQueries({ queryKey: ['authorFeed'] });
 
       const previousTimeline = queryClient.getQueryData(['timeline']);
       const previousCannectFeed = queryClient.getQueryData(['cannectFeed']);
+      const previousCannectFollowing = queryClient.getQueryData(['cannectFollowing']);
 
       const updatePostInFeed = (old: any) => {
         if (!old?.pages) return old;
@@ -429,8 +466,10 @@ export function useDeleteRepost() {
 
       queryClient.setQueryData(['timeline'], updatePostInFeed);
       queryClient.setQueryData(['cannectFeed'], updatePostInFeed);
+      queryClient.setQueryData(['cannectFollowing'], updatePostInFeed);
+      queryClient.setQueriesData({ queryKey: ['authorFeed'] }, updatePostInFeed);
 
-      return { previousTimeline, previousCannectFeed };
+      return { previousTimeline, previousCannectFeed, previousCannectFollowing };
     },
     onError: (err, variables, context) => {
       if (context?.previousTimeline) {
@@ -439,10 +478,15 @@ export function useDeleteRepost() {
       if (context?.previousCannectFeed) {
         queryClient.setQueryData(['cannectFeed'], context.previousCannectFeed);
       }
+      if (context?.previousCannectFollowing) {
+        queryClient.setQueryData(['cannectFollowing'], context.previousCannectFollowing);
+      }
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['timeline'] });
       queryClient.invalidateQueries({ queryKey: ['cannectFeed'] });
+      queryClient.invalidateQueries({ queryKey: ['cannectFollowing'] });
+      queryClient.invalidateQueries({ queryKey: ['authorFeed'] });
     },
   });
 }
