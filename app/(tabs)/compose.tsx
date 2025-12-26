@@ -64,7 +64,7 @@ export default function ComposeScreen() {
     if (images.length >= 4 || video) return; // Can't add images if video exists
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsMultipleSelection: true,
       selectionLimit: 4 - images.length,
       quality: 0.8,
@@ -83,7 +83,7 @@ export default function ComposeScreen() {
     if (images.length > 0 || video) return; // Can't add video if images exist or video already selected
 
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Videos,
+      mediaTypes: ['videos'],
       allowsMultipleSelection: false,
       quality: 0.8,
     });
