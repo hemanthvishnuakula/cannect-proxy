@@ -4,7 +4,7 @@
 // =====================================================
 
 // 💎 ATOMIC VERSIONING - INCREMENT THIS ON EVERY DEPLOY
-const CACHE_VERSION = 'v1.3.0';
+const CACHE_VERSION = 'v1.4.0';
 const CACHE_NAME = `cannect-atomic-${CACHE_VERSION}`;
 const OFFLINE_URL = '/offline.html';
 
@@ -71,21 +71,20 @@ self.addEventListener('install', (event) => {
         ).length;
         console.log(`[SW] Pre-cached ${successCount}/${PRECACHE_ASSETS.length} assets`);
         
-        // 💎 CRITICAL: On FIRST INSTALL (no controller), activate immediately
-        // This is needed for push notifications to work on fresh installs
-        // On UPDATES (controller exists), PWAUpdater will call skipWaiting via postMessage
-        const clients = await self.clients.matchAll({ includeUncontrolled: true });
-        const hasController = clients.some(c => c.url); // If we have clients, check if any are controlled
+        // 💎 CRITICAL: Determine if we should auto-activate
+        // Check if there's any controller (existing SW controlling pages)
+        // If no controller exists, this is a fresh install and we should activate immediately
+        const allClients = await self.clients.matchAll({ includeUncontrolled: true });
+        const hasControlledClients = allClients.some(client => {
+          // Check if this client has a controller by sending a test
+          return false; // Can't reliably check from SW, use different approach
+        });
         
-        // Check if this is a first install by seeing if there's no active worker
-        const isFirstInstall = !self.registration?.active;
-        
-        if (isFirstInstall) {
-          console.log('[SW] First install detected - activating immediately');
-          self.skipWaiting();
-        } else {
-          console.log('[SW] Update detected - waiting for PWAUpdater to activate');
-        }
+        // SIMPLER: Just always skipWaiting - the activate event will claim clients
+        // This is safe because our activate event handles everything gracefully
+        // PWAUpdater will handle showing the reload toast for updates
+        console.log('[SW] Activating immediately via skipWaiting');
+        self.skipWaiting();
         
       } catch (error) {
         console.error('[SW] Pre-cache failed:', error);
