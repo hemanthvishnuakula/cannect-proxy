@@ -14,14 +14,9 @@
 import { View, Text, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import {
-  Heart,
-  MessageCircle,
-  Repeat2,
-  Share,
-  MoreHorizontal,
-} from 'lucide-react-native';
+import { Repeat2 } from 'lucide-react-native';
 import { PostEmbeds } from './PostEmbeds';
+import { PostActions } from './PostActions';
 import { RichText } from './RichText';
 import { getOptimizedAvatarUrl } from '../../lib/utils/avatar';
 import type { AppBskyFeedDefs, AppBskyFeedPost } from '@atproto/api';
@@ -36,16 +31,10 @@ interface PostCardProps {
   post?: PostView;
   /** Called when the post card is tapped */
   onPress?: () => void;
-  /** Called when like button is pressed */
-  onLike?: () => void;
-  /** Called when repost button is pressed */
-  onRepost?: () => void;
-  /** Called when reply button is pressed */
-  onReply?: () => void;
-  /** Called when share button is pressed */
-  onShare?: () => void;
   /** Called when more options button is pressed */
   onOptionsPress?: () => void;
+  /** Called when repost button is pressed - for showing repost menu */
+  onRepostPress?: (post: PostView) => void;
   /** Called when an image is pressed for fullscreen viewing */
   onImagePress?: (images: string[], index: number) => void;
   /** Show border at bottom (default: true) */
@@ -72,11 +61,8 @@ export function PostCard({
   item,
   post: rawPost,
   onPress,
-  onLike,
-  onRepost,
-  onReply,
-  onShare,
   onOptionsPress,
+  onRepostPress,
   onImagePress,
   showBorder = true,
 }: PostCardProps) {
@@ -190,64 +176,13 @@ export function PostCard({
             onImagePress={onImagePress}
           />
 
-          {/* Actions */}
-          <View className="flex-row items-center justify-between mt-3 pr-4">
-            {/* Reply */}
-            <Pressable 
-              onPress={(e) => { e.stopPropagation(); onReply?.(); }}
-              className="flex-row items-center py-1"
-            >
-              <MessageCircle size={18} color="#6B7280" />
-              <Text className="text-text-muted text-sm ml-1.5">
-                {post.replyCount || ''}
-              </Text>
-            </Pressable>
-
-            {/* Repost */}
-            <Pressable 
-              onPress={(e) => { e.stopPropagation(); onRepost?.(); }}
-              className="flex-row items-center py-1"
-            >
-              <Repeat2 
-                size={18} 
-                color={post.viewer?.repost ? '#10B981' : '#6B7280'} 
-              />
-              <Text className={`text-sm ml-1.5 ${post.viewer?.repost ? 'text-primary' : 'text-text-muted'}`}>
-                {post.repostCount || ''}
-              </Text>
-            </Pressable>
-
-            {/* Like */}
-            <Pressable 
-              onPress={(e) => { e.stopPropagation(); onLike?.(); }}
-              className="flex-row items-center py-1"
-            >
-              <Heart 
-                size={18} 
-                color={post.viewer?.like ? '#EF4444' : '#6B7280'}
-                fill={post.viewer?.like ? '#EF4444' : 'none'}
-              />
-              <Text className={`text-sm ml-1.5 ${post.viewer?.like ? 'text-red-500' : 'text-text-muted'}`}>
-                {post.likeCount || ''}
-              </Text>
-            </Pressable>
-
-            {/* Share */}
-            <Pressable 
-              onPress={(e) => { e.stopPropagation(); onShare?.(); }}
-              className="flex-row items-center py-1"
-            >
-              <Share size={18} color="#6B7280" />
-            </Pressable>
-
-            {/* More Options */}
-            <Pressable 
-              onPress={(e) => { e.stopPropagation(); onOptionsPress?.(); }}
-              className="flex-row items-center py-1"
-            >
-              <MoreHorizontal size={18} color="#6B7280" />
-            </Pressable>
-          </View>
+          {/* Action buttons with built-in optimistic mutations */}
+          <PostActions 
+            post={post} 
+            variant="compact" 
+            onOptionsPress={onOptionsPress}
+            onRepostPress={onRepostPress}
+          />
         </View>
       </View>
     </Pressable>

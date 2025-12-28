@@ -493,10 +493,7 @@ export default function FeedScreen() {
               <PostCard
                 item={item}
                 onPress={() => handlePostPress(item.post)}
-                onLike={() => handleLike(item.post)}
-                onRepost={() => handleRepostPress(item.post)}
-                onReply={() => handleReply(item.post)}
-                onShare={() => handleShare(item.post)}
+                onRepostPress={handleRepostPress}
                 onImagePress={handleImagePress}
                 onOptionsPress={() => handleOptionsPress(item.post)}
               />

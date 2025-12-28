@@ -383,9 +383,6 @@ export default function PostDetailsScreen() {
           
           <ThreadPost 
             post={post}
-            onLike={handleLike}
-            onRepost={handleRepost}
-            onReply={handleReply}
             onOptionsPress={handleOptionsPress}
           />
         </View>
@@ -400,9 +397,6 @@ export default function PostDetailsScreen() {
               <PostCard 
                 key={reply.post.uri} 
                 post={reply.post}
-                onLike={() => handleReplyLike(reply.post)}
-                onRepost={() => handleReplyRepost(reply.post)}
-                onReply={() => handleReplyToReply(reply.post)}
                 onOptionsPress={() => handleReplyOptionsPress(reply.post)}
               />
             ))}

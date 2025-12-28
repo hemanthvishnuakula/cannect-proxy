@@ -11,14 +11,9 @@
 import { View, Text, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
-import {
-  Heart,
-  MessageCircle,
-  Repeat2,
-  Share,
-  MoreHorizontal,
-} from 'lucide-react-native';
+import { MoreHorizontal } from 'lucide-react-native';
 import { PostEmbeds } from './PostEmbeds';
+import { PostActions } from './PostActions';
 import { RichText } from './RichText';
 import { getOptimizedAvatarUrl } from '../../lib/utils/avatar';
 import type { AppBskyFeedDefs, AppBskyFeedPost } from '@atproto/api';
@@ -27,28 +22,18 @@ type PostView = AppBskyFeedDefs.PostView;
 
 interface ThreadPostProps {
   post: PostView;
-  onLike?: () => void;
-  onRepost?: () => void;
-  onReply?: () => void;
-  onShare?: () => void;
   onOptionsPress?: () => void;
   onImagePress?: (images: string[], index: number) => void;
 }
 
 export function ThreadPost({
   post,
-  onLike,
-  onRepost,
-  onReply,
-  onShare,
   onOptionsPress,
   onImagePress,
 }: ThreadPostProps) {
   const router = useRouter();
   const record = post.record as AppBskyFeedPost.Record;
   const author = post.author;
-  const isLiked = !!post.viewer?.like;
-  const isReposted = !!post.viewer?.repost;
 
   const handleAuthorPress = () => {
     router.push(`/user/${author.handle}`);
@@ -144,47 +129,8 @@ export function ThreadPost({
         </Text>
       </View>
 
-      {/* Action buttons */}
-      <View className="flex-row justify-around py-2 border-b border-border mb-4">
-        {/* Reply */}
-        <Pressable 
-          onPress={onReply}
-          className="flex-row items-center p-2"
-        >
-          <MessageCircle size={22} color="#6B7280" />
-        </Pressable>
-
-        {/* Repost */}
-        <Pressable 
-          onPress={onRepost}
-          className="flex-row items-center p-2"
-        >
-          <Repeat2 
-            size={22} 
-            color={isReposted ? '#10B981' : '#6B7280'} 
-          />
-        </Pressable>
-
-        {/* Like */}
-        <Pressable 
-          onPress={onLike}
-          className="flex-row items-center p-2"
-        >
-          <Heart 
-            size={22} 
-            color={isLiked ? '#EF4444' : '#6B7280'}
-            fill={isLiked ? '#EF4444' : 'transparent'}
-          />
-        </Pressable>
-
-        {/* Share */}
-        <Pressable 
-          onPress={onShare}
-          className="flex-row items-center p-2"
-        >
-          <Share size={22} color="#6B7280" />
-        </Pressable>
-      </View>
+      {/* Action buttons with built-in optimistic mutations */}
+      <PostActions post={post} variant="expanded" />
     </View>
   );
 }

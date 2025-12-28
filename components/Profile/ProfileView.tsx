@@ -352,10 +352,7 @@ export function ProfileView({
         renderItem={({ item }) => (
           <PostCard 
             item={item}
-            onLike={() => handleLike(item.post)}
-            onRepost={() => handleRepost(item.post)}
-            onReply={() => handleReply(item.post)}
-            onShare={() => handleShare(item.post)}
+            onRepostPress={handleRepost}
             onOptionsPress={() => handleOptionsPress(item.post)}
           />
         )}
