@@ -430,6 +430,10 @@ export default function FeedScreen() {
   const [activeFeed, setActiveFeed] = useState<FeedType>('global');
   const renderStart = useRef(performance.now());
   
+  // Guard to prevent rapid fetchNextPage calls (e.g., when returning from post view)
+  const lastFetchTime = useRef(0);
+  const FETCH_COOLDOWN_MS = 1000; // Minimum 1 second between fetches
+  
   // Track render timing
   useEffect(() => {
     const duration = performance.now() - renderStart.current;
@@ -748,11 +752,17 @@ export default function FeedScreen() {
               />
             }
             onEndReached={() => {
+              const now = Date.now();
+              // Guard: Prevent rapid fetches (e.g., when returning from post view)
+              if (now - lastFetchTime.current < FETCH_COOLDOWN_MS) {
+                return;
+              }
               if (activeQuery.hasNextPage && !activeQuery.isFetchingNextPage) {
+                lastFetchTime.current = now;
                 activeQuery.fetchNextPage();
               }
             }}
-            onEndReachedThreshold={0.5}
+            onEndReachedThreshold={0.3}
             contentContainerStyle={{ paddingBottom: 20 }}
             ListEmptyComponent={
               <View className="flex-1 items-center justify-center py-20">
