@@ -23,6 +23,7 @@ import {
 } from 'lucide-react-native';
 import { PostEmbeds } from './PostEmbeds';
 import { RichText } from './RichText';
+import { getOptimizedAvatarUrl } from '../../lib/utils/avatar';
 import type { AppBskyFeedDefs, AppBskyFeedPost } from '@atproto/api';
 
 type FeedViewPost = AppBskyFeedDefs.FeedViewPost;
@@ -134,7 +135,7 @@ export function PostCard({
         <Pressable onPress={(e) => { e.stopPropagation(); handleAuthorPress(); }}>
           {author.avatar ? (
             <Image 
-              source={{ uri: author.avatar }}
+              source={{ uri: getOptimizedAvatarUrl(author.avatar, 40) }}
               className="w-10 h-10 rounded-full bg-surface-elevated"
               contentFit="cover"
               transition={200}

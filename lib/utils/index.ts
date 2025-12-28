@@ -9,4 +9,6 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export * from "./date";
-export * from "./atproto";export * from "./logger";
+export * from "./atproto";
+export * from "./avatar";
+export * from "./logger";

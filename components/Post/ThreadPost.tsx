@@ -19,6 +19,8 @@ import {
   MoreHorizontal,
 } from 'lucide-react-native';
 import { PostEmbeds } from './PostEmbeds';
+import { RichText } from './RichText';
+import { getOptimizedAvatarUrl } from '../../lib/utils/avatar';
 import type { AppBskyFeedDefs, AppBskyFeedPost } from '@atproto/api';
 
 type PostView = AppBskyFeedDefs.PostView;
@@ -72,7 +74,7 @@ export function ThreadPost({
       >
         {author.avatar ? (
           <Image
-            source={{ uri: author.avatar }}
+            source={{ uri: getOptimizedAvatarUrl(author.avatar, 48) }}
             style={{ width: 48, height: 48, borderRadius: 24 }}
             contentFit="cover"
             transition={200}
@@ -105,10 +107,12 @@ export function ThreadPost({
         </Pressable>
       </Pressable>
 
-      {/* Post content - larger text */}
-      <Text className="text-text-primary text-lg leading-6 mb-4">
-        {record.text}
-      </Text>
+      {/* Post content - larger text with facets */}
+      <RichText
+        text={record.text}
+        facets={record.facets}
+        className="text-lg leading-6 mb-4"
+      />
 
       {/* Embeds */}
       <PostEmbeds 
