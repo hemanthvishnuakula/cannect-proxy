@@ -16,22 +16,8 @@ import { useSearchUsers, useSuggestedUsers, useFollow, useSearchPosts } from "@/
 import { useDebounce } from "@/lib/hooks";
 import { useAuthStore } from "@/lib/stores";
 import { useQueryClient } from "@tanstack/react-query";
+import { PostCard } from "@/components/Post";
 import type { AppBskyActorDefs, AppBskyFeedDefs, AppBskyFeedPost } from '@atproto/api';
-
-function formatTime(dateString: string): string {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMins = Math.floor(diffMs / (1000 * 60));
-  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffMins < 1) return 'now';
-  if (diffMins < 60) return `${diffMins}m`;
-  if (diffHours < 24) return `${diffHours}h`;
-  if (diffDays < 7) return `${diffDays}d`;
-  return date.toLocaleDateString();
-}
 
 type ProfileView = AppBskyActorDefs.ProfileView;
 type ProfileViewDetailed = AppBskyActorDefs.ProfileViewDetailed;
@@ -112,93 +98,6 @@ function UserRow({
           <Text className="text-primary text-sm font-medium">Following</Text>
         </View>
       )}
-    </Pressable>
-  );
-}
-
-function PostRow({ 
-  post, 
-  onPress,
-  onAuthorPress,
-}: { 
-  post: AppBskyFeedDefs.PostView;
-  onPress: () => void;
-  onAuthorPress: () => void;
-}) {
-  const record = post.record as AppBskyFeedPost.Record;
-  const author = post.author;
-
-  // Get embed images if present
-  const embedImages = post.embed?.$type === 'app.bsky.embed.images#view' 
-    ? (post.embed as any).images 
-    : [];
-
-  return (
-    <Pressable 
-      onPress={onPress}
-      className="px-4 py-3 border-b border-border active:bg-surface-elevated"
-    >
-      <View className="flex-row">
-        {/* Avatar */}
-        <Pressable onPress={onAuthorPress}>
-          {author.avatar ? (
-            <Image 
-              source={{ uri: author.avatar }} 
-              className="w-10 h-10 rounded-full bg-surface-elevated"
-            />
-          ) : (
-            <View className="w-10 h-10 rounded-full bg-surface-elevated items-center justify-center">
-              <Text className="text-text-muted text-lg">{author.handle[0].toUpperCase()}</Text>
-            </View>
-          )}
-        </Pressable>
-
-        {/* Content */}
-        <View className="flex-1 ml-3">
-          {/* Header */}
-          <View className="flex-row items-center">
-            <Text className="font-semibold text-text-primary flex-shrink" numberOfLines={1}>
-              {author.displayName || author.handle}
-            </Text>
-            <Text className="text-text-muted mx-1">·</Text>
-            <Text className="text-text-muted flex-shrink-0">
-              {formatTime(record.createdAt)}
-            </Text>
-          </View>
-          <Text className="text-text-muted text-sm" numberOfLines={1}>
-            @{author.handle}
-          </Text>
-
-          {/* Post text */}
-          <Text className="text-text-primary mt-1 leading-5" numberOfLines={4}>
-            {record.text}
-          </Text>
-
-          {/* Images */}
-          {embedImages.length > 0 && (
-            <View className="mt-2 rounded-xl overflow-hidden">
-              {embedImages.length === 1 ? (
-                <Image 
-                  source={{ uri: embedImages[0].thumb }} 
-                  className="w-full h-48 rounded-xl"
-                  resizeMode="cover"
-                />
-              ) : (
-                <View className="flex-row flex-wrap gap-1">
-                  {embedImages.slice(0, 4).map((img: any, idx: number) => (
-                    <Image 
-                      key={idx}
-                      source={{ uri: img.thumb }} 
-                      className="w-[48%] h-32 rounded-lg"
-                      resizeMode="cover"
-                    />
-                  ))}
-                </View>
-              )}
-            </View>
-          )}
-        </View>
-      </View>
     </Pressable>
   );
 }
@@ -310,12 +209,6 @@ export default function SearchScreen() {
     router.push(`/user/${user.handle}`);
   };
 
-  const handlePostPress = (post: AppBskyFeedDefs.PostView) => {
-    const parts = post.uri.split('/');
-    const rkey = parts[parts.length - 1];
-    router.push(`/post/${rkey}?did=${encodeURIComponent(post.author.did)}`);
-  };
-
   const handleFollow = useCallback(async (user: AnyProfileView) => {
     if (Platform.OS !== "web") {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -356,10 +249,8 @@ export default function SearchScreen() {
         );
       case 'post':
         return (
-          <PostRow 
+          <PostCard 
             post={item.data}
-            onPress={() => handlePostPress(item.data)}
-            onAuthorPress={() => router.push(`/user/${item.data.author.handle}`)}
           />
         );
       case 'empty':

@@ -3,17 +3,20 @@
  * 
  * Route: /post/[did]/[rkey]
  * Displays a single post thread using the DID and record key.
+ * 
+ * Uses unified components:
+ * - ThreadPost for the main expanded post
+ * - PostCard for parent posts and replies
  */
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef } from "react";
 import { View, Text, ScrollView, Pressable, ActivityIndicator, Platform, TextInput, KeyboardAvoidingView, LayoutChangeEvent, RefreshControl } from "react-native";
 import { useLocalSearchParams, Stack, useRouter } from "expo-router";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { ArrowLeft, Heart, MessageCircle, Repeat2, MoreHorizontal, Share, Send, ExternalLink } from "lucide-react-native";
+import { ArrowLeft, Send } from "lucide-react-native";
 import { Image } from "expo-image";
-import { Linking } from "react-native";
 import * as Haptics from "expo-haptics";
-import { VideoPlayer } from "@/components/ui/VideoPlayer";
+import { ThreadPost, ThreadPostSkeleton, PostCard } from "@/components/Post";
 import { PostOptionsMenu } from "@/components/social/PostOptionsMenu";
 import { usePostThread, useLikePost, useUnlikePost, useRepost, useDeleteRepost, useCreatePost, useDeletePost } from "@/lib/hooks";
 import { useAuthStore } from "@/lib/stores";
@@ -21,205 +24,6 @@ import type { AppBskyFeedDefs, AppBskyFeedPost } from '@atproto/api';
 
 type PostView = AppBskyFeedDefs.PostView;
 type ThreadViewPost = AppBskyFeedDefs.ThreadViewPost;
-
-function formatTime(dateString: string): string {
-  const date = new Date(dateString);
-  return date.toLocaleDateString('en-US', {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-    hour: 'numeric',
-    minute: '2-digit',
-  });
-}
-
-function formatNumber(num: number | undefined): string {
-  if (!num) return '0';
-  if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M';
-  if (num >= 1000) return (num / 1000).toFixed(1) + 'K';
-  return num.toString();
-}
-
-function ReplyPost({ 
-  post,
-  onLike,
-  onRepost,
-  onReply,
-  onOptionsPress,
-  currentUserDid,
-}: { 
-  post: PostView;
-  onLike: () => void;
-  onRepost: () => void;
-  onReply: () => void;
-  onOptionsPress: () => void;
-  currentUserDid?: string | null;
-}) {
-  const record = post.record as AppBskyFeedPost.Record;
-  const router = useRouter();
-  const isOwnReply = currentUserDid === post.author.did;
-  
-  const handlePress = () => {
-    const uriParts = post.uri.split('/');
-    const rkey = uriParts[uriParts.length - 1];
-    router.push(`/post/${post.author.did}/${rkey}`);
-  };
-
-  const handleAuthorPress = () => {
-    router.push(`/user/${post.author.handle}`);
-  };
-  
-  return (
-    <Pressable onPress={handlePress} className="px-4 py-3 border-b border-border active:bg-surface-elevated">
-      <View className="flex-row">
-        <Pressable onPress={handleAuthorPress}>
-          {post.author.avatar ? (
-            <Image 
-              source={{ uri: post.author.avatar }} 
-              className="w-10 h-10 rounded-full"
-              contentFit="cover"
-            />
-          ) : (
-            <View className="w-10 h-10 rounded-full bg-surface-elevated items-center justify-center">
-              <Text className="text-text-muted text-lg">{post.author.handle[0].toUpperCase()}</Text>
-            </View>
-          )}
-        </Pressable>
-        <View className="flex-1 ml-3">
-          <View className="flex-row items-center justify-between">
-            <View className="flex-row items-center flex-1">
-              <Text className="font-semibold text-text-primary">
-                {post.author.displayName || post.author.handle}
-              </Text>
-              <Text className="text-text-muted ml-1">@{post.author.handle}</Text>
-            </View>
-            {/* Three dots menu */}
-            <Pressable 
-              onPress={(e) => {
-                e.stopPropagation();
-                onOptionsPress();
-              }} 
-              className="p-1 -mr-1"
-              hitSlop={8}
-            >
-              <MoreHorizontal size={18} color="#6B7280" />
-            </Pressable>
-          </View>
-          <Text className="text-text-primary mt-1 leading-5">{record.text}</Text>
-          
-          {/* Actions */}
-          <View className="flex-row items-center mt-2 gap-5">
-            <Pressable onPress={onReply} className="flex-row items-center">
-              <MessageCircle size={16} color="#6B7280" />
-              <Text className="text-text-muted text-xs ml-1">{post.replyCount || ''}</Text>
-            </Pressable>
-            <Pressable onPress={onRepost} className="flex-row items-center">
-              <Repeat2 size={16} color={post.viewer?.repost ? "#10B981" : "#6B7280"} />
-              <Text className={`text-xs ml-1 ${post.viewer?.repost ? 'text-primary' : 'text-text-muted'}`}>
-                {post.repostCount || ''}
-              </Text>
-            </Pressable>
-            <Pressable onPress={onLike} className="flex-row items-center">
-              <Heart 
-                size={16} 
-                color={post.viewer?.like ? "#EF4444" : "#6B7280"}
-                fill={post.viewer?.like ? "#EF4444" : "none"}
-              />
-              <Text className={`text-xs ml-1 ${post.viewer?.like ? 'text-red-500' : 'text-text-muted'}`}>
-                {post.likeCount || ''}
-              </Text>
-            </Pressable>
-          </View>
-        </View>
-      </View>
-    </Pressable>
-  );
-}
-
-/**
- * Component for displaying parent/ancestor posts in the thread
- * Shows a connecting line to indicate thread hierarchy
- */
-function ParentPost({ 
-  post,
-  isRoot = false,
-}: { 
-  post: PostView;
-  isRoot?: boolean;
-}) {
-  const record = post.record as AppBskyFeedPost.Record;
-  const router = useRouter();
-  
-  const handlePress = () => {
-    const uriParts = post.uri.split('/');
-    const rkey = uriParts[uriParts.length - 1];
-    router.push(`/post/${post.author.did}/${rkey}`);
-  };
-
-  const handleAuthorPress = () => {
-    router.push(`/user/${post.author.handle}`);
-  };
-
-  // Get embed images if present
-  const embedImages = post.embed?.$type === 'app.bsky.embed.images#view' 
-    ? (post.embed as any).images 
-    : [];
-  
-  return (
-    <Pressable onPress={handlePress} className="px-4 py-3 active:bg-surface-elevated">
-      <View className="flex-row">
-        {/* Avatar */}
-        <Pressable onPress={handleAuthorPress}>
-          {post.author.avatar ? (
-            <Image 
-              source={{ uri: post.author.avatar }} 
-              className="w-10 h-10 rounded-full"
-              contentFit="cover"
-            />
-          ) : (
-            <View className="w-10 h-10 rounded-full bg-surface-elevated items-center justify-center">
-              <Text className="text-text-muted text-lg">{post.author.handle[0].toUpperCase()}</Text>
-            </View>
-          )}
-        </Pressable>
-        
-        <View className="flex-1 ml-3">
-          <View className="flex-row items-center flex-wrap">
-            <Text className="font-semibold text-text-primary">
-              {post.author.displayName || post.author.handle}
-            </Text>
-            <Text className="text-text-muted ml-1">@{post.author.handle}</Text>
-          </View>
-          <Text className="text-text-primary mt-1 leading-5">{record.text}</Text>
-          
-          {/* Images in parent */}
-          {embedImages.length > 0 && (
-            <View className="mt-2 rounded-lg overflow-hidden">
-              {embedImages.length === 1 ? (
-                <Image 
-                  source={{ uri: embedImages[0].thumb }} 
-                  className="w-full h-32 rounded-lg"
-                  contentFit="cover"
-                />
-              ) : (
-                <View className="flex-row flex-wrap gap-1">
-                  {embedImages.slice(0, 4).map((img: any, idx: number) => (
-                    <Image 
-                      key={idx}
-                      source={{ uri: img.thumb }} 
-                      className="w-[48%] h-24 rounded"
-                      contentFit="cover"
-                    />
-                  ))}
-                </View>
-              )}
-            </View>
-          )}
-        </View>
-      </View>
-    </Pressable>
-  );
-}
 
 /**
  * Recursively collect parent posts into a flat array (root first)
@@ -379,12 +183,6 @@ export default function PostDetailsScreen() {
     }
   }, [thread, replyText, isSubmitting, createPostMutation, refetch]);
 
-  const handleAuthorPress = () => {
-    if (thread?.post) {
-      router.push(`/user/${thread.post.author.handle}`);
-    }
-  };
-
   // Options menu handlers
   const handleOptionsPress = () => {
     triggerHaptic();
@@ -528,44 +326,6 @@ export default function PostDetailsScreen() {
     .filter((r: any) => r.$type === 'app.bsky.feed.defs#threadViewPost' && r.post)
     .map((r: any) => r as ThreadViewPost);
 
-  // Get embed content
-  const embed = post.embed;
-  const embedType = embed?.$type;
-  
-  // Images embed
-  const embedImages = embedType === 'app.bsky.embed.images#view' 
-    ? (embed as any).images 
-    : [];
-  
-  // Link preview embed
-  const linkPreview = embedType === 'app.bsky.embed.external#view'
-    ? (embed as any).external
-    : null;
-  
-  // Quote post embed
-  const quotedPost = embedType === 'app.bsky.embed.record#view'
-    ? (embed as any).record
-    : null;
-  
-  // Video embed
-  const videoEmbed = embedType === 'app.bsky.embed.video#view'
-    ? embed as any
-    : null;
-  
-  // Record with media (quote + images/video)
-  const recordWithMedia = embedType === 'app.bsky.embed.recordWithMedia#view'
-    ? embed as any
-    : null;
-  
-  // Extract media from recordWithMedia
-  const recordWithMediaImages = recordWithMedia?.media?.$type === 'app.bsky.embed.images#view'
-    ? recordWithMedia.media.images
-    : [];
-  const recordWithMediaVideo = recordWithMedia?.media?.$type === 'app.bsky.embed.video#view'
-    ? recordWithMedia.media
-    : null;
-  const recordWithMediaQuote = recordWithMedia?.record?.record;
-
   return (
     <SafeAreaView className="flex-1 bg-background" edges={['bottom']}>
       <Stack.Screen 
@@ -594,288 +354,56 @@ export default function PostDetailsScreen() {
           />
         }
       >
-        {/* Parent Posts (Thread Ancestors) */}
+        {/* Parent Posts (Thread Ancestors) - Using PostCard */}
         {hasParents && (
           <View>
-            {parents.map((parentPost, index) => (
-              <ParentPost 
+            {parents.map((parentPost) => (
+              <PostCard 
                 key={parentPost.uri} 
                 post={parentPost}
-                isRoot={index === 0}
+                showBorder={false}
               />
             ))}
           </View>
         )}
 
-        {/* Main Post */}
+        {/* Main Post - Using ThreadPost component */}
         <View 
           onLayout={hasParents ? handleMainPostLayout : undefined}
-          className={`px-4 ${hasParents ? 'pt-2' : 'pt-3'} pb-3 border-b border-border`}
+          className={`${hasParents ? 'pt-2' : 'pt-3'} pb-3 border-b border-border`}
         >
           {/* Replying To indicator */}
           {hasParents && (
-            <View className="flex-row items-center mb-2">
+            <View className="flex-row items-center mb-2 px-4">
               <Text className="text-text-muted text-sm">
                 Replying to <Text className="text-primary">@{parents[parents.length - 1].author.handle}</Text>
               </Text>
             </View>
           )}
           
-          {/* Author Row */}
-          <Pressable onPress={handleAuthorPress} className="flex-row items-center">
-            {post.author.avatar ? (
-              <Image 
-                source={{ uri: post.author.avatar }} 
-                className="w-12 h-12 rounded-full"
-                contentFit="cover"
-              />
-            ) : (
-              <View className="w-12 h-12 rounded-full bg-surface-elevated items-center justify-center">
-                <Text className="text-text-muted text-xl">{post.author.handle[0].toUpperCase()}</Text>
-              </View>
-            )}
-            <View className="flex-1 ml-3">
-              <Text className="font-bold text-text-primary text-base">
-                {post.author.displayName || post.author.handle}
-              </Text>
-              <Text className="text-text-muted">@{post.author.handle}</Text>
-            </View>
-            <Pressable onPress={handleOptionsPress} className="p-2 active:opacity-70">
-              <MoreHorizontal size={20} color="#6B7280" />
-            </Pressable>
-          </Pressable>
-
-          {/* Post Content */}
-          <Text className="text-text-primary text-lg leading-6 mt-4">
-            {record.text}
-          </Text>
-
-          {/* Images */}
-          {embedImages.length > 0 && (
-            <View className="mt-3 rounded-xl overflow-hidden">
-              {embedImages.length === 1 ? (
-                <Image 
-                  source={{ uri: embedImages[0].fullsize }} 
-                  className="w-full h-72"
-                  contentFit="cover"
-                />
-              ) : (
-                <View className="flex-row flex-wrap">
-                  {embedImages.map((img: any, i: number) => (
-                    <Image 
-                      key={i}
-                      source={{ uri: img.thumb }} 
-                      className={`${embedImages.length === 2 ? 'w-1/2' : 'w-1/2'} h-40`}
-                      contentFit="cover"
-                    />
-                  ))}
-                </View>
-              )}
-            </View>
-          )}
-          
-          {/* Link Preview Card */}
-          {linkPreview && (
-            <Pressable 
-              onPress={() => Linking.openURL(linkPreview.uri)}
-              className="mt-3 border border-border rounded-xl overflow-hidden"
-            >
-              {linkPreview.thumb && (
-                <Image 
-                  source={{ uri: linkPreview.thumb }}
-                  className="w-full h-40"
-                  contentFit="cover"
-                />
-              )}
-              <View className="p-3">
-                <Text className="text-text-primary font-medium" numberOfLines={2}>
-                  {linkPreview.title}
-                </Text>
-                {linkPreview.description && (
-                  <Text className="text-text-muted text-sm mt-1" numberOfLines={2}>
-                    {linkPreview.description}
-                  </Text>
-                )}
-                <View className="flex-row items-center mt-2">
-                  <ExternalLink size={12} color="#6B7280" />
-                  <Text className="text-text-muted text-xs ml-1">
-                    {new URL(linkPreview.uri).hostname}
-                  </Text>
-                </View>
-              </View>
-            </Pressable>
-          )}
-          
-          {/* Quote Post */}
-          {quotedPost && quotedPost.$type === 'app.bsky.embed.record#viewRecord' && (
-            <Pressable 
-              onPress={() => {
-                const uriParts = quotedPost.uri.split('/');
-                const qRkey = uriParts[uriParts.length - 1];
-                const qDid = uriParts[2];
-                router.push(`/post/${qDid}/${qRkey}`);
-              }}
-              className="mt-3 border border-border rounded-xl p-3"
-            >
-              <View className="flex-row items-center mb-2">
-                {quotedPost.author?.avatar && (
-                  <Image 
-                    source={{ uri: quotedPost.author.avatar }}
-                    className="w-5 h-5 rounded-full mr-2"
-                    contentFit="cover"
-                  />
-                )}
-                <Text className="text-text-primary font-medium text-sm">
-                  {quotedPost.author?.displayName || quotedPost.author?.handle}
-                </Text>
-                <Text className="text-text-muted text-sm ml-1">
-                  @{quotedPost.author?.handle}
-                </Text>
-              </View>
-              <Text className="text-text-primary" numberOfLines={4}>
-                {(quotedPost.value as any)?.text}
-              </Text>
-            </Pressable>
-          )}
-          
-          {/* Video Embed */}
-          {videoEmbed && (
-            <View className="mt-3 rounded-xl overflow-hidden">
-              <VideoPlayer
-                url={videoEmbed.playlist}
-                thumbnailUrl={videoEmbed.thumbnail}
-                aspectRatio={videoEmbed.aspectRatio?.width && videoEmbed.aspectRatio?.height 
-                  ? videoEmbed.aspectRatio.width / videoEmbed.aspectRatio.height 
-                  : 16 / 9}
-                autoLoad={true}
-              />
-            </View>
-          )}
-          
-          {/* Record with Media (Quote + Images/Video) */}
-          {recordWithMedia && (
-            <>
-              {/* Images from recordWithMedia */}
-              {recordWithMediaImages.length > 0 && (
-                <View className="mt-3 rounded-xl overflow-hidden">
-                  {recordWithMediaImages.length === 1 ? (
-                    <Image 
-                      source={{ uri: recordWithMediaImages[0].fullsize || recordWithMediaImages[0].thumb }} 
-                      className="w-full h-72"
-                      contentFit="cover"
-                    />
-                  ) : (
-                    <View className="flex-row flex-wrap">
-                      {recordWithMediaImages.map((img: any, i: number) => (
-                        <Image 
-                          key={i}
-                          source={{ uri: img.thumb }} 
-                          className="w-1/2 h-40"
-                          contentFit="cover"
-                        />
-                      ))}
-                    </View>
-                  )}
-                </View>
-              )}
-              
-              {/* Video from recordWithMedia */}
-              {recordWithMediaVideo && (
-                <View className="mt-3 rounded-xl overflow-hidden">
-                  <VideoPlayer
-                    url={recordWithMediaVideo.playlist}
-                    thumbnailUrl={recordWithMediaVideo.thumbnail}
-                    aspectRatio={recordWithMediaVideo.aspectRatio?.width && recordWithMediaVideo.aspectRatio?.height 
-                      ? recordWithMediaVideo.aspectRatio.width / recordWithMediaVideo.aspectRatio.height 
-                      : 16 / 9}
-                    autoLoad={true}
-                  />
-                </View>
-              )}
-              
-              {/* Quoted record from recordWithMedia */}
-              {recordWithMediaQuote && recordWithMediaQuote.$type === 'app.bsky.embed.record#viewRecord' && (
-                <Pressable 
-                  onPress={() => {
-                    const uriParts = recordWithMediaQuote.uri.split('/');
-                    const qRkey = uriParts[uriParts.length - 1];
-                    const qDid = uriParts[2];
-                    router.push(`/post/${qDid}/${qRkey}`);
-                  }}
-                  className="mt-3 border border-border rounded-xl p-3"
-                >
-                  <View className="flex-row items-center mb-2">
-                    {recordWithMediaQuote.author?.avatar && (
-                      <Image 
-                        source={{ uri: recordWithMediaQuote.author.avatar }}
-                        className="w-5 h-5 rounded-full mr-2"
-                        contentFit="cover"
-                      />
-                    )}
-                    <Text className="text-text-primary font-medium text-sm">
-                      {recordWithMediaQuote.author?.displayName || recordWithMediaQuote.author?.handle}
-                    </Text>
-                    <Text className="text-text-muted text-sm ml-1">
-                      @{recordWithMediaQuote.author?.handle}
-                    </Text>
-                  </View>
-                  <Text className="text-text-primary" numberOfLines={3}>
-                    {(recordWithMediaQuote.value as any)?.text}
-                  </Text>
-                </Pressable>
-              )}
-            </>
-          )}
-
-          {/* Timestamp */}
-          <Text className="text-text-muted mt-4">{formatTime(record.createdAt)}</Text>
-
-          {/* Engagement Stats */}
-          <View className="flex-row mt-4 pt-3 border-t border-border">
-            <Text className="text-text-muted">
-              <Text className="font-bold text-text-primary">{formatNumber(post.repostCount)}</Text> reposts
-            </Text>
-            <Text className="text-text-muted ml-4">
-              <Text className="font-bold text-text-primary">{formatNumber(post.likeCount)}</Text> likes
-            </Text>
-          </View>
-
-          {/* Actions */}
-          <View className="flex-row justify-around mt-4 pt-3 border-t border-border">
-            <Pressable onPress={handleReply} className="flex-row items-center p-2 active:opacity-70">
-              <MessageCircle size={22} color="#6B7280" />
-            </Pressable>
-            <Pressable onPress={handleRepost} className="flex-row items-center p-2 active:opacity-70">
-              <Repeat2 size={22} color={post.viewer?.repost ? "#10B981" : "#6B7280"} />
-            </Pressable>
-            <Pressable onPress={handleLike} className="flex-row items-center p-2 active:opacity-70">
-              <Heart 
-                size={22} 
-                color={post.viewer?.like ? "#EF4444" : "#6B7280"} 
-                fill={post.viewer?.like ? "#EF4444" : "transparent"}
-              />
-            </Pressable>
-            <Pressable className="flex-row items-center p-2 active:opacity-70">
-              <Share size={22} color="#6B7280" />
-            </Pressable>
-          </View>
+          <ThreadPost 
+            post={post}
+            onLike={handleLike}
+            onRepost={handleRepost}
+            onReply={handleReply}
+            onOptionsPress={handleOptionsPress}
+          />
         </View>
 
-        {/* Replies */}
+        {/* Replies - Using PostCard component */}
         {replies.length > 0 && (
           <View>
             <Text className="text-text-muted text-sm font-medium px-4 py-3 border-b border-border">
               {replies.length} {replies.length === 1 ? 'Reply' : 'Replies'}
             </Text>
             {replies.map((reply) => (
-              <ReplyPost 
+              <PostCard 
                 key={reply.post.uri} 
                 post={reply.post}
                 onLike={() => handleReplyLike(reply.post)}
                 onRepost={() => handleReplyRepost(reply.post)}
                 onReply={() => handleReplyToReply(reply.post)}
                 onOptionsPress={() => handleReplyOptionsPress(reply.post)}
-                currentUserDid={myDid}
               />
             ))}
           </View>

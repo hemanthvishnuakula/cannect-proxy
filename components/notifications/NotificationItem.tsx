@@ -122,18 +122,21 @@ export const NotificationItem = memo(function NotificationItem({
   const { icon, text } = getNotificationDetails();
 
   const handlePress = () => {
-    // Prioritize post_id - if post exists in our DB, use local thread view
-    // This applies to both Cannect-native and synced external posts
-    if (notification.post_id) {
-      router.push(`/post/${notification.post_id}` as any);
-    } else if (notification.post?.at_uri) {
-      // External post not in our DB - use federated view
-      router.push(`/federated/post?uri=${encodeURIComponent(notification.post.at_uri)}` as any);
-    } else {
-      // Use best available identifier for actor profile
-      const identifier = notification.actor_handle || notification.actor?.username || notification.actor?.id;
-      if (identifier) router.push(`/user/${identifier}` as any);
+    // If we have an AT URI, extract did/rkey and navigate to thread view
+    if (notification.post?.at_uri) {
+      // AT URI format: at://did/app.bsky.feed.post/rkey
+      const parts = notification.post.at_uri.split('/');
+      const rkey = parts[parts.length - 1];
+      const did = parts[2]; // did is the 3rd segment
+      if (did && rkey) {
+        router.push(`/post/${did}/${rkey}`);
+        return;
+      }
     }
+    
+    // Fallback: navigate to user profile
+    const identifier = notification.actor_handle || notification.actor?.username || notification.actor?.id;
+    if (identifier) router.push(`/user/${identifier}` as any);
   };
 
   const handleAvatarPress = () => {

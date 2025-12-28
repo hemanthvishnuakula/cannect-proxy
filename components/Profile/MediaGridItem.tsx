@@ -7,6 +7,8 @@ import { BLURHASH_PLACEHOLDERS } from '@/lib/utils/assets';
 interface MediaGridItemProps {
   item: {
     id: string;
+    did?: string;
+    rkey?: string;
     media_urls?: string[];
     video_url?: string;
   };
@@ -30,7 +32,11 @@ export function MediaGridItem({ item }: MediaGridItemProps) {
 
   return (
     <Pressable 
-      onPress={() => router.push(`/post/${item.id}` as any)}
+      onPress={() => {
+        if (item.did && item.rkey) {
+          router.push(`/post/${item.did}/${item.rkey}`);
+        }
+      }}
       className="p-[1px] active:opacity-80"
       style={{ width: '33.33%', aspectRatio: 1 }}
     >

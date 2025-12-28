@@ -12,6 +12,13 @@ export default function PostDetailsScreen() {
   const router = useRouter();
   const renderStart = useRef(performance.now());
   
+  // The id param is actually the AT URI for this post
+  const { data: thread, isLoading, error } = usePostThread(id ?? "");
+  const likeMutation = useLikePost();
+  const unlikeMutation = useUnlikePost();
+  const repostMutation = useRepost();
+  const unrepostMutation = useDeleteRepost();
+  
   // Track render timing
   useEffect(() => {
     const duration = performance.now() - renderStart.current;
@@ -25,13 +32,6 @@ export default function PostDetailsScreen() {
       logger.render.screen('PostDetails:dataLoaded', loadDuration);
     }
   }, [thread?.post]);
-  
-  // The id param is actually the AT URI for this post
-  const { data: thread, isLoading, error } = usePostThread(id ?? "");
-  const likeMutation = useLikePost();
-  const unlikeMutation = useUnlikePost();
-  const repostMutation = useRepost();
-  const unrepostMutation = useDeleteRepost();
   
   const handleBack = () => {
     if (router.canGoBack()) {
