@@ -678,8 +678,8 @@ export function useSuggestedPosts() {
 export function useLocalFeed() {
   const { isAuthenticated } = useAuthStore();
   
-  // Bluesky AppView for feed hydration (PDS doesn't serve app.bsky.feed.* endpoints)
-  const BSKY_APPVIEW = 'https://public.api.bsky.app';
+  // Cannect PDS - we fetch posts directly using com.atproto.repo.listRecords
+  const CANNECT_PDS = 'https://cannect.space';
   
   return useInfiniteQuery({
     queryKey: ['localFeed'],
@@ -690,16 +690,35 @@ export function useLocalFeed() {
         return { feed: [], cursor: undefined };
       }
       
-      // Fetch recent posts from all users in parallel via Bluesky AppView
+      // Fetch posts directly from PDS using com.atproto.repo.listRecords
+      // This works because the PDS hosts the actual post data
       const results = await Promise.all(
         dids.map(async (did) => {
           try {
             const res = await fetch(
-              `${BSKY_APPVIEW}/xrpc/app.bsky.feed.getAuthorFeed?actor=${encodeURIComponent(did)}&limit=10&filter=posts_no_replies`
+              `${CANNECT_PDS}/xrpc/com.atproto.repo.listRecords?repo=${encodeURIComponent(did)}&collection=app.bsky.feed.post&limit=10`
             );
             if (!res.ok) return [];
             const data = await res.json();
-            return data.feed || [];
+            
+            // Convert raw records to FeedViewPost-like structure
+            return (data.records || []).map((record: any) => ({
+              post: {
+                uri: record.uri,
+                cid: record.cid,
+                author: {
+                  did: did,
+                  handle: did.split(':')[2] + '.cannect.space', // Fallback handle
+                  displayName: '',
+                  avatar: '',
+                },
+                record: record.value,
+                indexedAt: record.value?.createdAt || new Date().toISOString(),
+                likeCount: 0,
+                repostCount: 0,
+                replyCount: 0,
+              }
+            }));
           } catch {
             return [];
           }
