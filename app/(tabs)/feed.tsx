@@ -432,7 +432,7 @@ export default function FeedScreen() {
   
   // Guard to prevent rapid fetchNextPage calls (e.g., when returning from post view)
   const lastFetchTime = useRef(0);
-  const FETCH_COOLDOWN_MS = 1000; // Minimum 1 second between fetches
+  const FETCH_COOLDOWN_MS = 2000; // Minimum 2 seconds between fetches (increased from 1s)
   
   // Track render timing
   useEffect(() => {
@@ -753,16 +753,17 @@ export default function FeedScreen() {
             }
             onEndReached={() => {
               const now = Date.now();
-              // Guard: Prevent rapid fetches (e.g., when returning from post view)
+              // Guard: Prevent rapid fetches while scrolling or returning from post view
               if (now - lastFetchTime.current < FETCH_COOLDOWN_MS) {
                 return;
               }
-              if (activeQuery.hasNextPage && !activeQuery.isFetchingNextPage) {
+              // Also check if currently fetching (double protection)
+              if (activeQuery.hasNextPage && !activeQuery.isFetchingNextPage && !activeQuery.isFetching) {
                 lastFetchTime.current = now;
                 activeQuery.fetchNextPage();
               }
             }}
-            onEndReachedThreshold={0.3}
+            onEndReachedThreshold={0.2}
             contentContainerStyle={{ paddingBottom: 20 }}
             ListEmptyComponent={
               <View className="flex-1 items-center justify-center py-20">
