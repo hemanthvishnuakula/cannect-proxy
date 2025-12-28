@@ -550,7 +550,8 @@ push.cannect.space {
 | `components/PWAUpdater.tsx` | SW registration and update toast |
 | `lib/hooks/use-web-push.ts` | Push subscription hook |
 | `lib/utils/logger.ts` | Remote logging to Supabase |
-| `scripts/vps/server.js` | Push VPS + Jetstream listener |
+| `scripts/push-vps/server.js` | Push VPS + Jetstream listener |
+| `scripts/feed-vps/server.js` | Feed VPS + feed aggregation |
 | `scripts/monitor-logs.mjs` | Live log streaming |
 
 ---

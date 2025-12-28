@@ -128,12 +128,11 @@ function filterFeedForModeration(feed: FeedViewPost[]): FeedViewPost[] {
 }
 
 /**
- * Get Following feed - posts from users the current user follows
- * Fetches followed users, then their posts, sorted by date
+ * Get Timeline (Following feed) - posts from users the current user follows
+ * Uses Bluesky's official getTimeline API (1 call vs N×getAuthorFeed)
  */
 export function useTimeline() {
   const { isAuthenticated, did } = useAuthStore();
-
 
   return useInfiniteQuery({
     queryKey: ['timeline', did],
@@ -142,60 +141,34 @@ export function useTimeline() {
         return { feed: [], cursor: undefined };
       }
       
-      // Get users the current user follows
-      const followsResult = await atproto.getFollows(did, undefined, 100);
-      const followedUsers = followsResult.data.follows;
+      const perfKey = 'timeline_fetch';
+      perf.start(perfKey);
+      logger.start('network', 'timeline_fetch', 'Fetching timeline', { hasCursor: !!pageParam });
       
-      if (followedUsers.length === 0) {
-        return { feed: [], cursor: undefined };
+      try {
+        // Use official Bluesky getTimeline API - single call!
+        const result = await atproto.getTimeline(pageParam, 50);
+        const duration = perf.end(perfKey);
+        
+        // Apply content moderation filter
+        const moderated = filterFeedForModeration(result.data.feed);
+        
+        logger.success('network', 'timeline_fetch', `Timeline: ${moderated.length} posts in ${duration}ms`, {
+          postCount: moderated.length,
+          durationMs: duration,
+          apiCalls: 1,  // KEY: was N calls before (one per followed user)
+          hasCursor: !!result.data.cursor,
+        });
+        
+        return {
+          feed: moderated,
+          cursor: result.data.cursor,
+        };
+      } catch (error: any) {
+        const duration = perf.end(perfKey);
+        logger.error('network', 'timeline_fetch', error.message || 'Unknown error', { durationMs: duration });
+        throw error;
       }
-      
-      // Fetch recent posts from all followed users in parallel
-      // Get 5 posts per user
-      const results = await Promise.allSettled(
-        followedUsers.map(async (user) => {
-          try {
-            const feed = await atproto.getAuthorFeed(user.did, undefined, 5, 'posts_no_replies');
-            return feed.data.feed;
-          } catch {
-            return [];
-          }
-        })
-      );
-      
-      // Collect all posts
-      const allPosts: FeedViewPost[] = [];
-      for (const result of results) {
-        if (result.status === 'fulfilled' && result.value) {
-          allPosts.push(...result.value);
-        }
-      }
-      
-      // Sort by createdAt (when user posted) - not indexedAt (when network indexed)
-      const sorted = allPosts.sort((a, b) => {
-        const aDate = (a.post.record as any)?.createdAt || a.post.indexedAt;
-        const bDate = (b.post.record as any)?.createdAt || b.post.indexedAt;
-        return new Date(bDate).getTime() - new Date(aDate).getTime();
-      });
-
-      // Apply content moderation filter
-      const moderated = filterFeedForModeration(sorted);
-      
-      // Parse cursor for pagination through sorted results
-      const offset = pageParam ? parseInt(pageParam, 10) : 0;
-      const pageSize = 20;
-      
-      // Get the page slice
-      const pageSlice = moderated.slice(offset, offset + pageSize);
-      
-      // Calculate next cursor
-      const nextOffset = offset + pageSize;
-      const hasMore = nextOffset < moderated.length;
-      
-      return {
-        feed: pageSlice,
-        cursor: hasMore ? String(nextOffset) : undefined,
-      };
     },
     getNextPageParam: (lastPage) => lastPage.cursor,
     initialPageParam: undefined as string | undefined,
