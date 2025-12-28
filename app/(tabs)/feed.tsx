@@ -13,6 +13,7 @@ import { View, Text, RefreshControl, ActivityIndicator, Platform, Pressable, use
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
+import { useFocusEffect } from "@react-navigation/native";
 import { Leaf } from "lucide-react-native";
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import * as Haptics from "expo-haptics";
@@ -37,6 +38,24 @@ export default function FeedScreen() {
   const [activeFeed, setActiveFeed] = useState<FeedType>('global');
   const renderStart = useRef(performance.now());
   const listRef = useRef<FlashList<FeedViewPost>>(null);
+  
+  // === SCROLL POSITION PRESERVATION ===
+  // Store scroll offset per feed to restore when coming back from post detail
+  const scrollOffsets = useRef<Record<FeedType, number>>({ global: 0, local: 0, following: 0 });
+  
+  // Restore scroll position when screen regains focus
+  useFocusEffect(
+    useCallback(() => {
+      // Small delay to ensure FlashList is ready
+      const timer = setTimeout(() => {
+        const savedOffset = scrollOffsets.current[activeFeed];
+        if (savedOffset > 0 && listRef.current) {
+          listRef.current.scrollToOffset({ offset: savedOffset, animated: false });
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    }, [activeFeed])
+  );
   
   // === GLOBAL FEED (VPS - server-managed for curated cannabis content) ===
   const [globalPosts, setGlobalPosts] = useState<FeedViewPost[]>([]);
@@ -204,8 +223,11 @@ export default function FeedScreen() {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     }
     setActiveFeed(feed);
-    // Scroll to top when switching tabs
-    listRef.current?.scrollToOffset({ offset: 0, animated: false });
+    // Restore scroll position for the new tab (or start at top if never scrolled)
+    setTimeout(() => {
+      const savedOffset = scrollOffsets.current[feed];
+      listRef.current?.scrollToOffset({ offset: savedOffset, animated: false });
+    }, 50);
   }, []);
   
   const handleRefresh = useCallback(() => {
@@ -356,8 +378,11 @@ export default function FeedScreen() {
               ) : null
             }
             onScroll={(e) => {
+              const y = e.nativeEvent.contentOffset.y;
+              // Save scroll position for restoration
+              scrollOffsets.current[activeFeed] = y;
+              // Web refresh hint
               if (Platform.OS === 'web') {
-                const y = e.nativeEvent.contentOffset.y;
                 setShowRefreshHint(y <= 0);
               }
             }}
