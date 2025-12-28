@@ -301,8 +301,28 @@ export default function FeedScreen() {
   const [mediaViewerImages, setMediaViewerImages] = useState<string[]>([]);
   const [mediaViewerIndex, setMediaViewerIndex] = useState(0);
   
-  // Web refresh indicator
+  // Web refresh indicator - auto-hides after 3 seconds
   const [showRefreshHint, setShowRefreshHint] = useState(false);
+  const refreshHintTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Auto-hide refresh hint after 3 seconds
+  useEffect(() => {
+    if (showRefreshHint && Platform.OS === 'web') {
+      // Clear any existing timeout
+      if (refreshHintTimeoutRef.current) {
+        clearTimeout(refreshHintTimeoutRef.current);
+      }
+      // Set new timeout to hide
+      refreshHintTimeoutRef.current = setTimeout(() => {
+        setShowRefreshHint(false);
+      }, 3000);
+    }
+    return () => {
+      if (refreshHintTimeoutRef.current) {
+        clearTimeout(refreshHintTimeoutRef.current);
+      }
+    };
+  }, [showRefreshHint]);
 
   // Open image viewer
   const handleImagePress = useCallback((images: string[], index: number) => {
