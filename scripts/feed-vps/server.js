@@ -175,6 +175,7 @@ db.exec(`
     author_name TEXT,
     author_avatar TEXT,
     text TEXT,
+    facets_json TEXT,
     has_media INTEGER DEFAULT 0,
     media_json TEXT,
     reply_to TEXT,
@@ -192,6 +193,14 @@ db.exec(`
   CREATE INDEX IF NOT EXISTS idx_posts_feed_type ON posts(feed_type);
   CREATE INDEX IF NOT EXISTS idx_posts_media ON posts(has_media) WHERE has_media = 1;
 `);
+
+// Migration: Add facets_json column if it doesn't exist
+try {
+  db.exec(`ALTER TABLE posts ADD COLUMN facets_json TEXT`);
+  console.log('[DB] Added facets_json column');
+} catch (e) {
+  // Column already exists, ignore
+}
 
 // Middleware
 app.use(cors());
@@ -310,9 +319,9 @@ function savePost(post, feedType = 'local') {
     const stmt = db.prepare(`
       INSERT OR REPLACE INTO posts 
       (uri, cid, author_did, author_handle, author_name, author_avatar, 
-       text, has_media, media_json, reply_to, embed_json, 
+       text, facets_json, has_media, media_json, reply_to, embed_json, 
        like_count, repost_count, reply_count, created_at, feed_type)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `);
     
     stmt.run(
@@ -323,6 +332,7 @@ function savePost(post, feedType = 'local') {
       post.author?.displayName || '',
       post.author?.avatar || '',
       post.record?.text || '',
+      post.record?.facets ? JSON.stringify(post.record.facets) : null,
       hasMedia ? 1 : 0,
       hasMedia ? JSON.stringify(post.embed) : null,
       post.record?.reply?.parent?.uri || null,
@@ -338,6 +348,32 @@ function savePost(post, feedType = 'local') {
     console.error('[Feed] Error saving post:', error.message);
     return false;
   }
+}
+
+/**
+ * Format a database post row into API response format
+ */
+function formatPostForResponse(p) {
+  return {
+    uri: p.uri,
+    cid: p.cid,
+    author: {
+      did: p.author_did,
+      handle: p.author_handle,
+      displayName: p.author_name,
+      avatar: p.author_avatar,
+    },
+    record: {
+      text: p.text,
+      createdAt: p.created_at,
+      facets: p.facets_json ? JSON.parse(p.facets_json) : undefined,
+    },
+    embed: p.embed_json ? JSON.parse(p.embed_json) : undefined,
+    likeCount: p.like_count,
+    repostCount: p.repost_count,
+    replyCount: p.reply_count,
+    indexedAt: p.indexed_at,
+  };
 }
 
 async function refreshLocalFeed() {
@@ -537,25 +573,7 @@ app.get('/feed/local', (req, res) => {
   session.pagesLoaded = 1;
   
   // Format posts for client
-  const formattedPosts = resultPosts.map(p => ({
-    uri: p.uri,
-    cid: p.cid,
-    author: {
-      did: p.author_did,
-      handle: p.author_handle,
-      displayName: p.author_name,
-      avatar: p.author_avatar,
-    },
-    record: {
-      text: p.text,
-      createdAt: p.created_at,
-    },
-    embed: p.embed_json ? JSON.parse(p.embed_json) : undefined,
-    likeCount: p.like_count,
-    repostCount: p.repost_count,
-    replyCount: p.reply_count,
-    indexedAt: p.indexed_at,
-  }));
+  const formattedPosts = resultPosts.map(formatPostForResponse);
   
   res.json({
     posts: formattedPosts,
@@ -596,25 +614,7 @@ app.get('/feed/global', (req, res) => {
   session.cursor = nextCursor;
   session.pagesLoaded = 1;
   
-  const formattedPosts = resultPosts.map(p => ({
-    uri: p.uri,
-    cid: p.cid,
-    author: {
-      did: p.author_did,
-      handle: p.author_handle,
-      displayName: p.author_name,
-      avatar: p.author_avatar,
-    },
-    record: {
-      text: p.text,
-      createdAt: p.created_at,
-    },
-    embed: p.embed_json ? JSON.parse(p.embed_json) : undefined,
-    likeCount: p.like_count,
-    repostCount: p.repost_count,
-    replyCount: p.reply_count,
-    indexedAt: p.indexed_at,
-  }));
+  const formattedPosts = resultPosts.map(formatPostForResponse);
   
   res.json({
     posts: formattedPosts,
@@ -673,25 +673,7 @@ app.post('/feed/:type/more', (req, res) => {
   session.cursor = nextCursor;
   session.pagesLoaded++;
   
-  const formattedPosts = resultPosts.map(p => ({
-    uri: p.uri,
-    cid: p.cid,
-    author: {
-      did: p.author_did,
-      handle: p.author_handle,
-      displayName: p.author_name,
-      avatar: p.author_avatar,
-    },
-    record: {
-      text: p.text,
-      createdAt: p.created_at,
-    },
-    embed: p.embed_json ? JSON.parse(p.embed_json) : undefined,
-    likeCount: p.like_count,
-    repostCount: p.repost_count,
-    replyCount: p.reply_count,
-    indexedAt: p.indexed_at,
-  }));
+  const formattedPosts = resultPosts.map(formatPostForResponse);
   
   res.json({
     posts: formattedPosts,
@@ -734,25 +716,7 @@ app.post('/feed/:type/refresh', (req, res) => {
   session.cursor = nextCursor;
   session.pagesLoaded = 1;
   
-  const formattedPosts = resultPosts.map(p => ({
-    uri: p.uri,
-    cid: p.cid,
-    author: {
-      did: p.author_did,
-      handle: p.author_handle,
-      displayName: p.author_name,
-      avatar: p.author_avatar,
-    },
-    record: {
-      text: p.text,
-      createdAt: p.created_at,
-    },
-    embed: p.embed_json ? JSON.parse(p.embed_json) : undefined,
-    likeCount: p.like_count,
-    repostCount: p.repost_count,
-    replyCount: p.reply_count,
-    indexedAt: p.indexed_at,
-  }));
+  const formattedPosts = resultPosts.map(formatPostForResponse);
   
   res.json({
     posts: formattedPosts,
