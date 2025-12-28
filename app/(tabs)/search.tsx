@@ -5,12 +5,12 @@
  * - With query: Shows both users and posts in unified results
  */
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { View, Text, TextInput, Pressable, ActivityIndicator, Image, Platform, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlashList } from "@shopify/flash-list";
 import { Search as SearchIcon, X, Users, Sparkles, UserPlus, Check, FileText } from "lucide-react-native";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import * as Haptics from "expo-haptics";
 import { useSearchUsers, useSuggestedUsers, useFollow, useSearchPosts } from "@/lib/hooks";
 import { useDebounce } from "@/lib/hooks";
@@ -117,7 +117,15 @@ function SectionHeader({ title, icon }: { title: string; icon: 'users' | 'posts'
 
 export default function SearchScreen() {
   const router = useRouter();
-  const [query, setQuery] = useState("");
+  const { q } = useLocalSearchParams<{ q?: string }>();
+  const [query, setQuery] = useState(q || "");
+  
+  // Update query when URL param changes (e.g., clicking hashtag)
+  useEffect(() => {
+    if (q && q !== query) {
+      setQuery(q);
+    }
+  }, [q]);
   
   const debouncedQuery = useDebounce(query, 300);
   const hasQuery = debouncedQuery.trim().length >= 2;
