@@ -7,7 +7,7 @@
  * - Following: Posts from users you follow
  */
 
-import { View, Text, RefreshControl, ActivityIndicator, Platform, Pressable, Image, Share as RNShare, Linking, useWindowDimensions } from "react-native";
+import { View, Text, RefreshControl, ActivityIndicator, Platform, Pressable, Image, Share as RNShare, Linking, useWindowDimensions, AppState, AppStateStatus } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
@@ -15,6 +15,7 @@ import { Leaf, Heart, MessageCircle, Repeat2, Share, ExternalLink, ImageOff, Mor
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import * as Haptics from "expo-haptics";
 import { useCannectFeed, useGlobalFeed, useTimeline, useLikePost, useUnlikePost, useRepost, useDeleteRepost, useDeletePost } from "@/lib/hooks";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/lib/stores";
 import { OfflineBanner } from "@/components/OfflineBanner";
 import { RepostMenu } from "@/components/social/RepostMenu";
@@ -434,6 +435,24 @@ export default function FeedScreen() {
     const duration = performance.now() - renderStart.current;
     logger.render.screen('FeedScreen', duration);
   }, []);
+  
+  // Memory optimization: Clear feed caches when app goes to background
+  // This prevents iOS PWA crashes from excessive memory usage (see: 2619 posts crash 2024-12-28)
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    const handleAppStateChange = (nextState: AppStateStatus) => {
+      if (nextState === 'background') {
+        // Clear heavy feed caches to free memory before iOS kills the app
+        queryClient.setQueryData(['globalFeed'], undefined);
+        queryClient.setQueryData(['cannectFeed'], undefined);
+        queryClient.setQueryData(['timeline'], undefined);
+        console.log('[Memory] Cleared feed caches on background');
+      }
+    };
+    
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    return () => subscription.remove();
+  }, [queryClient]);
   
   // Repost menu state
   const [repostMenuVisible, setRepostMenuVisible] = useState(false);

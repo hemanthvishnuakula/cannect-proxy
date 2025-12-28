@@ -172,6 +172,7 @@ export function useTimeline() {
     },
     getNextPageParam: (lastPage) => lastPage.cursor,
     initialPageParam: undefined as string | undefined,
+    maxPages: 8, // Memory optimization: keep max 8 pages (400 posts) to prevent iOS PWA crashes
     enabled: isAuthenticated && !!did,
     staleTime: 1000 * 60, // 1 minute
   });
@@ -300,6 +301,7 @@ export function useGlobalFeed() {
     },
     getNextPageParam: (lastPage) => lastPage.cursor,
     initialPageParam: undefined as string | undefined,
+    maxPages: 8, // Memory optimization: keep max 8 pages (400 posts) to prevent iOS PWA crashes
     enabled: isAuthenticated,
     staleTime: 1000 * 60 * 2, // 2 minutes
   });
@@ -330,6 +332,7 @@ export function useCannectFeed() {
     },
     getNextPageParam: (lastPage) => lastPage.cursor,
     initialPageParam: undefined as string | undefined,
+    maxPages: 8, // Memory optimization: keep max 8 pages (400 posts) to prevent iOS PWA crashes
     enabled: isAuthenticated,
     staleTime: 1000 * 60 * 2, // 2 minutes - cache the sorted results
   });
