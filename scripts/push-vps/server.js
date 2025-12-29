@@ -11,6 +11,7 @@
  * - GET /health - Health check
  */
 
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const webpush = require('web-push');
@@ -67,7 +68,13 @@ const app = express();
 
 app.use(
   cors({
-    origin: ['https://cannect.app', 'https://cannect.space', 'http://localhost:8081'],
+    origin: [
+      'https://cannect.app',
+      'https://cannect.space',
+      'https://cannect-pwa.vercel.app',
+      'http://localhost:8081',
+      'http://localhost:19006',
+    ],
     methods: ['GET', 'POST', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
   })

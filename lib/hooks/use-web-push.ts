@@ -267,14 +267,14 @@ export function useWebPush() {
         await AsyncStorage.setItem(SUBSCRIPTION_KEY, JSON.stringify(subscriptionJSON));
         console.log('[WebPush] Subscription saved locally');
 
-        // Send subscription to Feed VPS for server-initiated push
+        // Send subscription to Push VPS for server-initiated push
         if (did) {
           try {
-            const response = await fetch(`${PUSH_API_URL}/api/push/subscribe`, {
+            const response = await fetch(`${PUSH_API_URL}/subscribe`, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({
-                userDid: did,
+                did,
                 subscription: subscriptionJSON,
               }),
             });
@@ -325,8 +325,8 @@ export function useWebPush() {
       if (subscription) {
         // Notify server to remove subscription
         try {
-          await fetch(`${PUSH_API_URL}/api/push/unsubscribe`, {
-            method: 'DELETE',
+          await fetch(`${PUSH_API_URL}/unsubscribe`, {
+            method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ endpoint: subscription.endpoint }),
           });
