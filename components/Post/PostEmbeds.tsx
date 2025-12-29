@@ -87,6 +87,18 @@ function ImageGrid({
   const imageUrls = images.map((img) => img.fullsize || img.thumb);
 
   if (images.length === 1) {
+    const img = images[0];
+    // Calculate aspect ratio from image data, default to 4:3 if not available
+    const aspectRatio = img.aspectRatio 
+      ? img.aspectRatio.width / img.aspectRatio.height 
+      : 4 / 3;
+    // Cap height: min 150px, max 400px based on aspect ratio
+    const maxHeight = 400;
+    const minHeight = 150;
+    // For a full-width image, height = width / aspectRatio
+    // We'll use paddingBottom trick for responsive aspect ratio
+    const heightPercent = Math.min(Math.max((1 / aspectRatio) * 100, (minHeight / 400) * 100), 100);
+    
     return (
       <Pressable
         onPressIn={stopEvent}
@@ -96,14 +108,17 @@ function ImageGrid({
         }}
         className="mt-2 rounded-xl overflow-hidden"
       >
-        <Image
-          source={{ uri: images[0].thumb }}
-          className="w-full h-48 rounded-xl bg-surface-elevated"
-          contentFit="cover"
-          transition={200}
-          cachePolicy="memory-disk"
-          recyclingKey={images[0].thumb}
-        />
+        <View style={{ width: '100%', maxHeight, minHeight }}>
+          <Image
+            source={{ uri: img.thumb }}
+            style={{ width: '100%', aspectRatio, maxHeight, minHeight }}
+            className="rounded-xl bg-surface-elevated"
+            contentFit="cover"
+            transition={200}
+            cachePolicy="memory-disk"
+            recyclingKey={img.thumb}
+          />
+        </View>
       </Pressable>
     );
   }

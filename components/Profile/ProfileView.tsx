@@ -130,7 +130,7 @@ export function ProfileView({
       <FlashList
         data={posts}
         keyExtractor={(item, index) => `${item.post.uri}-${index}`}
-        estimatedItemSize={280}
+        estimatedItemSize={350}
         overrideItemLayout={(layout) => {
           layout.size = 280;
         }}

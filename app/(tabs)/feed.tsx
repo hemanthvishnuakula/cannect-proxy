@@ -265,7 +265,7 @@ export default function FeedScreen() {
                 onImagePress={handleImagePress}
               />
             )}
-            estimatedItemSize={280}
+            estimatedItemSize={350}
             overrideItemLayout={(layout) => {
               layout.size = 280;
             }}
