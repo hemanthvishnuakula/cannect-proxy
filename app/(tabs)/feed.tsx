@@ -15,7 +15,7 @@ import { FlashList } from "@shopify/flash-list";
 import { useRouter } from "expo-router";
 import { useFocusEffect } from "@react-navigation/native";
 import { Leaf } from "lucide-react-native";
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import * as Haptics from "expo-haptics";
 import { useTimeline, useLocalFeed } from "@/lib/hooks";
 import { useAuthStore } from "@/lib/stores";
