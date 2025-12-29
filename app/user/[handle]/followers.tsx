@@ -4,7 +4,7 @@
  * Route: /user/[handle]/followers
  */
 
-import { View, Text, Pressable, RefreshControl } from 'react-native';
+import { View, Text, Pressable, RefreshControl, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';

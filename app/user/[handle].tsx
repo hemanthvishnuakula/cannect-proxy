@@ -11,7 +11,8 @@ import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
 import { useProfile } from '@/lib/hooks';
 import { useAuthStore } from '@/lib/stores';
-import { ProfileView, ProfileSkeleton } from '@/components/Profile/ProfileView';
+import { ProfileView } from '@/components/Profile/ProfileView';
+import { ProfileSkeleton } from '@/components/skeletons';
 
 export default function UserProfileScreen() {
   const { handle } = useLocalSearchParams<{ handle: string }>();

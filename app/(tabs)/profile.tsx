@@ -10,7 +10,8 @@ import { useRouter } from 'expo-router';
 import { RefreshCw } from 'lucide-react-native';
 import { useMyProfile, useLogout } from '@/lib/hooks';
 import { useAuthStore } from '@/lib/stores';
-import { ProfileView, ProfileSkeleton } from '@/components/Profile/ProfileView';
+import { ProfileView } from '@/components/Profile/ProfileView';
+import { ProfileSkeleton } from '@/components/skeletons';
 
 export default function ProfileScreen() {
   const router = useRouter();

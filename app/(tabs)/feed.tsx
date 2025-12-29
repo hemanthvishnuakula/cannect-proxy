@@ -34,7 +34,7 @@ import type { AppBskyFeedDefs } from '@atproto/api';
 
 type FeedType = 'global' | 'local' | 'following';
 type FeedViewPost = AppBskyFeedDefs.FeedViewPost;
-type _PostView = AppBskyFeedDefs.PostView;
+type PostView = AppBskyFeedDefs.PostView;
 
 const FEED_SERVICE_URL = 'https://feed.cannect.space';
 
