@@ -256,28 +256,10 @@ export const PostActions = memo(function PostActions({
   }, [getPostUrl, post.author.handle, record.text]);
 
   // Delete post
-  const handleDelete = useCallback(async () => {
+  const handleDelete = useCallback(() => {
     triggerHaptic(Haptics.ImpactFeedbackStyle.Heavy);
     setOptionsMenuVisible(false);
-
-    const confirmDelete = () => {
-      deletePostMutation.mutate(post.uri);
-    };
-
-    if (Platform.OS === 'web') {
-      if (window.confirm('Delete this post? This cannot be undone.')) {
-        confirmDelete();
-      }
-    } else {
-      Alert.alert(
-        'Delete Post',
-        'Are you sure you want to delete this post? This cannot be undone.',
-        [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Delete', style: 'destructive', onPress: confirmDelete },
-        ]
-      );
-    }
+    deletePostMutation.mutate(post.uri);
   }, [post.uri, deletePostMutation]);
 
   // Report post
