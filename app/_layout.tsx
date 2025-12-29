@@ -234,11 +234,13 @@ export default Sentry.wrap(function RootLayout() {
   if (PostHogProvider) {
     return (
       <PostHogProvider 
-        apiKey="phx_13pBobfwQwjDordNHORfTp1p2SVNjnbSK0MddbSQRT8NXBSH"
+        apiKey="phc_vkpwQgmLj7fAO9KZih5oXFh0Bk2gLuW2OMNYA7e7M0T"
         options={{
           host: 'https://us.i.posthog.com',
           enableSessionReplay: true,
           disabled: __DEV__, // Only track in production
+          // Disable auto navigation tracking - doesn't work with Expo Router
+          captureScreenViews: false,
         }}
       >
         {content}
