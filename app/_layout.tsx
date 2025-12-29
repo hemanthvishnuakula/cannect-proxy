@@ -6,6 +6,7 @@ import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import { QueryClientProvider } from "@tanstack/react-query";
 import * as Sentry from "@sentry/react-native";
+import { PostHogProvider } from 'posthog-react-native';
 
 // 🔒 Initialize Sentry for error tracking (before any other code runs)
 Sentry.init({
@@ -212,12 +213,21 @@ export default Sentry.wrap(function RootLayout() {
   }, [setSession, setLoading]);
 
   return (
-    <ErrorBoundary>
-      <QueryClientProvider client={queryClient}>
-        <GestureHandlerRootView style={{ flex: 1 }}>
-          <AppContent />
-        </GestureHandlerRootView>
-      </QueryClientProvider>
-    </ErrorBoundary>
+    <PostHogProvider 
+      apiKey="phx_13pBobfwQwjDordNHORfTp1p2SVNjnbSK0MddbSQRT8NXBSH"
+      options={{
+        host: 'https://us.i.posthog.com',
+        enableSessionReplay: true,
+        disabled: __DEV__, // Only track in production
+      }}
+    >
+      <ErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <AppContent />
+          </GestureHandlerRootView>
+        </QueryClientProvider>
+      </ErrorBoundary>
+    </PostHogProvider>
   );
 });

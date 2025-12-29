@@ -8,6 +8,7 @@
 import { useEffect, useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Sentry from '@sentry/react-native';
+import { usePostHog } from 'posthog-react-native';
 import { useAuthStore } from '@/lib/stores/auth-store-atp';
 import * as atproto from '@/lib/atproto/agent';
 import { queryKeys } from '@/lib/query-client';
@@ -30,6 +31,7 @@ export function useAuth() {
   } = useAuthStore();
   
   const queryClient = useQueryClient();
+  const posthog = usePostHog();
 
   // Subscribe to session expiry events
   useEffect(() => {
@@ -109,8 +111,14 @@ export function useAuth() {
         id: profileData.did,
         username: profileData.handle,
       });
+      
+      // 📊 Identify user in PostHog for analytics
+      posthog.identify(profileData.did, {
+        handle: profileData.handle,
+        displayName: profileData.displayName,
+      });
     }
-  }, [profileData, setProfile]);
+  }, [profileData, setProfile, posthog]);
 
   const logout = useCallback(async () => {
     await atproto.logout();
@@ -118,7 +126,9 @@ export function useAuth() {
     queryClient.clear();
     // 🔐 Clear Sentry user context on logout
     Sentry.setUser(null);
-  }, [clear, queryClient]);
+    // 📊 Reset PostHog user on logout
+    posthog.reset();
+  }, [clear, queryClient, posthog]);
 
   return {
     session,

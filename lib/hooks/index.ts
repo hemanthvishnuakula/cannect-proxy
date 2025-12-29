@@ -85,3 +85,6 @@ export {
 // PWA Diamond Standard APIs
 export { usePWA } from './use-pwa';
 export { useWebPush } from './use-web-push';
+
+// Analytics
+export { useAnalytics } from './use-analytics';
