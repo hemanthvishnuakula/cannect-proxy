@@ -49,6 +49,9 @@ export default function FeedScreen() {
   // Store scroll offset per feed to restore when coming back from post detail
   const scrollOffsets = useRef<Record<FeedType, number>>({ global: 0, local: 0, following: 0 });
 
+  // Prevent infinite scroll spam - track if we're currently loading more
+  const isLoadingMoreRef = useRef(false);
+
   // Restore scroll position when screen regains focus
   useFocusEffect(
     useCallback(() => {
@@ -120,7 +123,9 @@ export default function FeedScreen() {
 
   // Load more global posts
   const loadMoreGlobal = useCallback(async () => {
-    if (globalLoading || !globalHasMore || !globalSession) return;
+    // Use ref to prevent race condition from FlashList's rapid onEndReached calls
+    if (isLoadingMoreRef.current || globalLoading || !globalHasMore || !globalSession) return;
+    isLoadingMoreRef.current = true;
     setGlobalLoading(true);
 
     try {
@@ -141,6 +146,7 @@ export default function FeedScreen() {
       console.error('[Feed] Load more error:', err);
     } finally {
       setGlobalLoading(false);
+      isLoadingMoreRef.current = false;
     }
   }, [globalLoading, globalHasMore, globalSession]);
 
@@ -369,7 +375,7 @@ export default function FeedScreen() {
       {isLoading ? (
         <FeedSkeleton />
       ) : (
-        <View style={{ flex: 1, minHeight: Math.max(200, height - 200) }} className="flex-1">
+        <View style={{ flex: 1, height: height - 150 }} className="flex-1">
           <FlashList
             ref={listRef}
             data={posts}
