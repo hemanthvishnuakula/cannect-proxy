@@ -117,6 +117,7 @@ export function PostCard({
             e.stopPropagation();
             handleAuthorPress();
           }}
+          className="self-start"
         >
           {author.avatar ? (
             <Image
