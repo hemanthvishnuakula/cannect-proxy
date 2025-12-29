@@ -143,6 +143,7 @@ export function PostCard({
       <View className="flex-row">
         {/* Avatar - using expo-image for caching */}
         <Pressable
+          onPressIn={stopEvent}
           onPress={(e) => {
             stopEvent(e);
             handleAuthorPress();
@@ -169,6 +170,7 @@ export function PostCard({
         <View className="flex-1 ml-3">
           {/* Header - Row 1: Name and Time */}
           <Pressable
+            onPressIn={stopEvent}
             onPress={(e) => {
               stopEvent(e);
               handleAuthorPress();
@@ -184,6 +186,7 @@ export function PostCard({
 
           {/* Header - Row 2: Handle */}
           <Pressable
+            onPressIn={stopEvent}
             onPress={(e) => {
               stopEvent(e);
               handleAuthorPress();
@@ -205,7 +208,7 @@ export function PostCard({
 
           {/* Show more button for truncated text */}
           {shouldTruncate && (
-            <Pressable onPress={handleShowMore} className="mt-1">
+            <Pressable onPressIn={stopEvent} onPress={handleShowMore} className="mt-1">
               <Text className="text-primary font-medium">Show more</Text>
             </Pressable>
           )}

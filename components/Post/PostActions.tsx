@@ -355,6 +355,7 @@ export const PostActions = memo(function PostActions({
       <View className="flex-row items-center justify-between mt-3 pr-4">
         {/* Reply */}
         <Pressable
+          onPressIn={stopEvent}
           onPress={(e) => {
             stopEvent(e);
             handleReply();
@@ -370,6 +371,7 @@ export const PostActions = memo(function PostActions({
 
         {/* Repost */}
         <Pressable
+          onPressIn={stopEvent}
           onPress={(e) => {
             stopEvent(e);
             handleRepostPress();
@@ -388,6 +390,7 @@ export const PostActions = memo(function PostActions({
 
         {/* Like */}
         <Pressable
+          onPressIn={stopEvent}
           onPress={(e) => {
             stopEvent(e);
             handleLike();
@@ -406,6 +409,7 @@ export const PostActions = memo(function PostActions({
 
         {/* Share */}
         <Pressable
+          onPressIn={stopEvent}
           onPress={(e) => {
             stopEvent(e);
             handleShare();
@@ -419,6 +423,7 @@ export const PostActions = memo(function PostActions({
         {/* More Options */}
         {!hideOptions && (
           <Pressable
+            onPressIn={stopEvent}
             onPress={(e) => {
               stopEvent(e);
               handleOptionsPress();

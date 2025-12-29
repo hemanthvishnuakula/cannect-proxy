@@ -89,6 +89,7 @@ function ImageGrid({
   if (images.length === 1) {
     return (
       <Pressable
+        onPressIn={stopEvent}
         onPress={(e) => {
           stopEvent(e);
           onImagePress?.(imageUrls, 0);
@@ -112,6 +113,7 @@ function ImageGrid({
       {images.slice(0, 4).map((img, idx) => (
         <Pressable
           key={idx}
+          onPressIn={stopEvent}
           onPress={(e) => {
             stopEvent(e);
             onImagePress?.(imageUrls, idx);
@@ -146,6 +148,7 @@ function LinkPreview({ external }: { external: AppBskyEmbedExternal.ViewExternal
 
   return (
     <Pressable
+      onPressIn={stopEvent}
       onPress={(e) => {
         stopEvent(e);
         handlePress();
