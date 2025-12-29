@@ -693,10 +693,10 @@ export async function getUnreadCount() {
  * Feed Generator URIs
  * These are official Cannect feeds hosted at feed.cannect.space
  */
-const CANNECT_FEED_URI = 'at://did:plc:ubkp6dfvxif7rmexyat5np6e/app.bsky.feed.generator/cannect';
-const CANNABIS_FEED_URI = 'at://did:plc:ubkp6dfvxif7rmexyat5np6e/app.bsky.feed.generator/cannabis';
+const CANNECT_FEED_URI = 'at://did:plc:7jnbvychc4bbo6bpwok2oeas/app.bsky.feed.generator/cannect';
+const CANNABIS_FEED_URI = 'at://did:plc:7jnbvychc4bbo6bpwok2oeas/app.bsky.feed.generator/cannabis';
 const CANNECT_FOLLOWING_URI =
-  'at://did:plc:ubkp6dfvxif7rmexyat5np6e/app.bsky.feed.generator/following';
+  'at://did:plc:7jnbvychc4bbo6bpwok2oeas/app.bsky.feed.generator/following';
 
 /**
  * Get the Cannabis Community feed (Global)

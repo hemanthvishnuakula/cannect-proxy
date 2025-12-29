@@ -40,9 +40,14 @@ async function main() {
     process.exit(1);
   }
 
-  const agent = new BskyAgent({ service: 'https://bsky.social' });
+  // Use Cannect PDS for .cannect.space handles, otherwise use bsky.social
+  const service = HANDLE.endsWith('.cannect.space') 
+    ? 'https://cannect.space' 
+    : 'https://bsky.social';
+  
+  const agent = new BskyAgent({ service });
 
-  console.log(`🔐 Logging in as ${HANDLE}...`);
+  console.log(`🔐 Logging in as ${HANDLE} via ${service}...`);
   await agent.login({ identifier: HANDLE, password: PASSWORD });
   console.log(`✅ Logged in as ${agent.session.did}`);
 

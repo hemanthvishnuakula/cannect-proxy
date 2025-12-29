@@ -26,8 +26,8 @@ const path = require('path');
 const PORT = process.env.PORT || 3000;
 const JETSTREAM_URL = 'wss://jetstream2.us-west.bsky.network/subscribe';
 
-// Your feed generator identity (replace with your actual DID)
-const FEED_GENERATOR_DID = process.env.FEED_GENERATOR_DID || 'did:plc:ubkp6dfvxif7rmexyat5np6e';
+// Your feed generator identity
+const FEED_GENERATOR_DID = process.env.FEED_GENERATOR_DID || 'did:plc:7jnbvychc4bbo6bpwok2oeas';
 
 // Feed definitions
 const FEEDS = {
