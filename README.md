@@ -113,8 +113,8 @@ cannect/
 ├── public/                # PWA assets
 │   ├── manifest.json
 │   └── sw.js              # Service worker
-├── docs/                  # Documentation
-│   └── ARCHITECTURE_DIAGRAM.md
+├── scripts/
+│   └── feed-generator/    # Bluesky Feed Generator (VPS)
 └── tailwind.config.js     # NativeWind theme
 ```
 
