@@ -12,7 +12,7 @@ import { ArrowLeft } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import { useMemo, useCallback } from 'react';
 import { useProfile, useFollowers } from '@/lib/hooks';
-import { UserListSkeleton } from '@/components/ui/Skeleton';
+import { UserListSkeleton } from '@/components/skeletons';
 import type { AppBskyActorDefs } from '@atproto/api';
 
 type ProfileView = AppBskyActorDefs.ProfileView;

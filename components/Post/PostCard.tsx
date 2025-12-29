@@ -18,7 +18,6 @@ import { Repeat2 } from 'lucide-react-native';
 import { PostEmbeds } from './PostEmbeds';
 import { PostActions } from './PostActions';
 import { RichText } from './RichText';
-import { Skeleton } from '@/components/ui/Skeleton';
 import { getOptimizedAvatarUrl } from '../../lib/utils/avatar';
 import type { AppBskyFeedDefs, AppBskyFeedPost } from '@atproto/api';
 
@@ -177,55 +176,5 @@ export function PostCard({
         </View>
       </View>
     </Pressable>
-  );
-}
-
-/**
- * PostSkeleton - Animated loading placeholder matching PostCard layout
- */
-export function PostSkeleton() {
-  return (
-    <View className="px-4 py-3 border-b border-border">
-      <View className="flex-row">
-        {/* Avatar skeleton */}
-        <Skeleton width={40} height={40} radius="full" />
-        <View className="flex-1 ml-3">
-          {/* Header skeleton - name + time */}
-          <View className="flex-row items-center mb-1">
-            <Skeleton width={96} height={16} radius="sm" />
-            <View className="mx-2">
-              <Skeleton width={12} height={12} radius="full" />
-            </View>
-            <Skeleton width={32} height={12} radius="sm" />
-          </View>
-          {/* Handle skeleton */}
-          <Skeleton width={128} height={12} radius="sm" className="mb-2" />
-          {/* Text content skeleton - 2-3 lines */}
-          <Skeleton width="100%" height={16} radius="sm" className="mb-1" />
-          <Skeleton width="92%" height={16} radius="sm" className="mb-1" />
-          <Skeleton width="75%" height={16} radius="sm" className="mb-3" />
-          {/* Action bar skeleton */}
-          <View className="flex-row justify-between pr-8 mt-1">
-            <Skeleton width={40} height={20} radius="sm" />
-            <Skeleton width={40} height={20} radius="sm" />
-            <Skeleton width={40} height={20} radius="sm" />
-            <Skeleton width={20} height={20} radius="sm" />
-          </View>
-        </View>
-      </View>
-    </View>
-  );
-}
-
-/**
- * FeedSkeleton - Multiple PostSkeletons for initial feed loading
- */
-export function FeedSkeleton({ count = 5 }: { count?: number }) {
-  return (
-    <View>
-      {Array.from({ length: count }).map((_, i) => (
-        <PostSkeleton key={i} />
-      ))}
-    </View>
   );
 }

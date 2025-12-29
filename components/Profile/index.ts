@@ -1,3 +1,6 @@
 export { ProfileRow } from './ProfileRow';
 export { MediaGridItem } from './MediaGridItem';
-export { ProfileView, ProfileSkeleton } from './ProfileView';
+export { ProfileView } from './ProfileView';
+
+// Re-export skeleton for backwards compatibility
+export { ProfileSkeleton } from '@/components/skeletons';

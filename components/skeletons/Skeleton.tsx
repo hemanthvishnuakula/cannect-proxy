@@ -1,15 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
-import { View, Animated, Platform, type ViewProps } from 'react-native';
-import { cn } from '@/lib/utils';
-
 /**
- * Gold Standard Skeleton Component
+ * Base Skeleton Component
  *
  * A shimmering placeholder component for loading states.
  * Provides visual feedback that content is loading.
  *
  * Uses isMounted check to prevent hydration mismatch on web.
  */
+
+import { useEffect, useRef, useState } from 'react';
+import { View, Animated, Platform, type ViewProps } from 'react-native';
+import { cn } from '@/lib/utils';
 
 interface SkeletonProps extends ViewProps {
   /** Width of the skeleton (number or string like '100%') */
@@ -20,7 +20,7 @@ interface SkeletonProps extends ViewProps {
   radius?: number | 'full' | 'sm' | 'md' | 'lg' | 'xl';
 }
 
-// ✅ Platinum: Web doesn't support native driver
+// Web doesn't support native driver
 const useNativeDriver = Platform.OS !== 'web';
 
 export function Skeleton({
@@ -120,7 +120,7 @@ export function Skeleton({
 }
 
 /**
- * Skeleton Group - Common loading patterns
+ * SkeletonText - Multi-line text placeholder
  */
 export function SkeletonText({ lines = 3 }: { lines?: number }) {
   return (
@@ -132,93 +132,9 @@ export function SkeletonText({ lines = 3 }: { lines?: number }) {
   );
 }
 
+/**
+ * SkeletonAvatar - Circular avatar placeholder
+ */
 export function SkeletonAvatar({ size = 48 }: { size?: number }) {
   return <Skeleton width={size} height={size} radius="full" />;
-}
-
-export function SkeletonCard() {
-  return (
-    <View className="p-4 gap-3 border-b border-border">
-      <View className="flex-row gap-3 items-center">
-        <SkeletonAvatar />
-        <View className="flex-1 gap-2">
-          <Skeleton height={14} width="40%" />
-          <Skeleton height={12} width="25%" />
-        </View>
-      </View>
-      <SkeletonText lines={2} />
-    </View>
-  );
-}
-
-/**
- * UserRowSkeleton - Loading state for user list items (followers, following, search)
- */
-export function UserRowSkeleton() {
-  return (
-    <View className="flex-row items-center px-4 py-3 border-b border-border">
-      <SkeletonAvatar size={48} />
-      <View className="flex-1 ml-3 gap-2">
-        <Skeleton height={16} width="45%" radius="sm" />
-        <Skeleton height={14} width="30%" radius="sm" />
-        <Skeleton height={12} width="70%" radius="sm" />
-      </View>
-    </View>
-  );
-}
-
-/**
- * UserListSkeleton - Multiple UserRowSkeletons for list loading
- */
-export function UserListSkeleton({ count = 8 }: { count?: number }) {
-  return (
-    <View>
-      {Array.from({ length: count }).map((_, i) => (
-        <UserRowSkeleton key={i} />
-      ))}
-    </View>
-  );
-}
-
-/**
- * Profile Skeleton - Loading state for profile pages
- */
-export function SkeletonProfile() {
-  return (
-    <View className="bg-background">
-      {/* Cover Image */}
-      <Skeleton height={128} radius={0} />
-
-      <View className="px-4">
-        {/* Avatar overlapping cover */}
-        <View className="-mt-10 mb-3">
-          <SkeletonAvatar size={80} />
-        </View>
-
-        {/* Name and username */}
-        <View className="gap-2 mb-4">
-          <Skeleton height={24} width="50%" />
-          <Skeleton height={16} width="30%" />
-        </View>
-
-        {/* Bio */}
-        <View className="mb-4">
-          <SkeletonText lines={2} />
-        </View>
-
-        {/* Stats */}
-        <View className="flex-row gap-4 mb-4">
-          <Skeleton height={16} width={80} />
-          <Skeleton height={16} width={80} />
-        </View>
-
-        {/* Tabs */}
-        <View className="flex-row border-b border-border py-3">
-          <Skeleton height={16} width="33%" />
-          <Skeleton height={16} width="33%" />
-          <Skeleton height={16} width="33%" />
-        </View>
-      </View>
-    </View>
-  );
 }
