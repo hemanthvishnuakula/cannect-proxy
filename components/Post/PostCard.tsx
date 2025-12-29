@@ -98,10 +98,13 @@ export function PostCard({
   }, []);
 
   // Handle "Show more" tap
-  const handleShowMore = useCallback((e: any) => {
-    stopEvent(e);
-    setIsExpanded(true);
-  }, [stopEvent]);
+  const handleShowMore = useCallback(
+    (e: any) => {
+      stopEvent(e);
+      setIsExpanded(true);
+    },
+    [stopEvent]
+  );
 
   // Check if this is a repost (only possible with FeedViewPost)
   const isRepost = !!item?.reason && item.reason.$type === 'app.bsky.feed.defs#reasonRepost';

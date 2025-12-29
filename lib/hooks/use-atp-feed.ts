@@ -289,10 +289,12 @@ export function useGlobalFeed() {
 }
 
 /**
- * Get Cannect feed - posts from Cannect PDS users via Feed Service
+ * Get Cannect feed - posts from Cannect users via AT Protocol Feed Generator
  *
- * This is now a SINGLE API call instead of 100+ parallel getAuthorFeed requests.
- * The Feed Service maintains a real-time cache of all Cannect user posts via Jetstream.
+ * Uses our feed generator at feed.cannect.space which:
+ * - Indexes all Cannect PDS user posts via Jetstream
+ * - Returns proper viewer state (like/repost) through Bluesky's hydration
+ * - Supports optimistic updates because viewer state is accurate
  */
 export function useCannectFeed() {
   const { isAuthenticated } = useAuthStore();
@@ -300,22 +302,22 @@ export function useCannectFeed() {
   return useInfiniteQuery({
     queryKey: ['cannectFeed'],
     queryFn: async ({ pageParam }) => {
-      // Single API call to Feed Service
-      const result = await fetchFromFeedService('local', pageParam, 50);
+      // Use AT Protocol feed generator - includes viewer state!
+      const result = await atproto.getCannectFeed(pageParam, 50);
 
       // Apply content moderation filter
-      const moderated = filterFeedForModeration(result.feed);
+      const moderated = filterFeedForModeration(result.data.feed);
 
       return {
         feed: moderated,
-        cursor: result.cursor,
+        cursor: result.data.cursor,
       };
     },
     getNextPageParam: (lastPage) => lastPage.cursor,
     initialPageParam: undefined as string | undefined,
-    maxPages: 8, // Memory optimization: keep max 8 pages (400 posts) to prevent iOS PWA crashes
+    maxPages: 8, // Memory optimization: keep max 8 pages (400 posts)
     enabled: isAuthenticated,
-    staleTime: 1000 * 60 * 2, // 2 minutes - cache the sorted results
+    staleTime: 1000 * 60, // 1 minute - feed generator is fast
   });
 }
 

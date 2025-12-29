@@ -392,10 +392,11 @@ export default function FeedScreen() {
             const y = e.nativeEvent.contentOffset.y;
             scrollOffsets.current[activeFeed] = y;
             setShowRefreshHint(y <= 0);
-            
+
             // Infinite scroll for web
             const { layoutMeasurement, contentOffset, contentSize } = e.nativeEvent;
-            const isNearEnd = layoutMeasurement.height + contentOffset.y >= contentSize.height - 500;
+            const isNearEnd =
+              layoutMeasurement.height + contentOffset.y >= contentSize.height - 500;
             if (isNearEnd && !isLoadingMoreRef.current) {
               handleLoadMore();
             }
@@ -408,7 +409,7 @@ export default function FeedScreen() {
               <Text className="text-text-muted text-sm">Pull to refresh</Text>
             </Pressable>
           )}
-          
+
           {/* Posts */}
           {posts.length === 0 ? (
             <View className="flex-1 items-center justify-center py-20">
@@ -430,7 +431,7 @@ export default function FeedScreen() {
               />
             ))
           )}
-          
+
           {/* Footer */}
           {hasMore && posts.length > 0 ? (
             <View className="py-4 items-center">
