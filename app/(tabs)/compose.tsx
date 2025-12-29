@@ -54,7 +54,7 @@ export default function ComposeScreen() {
   const isOverLimit = remainingChars < 0;
   const canPost =
     content.trim().length > 0 && !isOverLimit && !createPostMutation.isPending && !isUploading;
-  const hasMedia = images.length > 0 || video !== null;
+  const _hasMedia = images.length > 0 || video !== null;
 
   const handlePickImage = async () => {
     if (images.length >= 4 || video) return; // Can't add images if video exists

@@ -19,7 +19,7 @@ const CONSECUTIVE_400_WINDOW_MS = 2000; // Reset count if more than 2s between e
  */
 function shouldRetry(failureCount: number, error: any): boolean {
   const status = error?.status || error?.response?.status;
-  const errorMsg = error?.message || error?.data?.message || String(error).substring(0, 100);
+  const _errorMsg = error?.message || error?.data?.message || String(error).substring(0, 100);
   const now = Date.now();
 
   // Track consecutive 400 errors

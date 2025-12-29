@@ -25,6 +25,26 @@ export function ZoomableImage({ uri, onSwipeDown }: ZoomableImageProps) {
   const [hasError, setHasError] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
+  // ✅ All hooks must be called unconditionally (rules-of-hooks)
+  // Scale values
+  const scale = useSharedValue(1);
+  const savedScale = useSharedValue(1);
+
+  // Translation values for panning when zoomed
+  const translateX = useSharedValue(0);
+  const translateY = useSharedValue(0);
+  const savedTranslateX = useSharedValue(0);
+  const savedTranslateY = useSharedValue(0);
+
+  // ✅ useAnimatedStyle must be called unconditionally (rules-of-hooks)
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [
+      { scale: scale.value },
+      { translateX: translateX.value },
+      { translateY: translateY.value },
+    ],
+  }));
+
   // ✅ Fix hydration mismatch - Reanimated hooks cause SSR issues
   useEffect(() => {
     setIsMounted(true);
@@ -38,15 +58,6 @@ export function ZoomableImage({ uri, onSwipeDown }: ZoomableImageProps) {
       </View>
     );
   }
-  // Scale values
-  const scale = useSharedValue(1);
-  const savedScale = useSharedValue(1);
-
-  // Translation values for panning when zoomed
-  const translateX = useSharedValue(0);
-  const translateY = useSharedValue(0);
-  const savedTranslateX = useSharedValue(0);
-  const savedTranslateY = useSharedValue(0);
 
   // Pinch gesture for zooming
   const pinchGesture = Gesture.Pinch()
@@ -99,7 +110,7 @@ export function ZoomableImage({ uri, onSwipeDown }: ZoomableImageProps) {
   // Double tap to zoom in/out
   const doubleTapGesture = Gesture.Tap()
     .numberOfTaps(2)
-    .onStart((e) => {
+    .onStart((_e) => {
       if (scale.value > 1) {
         // Zoom out
         scale.value = withTiming(1);
@@ -120,14 +131,6 @@ export function ZoomableImage({ uri, onSwipeDown }: ZoomableImageProps) {
     pinchGesture,
     Gesture.Race(doubleTapGesture, panGesture)
   );
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [
-      { scale: scale.value },
-      { translateX: translateX.value },
-      { translateY: translateY.value },
-    ],
-  }));
 
   // ✅ Error fallback for broken images
   if (hasError) {

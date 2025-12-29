@@ -17,7 +17,7 @@ const SESSION_KEY = 'atproto_session';
 const PDS_SERVICE = 'https://cannect.space';
 
 // Bluesky AppView for content hydration
-const BSKY_APPVIEW = 'https://public.api.bsky.app';
+const _BSKY_APPVIEW = 'https://public.api.bsky.app';
 
 // Singleton agent instance
 let agent: BskyAgent | null = null;
@@ -264,7 +264,7 @@ export async function login(identifier: string, password: string): Promise<void>
  * Logout and clear session
  */
 export async function logout(): Promise<void> {
-  const bskyAgent = getAgent();
+  const _bskyAgent = getAgent();
   // BskyAgent doesn't have a logout method, just clear session
   agent = null;
   await clearSession();
@@ -550,7 +550,7 @@ export async function getProfiles(dids: string[]) {
         if (result.data) {
           profiles.push(result.data);
         }
-      } catch (e) {
+      } catch {
         // Skip failed profiles
         console.log('[getProfiles] Failed for', did);
       }

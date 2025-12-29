@@ -19,7 +19,7 @@ import { X, Download, Check } from 'lucide-react-native';
 
 import { ZoomableImage } from './ZoomableImage';
 
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
+const { width: _SCREEN_WIDTH } = Dimensions.get('window');
 
 interface MediaViewerProps {
   isVisible: boolean;

@@ -4,7 +4,7 @@
  * Uses unified ProfileView component
  */
 
-import { View, Text, Pressable } from 'react-native';
+import { Text, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { RefreshCw } from 'lucide-react-native';

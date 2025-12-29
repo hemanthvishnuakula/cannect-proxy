@@ -110,7 +110,7 @@ export function ProfileRow({
 
   // For external users, show the domain part more prominently
   // e.g., "bsky.app" shows as "@bsky.app" with a globe icon
-  const handleParts = handle?.includes('.') ? handle.split('.') : null;
+  const _handleParts = handle?.includes('.') ? handle.split('.') : null;
 
   return (
     <Pressable

@@ -1,4 +1,4 @@
-import { Pressable, Text, ActivityIndicator, View } from 'react-native';
+import { Pressable, Text, ActivityIndicator } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ReactNode } from 'react';
 

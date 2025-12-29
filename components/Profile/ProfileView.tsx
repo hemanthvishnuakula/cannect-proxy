@@ -16,7 +16,6 @@ import {
   Pressable,
   ActivityIndicator,
   RefreshControl,
-  Share as RNShare,
   Platform,
 } from 'react-native';
 import { Image } from 'expo-image';
@@ -27,10 +26,8 @@ import { useState, useMemo, useCallback } from 'react';
 import * as Haptics from 'expo-haptics';
 import { useAuthorFeed, useActorLikes, useFollow, useUnfollow } from '@/lib/hooks';
 import { PostCard } from '@/components/Post';
-import type { AppBskyFeedDefs, AppBskyActorDefs } from '@atproto/api';
+import type { AppBskyActorDefs } from '@atproto/api';
 
-type FeedViewPost = AppBskyFeedDefs.FeedViewPost;
-type PostView = AppBskyFeedDefs.PostView;
 type ProfileViewDetailed = AppBskyActorDefs.ProfileViewDetailed;
 type ProfileTab = 'posts' | 'reposts' | 'replies' | 'likes';
 
@@ -61,7 +58,7 @@ interface ProfileViewProps {
 export function ProfileView({
   profileData,
   isOwnProfile,
-  currentUserDid,
+  currentUserDid: _currentUserDid,
   isRefreshing = false,
   onRefresh,
   onEditProfile,

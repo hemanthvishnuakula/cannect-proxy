@@ -30,17 +30,17 @@ import { useAuthStore } from '@/lib/stores';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { MediaViewer } from '@/components/ui/MediaViewer';
 import { PostCard, FeedSkeleton } from '@/components/Post';
-import type { AppBskyFeedDefs, AppBskyFeedPost } from '@atproto/api';
+import type { AppBskyFeedDefs } from '@atproto/api';
 
 type FeedType = 'global' | 'local' | 'following';
 type FeedViewPost = AppBskyFeedDefs.FeedViewPost;
-type PostView = AppBskyFeedDefs.PostView;
+type _PostView = AppBskyFeedDefs.PostView;
 
 const FEED_SERVICE_URL = 'https://feed.cannect.space';
 
 export default function FeedScreen() {
   const router = useRouter();
-  const { did, isAuthenticated } = useAuthStore();
+  const { did: _did, isAuthenticated } = useAuthStore();
   const { height } = useWindowDimensions();
   const [activeFeed, setActiveFeed] = useState<FeedType>('global');
   const listRef = useRef<FlashList<FeedViewPost>>(null);

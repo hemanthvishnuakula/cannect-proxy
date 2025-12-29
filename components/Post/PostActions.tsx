@@ -243,7 +243,7 @@ export const PostActions = memo(function PostActions({
         text: record.text?.substring(0, 280) || '',
         url: url,
       });
-    } catch (error) {
+    } catch {
       // User cancelled or share failed
     }
     setOptionsMenuVisible(false);

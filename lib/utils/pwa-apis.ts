@@ -308,7 +308,7 @@ export function getDisplayMode(): 'browser' | 'standalone' | 'minimal-ui' | 'ful
   if (Platform.OS !== 'web') return 'browser';
   if (typeof window === 'undefined') return 'browser';
 
-  const modes: Array<'fullscreen' | 'standalone' | 'minimal-ui' | 'browser'> = [
+  const modes: ('fullscreen' | 'standalone' | 'minimal-ui' | 'browser')[] = [
     'fullscreen',
     'standalone',
     'minimal-ui',

@@ -10,7 +10,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Sentry from '@sentry/react-native';
 import { useAuthStore } from '@/lib/stores/auth-store-atp';
 import * as atproto from '@/lib/atproto/agent';
-import { queryKeys } from '@/lib/query-client';
 
 /**
  * Main auth hook - handles session initialization and auth state

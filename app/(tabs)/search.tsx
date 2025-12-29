@@ -34,7 +34,7 @@ import { useDebounce } from '@/lib/hooks';
 import { useAuthStore } from '@/lib/stores';
 import { useQueryClient } from '@tanstack/react-query';
 import { PostCard } from '@/components/Post';
-import type { AppBskyActorDefs, AppBskyFeedDefs, AppBskyFeedPost } from '@atproto/api';
+import type { AppBskyActorDefs, AppBskyFeedDefs } from '@atproto/api';
 
 type ProfileView = AppBskyActorDefs.ProfileView;
 type ProfileViewDetailed = AppBskyActorDefs.ProfileViewDetailed;

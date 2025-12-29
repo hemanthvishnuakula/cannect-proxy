@@ -27,7 +27,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Send } from 'lucide-react-native';
 import { Image } from 'expo-image';
 import * as Haptics from 'expo-haptics';
-import { ThreadPost, ThreadPostSkeleton, PostCard } from '@/components/Post';
+import { ThreadPost, PostCard } from '@/components/Post';
 import { usePostThread, useCreatePost } from '@/lib/hooks';
 import { useAuthStore } from '@/lib/stores';
 import type { AppBskyFeedDefs, AppBskyFeedPost } from '@atproto/api';
@@ -196,7 +196,7 @@ export default function PostDetailsScreen() {
   }
 
   const post = thread.post;
-  const record = post.record as AppBskyFeedPost.Record;
+  const _record = post.record as AppBskyFeedPost.Record;
 
   // Collect parent posts (root first, then ancestors down to immediate parent)
   const parents = collectParents(thread);

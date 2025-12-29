@@ -35,7 +35,7 @@ export function VideoPlayer({
   url,
   thumbnailUrl,
   aspectRatio = 16 / 9,
-  shouldPlay = false,
+  shouldPlay: _shouldPlay = false,
   muted: initialMuted = true,
   loop = true,
   onFullscreen,

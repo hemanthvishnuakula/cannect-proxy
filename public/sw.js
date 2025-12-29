@@ -12,12 +12,7 @@ const OFFLINE_URL = '/offline.html';
 const FORCE_UPDATE_VERSIONS = [];
 
 // Core assets required for the app shell
-const PRECACHE_ASSETS = [
-  OFFLINE_URL,
-  '/icon-192.png',
-  '/icon-512.png',
-  '/badge-72.png',
-];
+const PRECACHE_ASSETS = [OFFLINE_URL, '/icon-192.png', '/icon-512.png', '/badge-72.png'];
 
 // 💎 Domains to NEVER cache (APIs, external media)
 const CACHE_BYPASS_PATTERNS = [
@@ -29,7 +24,7 @@ const CACHE_BYPASS_PATTERNS = [
   'videodelivery.net',
   'customer-',
   '/api/',
-  '.m3u8',        // HLS video manifests
+  '.m3u8', // HLS video manifests
   'blob:',
   // Note: HLS .ts segments are handled natively by browser, no need to bypass
 ];
@@ -39,13 +34,14 @@ const CACHE_BYPASS_PATTERNS = [
 // =====================================================
 self.addEventListener('install', (event) => {
   console.log(`[SW] Installing version ${CACHE_VERSION}`);
-  
+
   // 💎 Remote log for debugging iOS PWA
   fetch('https://fmloudndgtxglvgruyjl.supabase.co/rest/v1/app_logs', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZtbG91ZG5kZ3R4Z2x2Z3J1eWpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MTM3ODgsImV4cCI6MjA4MjM4OTc4OH0.YmbdTjzy32j34iu0nZA3n0fT-cAHAsUBcVtGWXIPNOY',
+      apikey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZtbG91ZG5kZ3R4Z2x2Z3J1eWpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MTM3ODgsImV4cCI6MjA4MjM4OTc4OH0.YmbdTjzy32j34iu0nZA3n0fT-cAHAsUBcVtGWXIPNOY',
     },
     body: JSON.stringify({
       category: 'sw',
@@ -54,13 +50,13 @@ self.addEventListener('install', (event) => {
       message: `Installing ${CACHE_VERSION}`,
     }),
   }).catch(() => {});
-  
+
   event.waitUntil(
     (async () => {
       try {
         const cache = await caches.open(CACHE_NAME);
         console.log('[SW] Pre-caching atomic assets');
-        
+
         // 💎 Cache assets individually for graceful degradation
         const results = await Promise.allSettled(
           PRECACHE_ASSETS.map(async (url) => {
@@ -80,27 +76,26 @@ self.addEventListener('install', (event) => {
             }
           })
         );
-        
-        const successCount = results.filter(r => 
-          r.status === 'fulfilled' && r.value?.success
+
+        const successCount = results.filter(
+          (r) => r.status === 'fulfilled' && r.value?.success
         ).length;
         console.log(`[SW] Pre-cached ${successCount}/${PRECACHE_ASSETS.length} assets`);
-        
+
         // 💎 CRITICAL: Determine if we should auto-activate
         // Check if there's any controller (existing SW controlling pages)
         // If no controller exists, this is a fresh install and we should activate immediately
         const allClients = await self.clients.matchAll({ includeUncontrolled: true });
-        const hasControlledClients = allClients.some(client => {
+        const hasControlledClients = allClients.some((client) => {
           // Check if this client has a controller by sending a test
           return false; // Can't reliably check from SW, use different approach
         });
-        
+
         // SIMPLER: Just always skipWaiting - the activate event will claim clients
         // This is safe because our activate event handles everything gracefully
         // PWAUpdater will handle showing the reload toast for updates
         console.log('[SW] Activating immediately via skipWaiting');
         self.skipWaiting();
-        
       } catch (error) {
         console.error('[SW] Pre-cache failed:', error);
       }
@@ -113,13 +108,14 @@ self.addEventListener('install', (event) => {
 // =====================================================
 self.addEventListener('activate', (event) => {
   console.log(`[SW] Activating version ${CACHE_VERSION}`);
-  
+
   // 💎 Remote log for debugging iOS PWA
   fetch('https://fmloudndgtxglvgruyjl.supabase.co/rest/v1/app_logs', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZtbG91ZG5kZ3R4Z2x2Z3J1eWpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MTM3ODgsImV4cCI6MjA4MjM4OTc4OH0.YmbdTjzy32j34iu0nZA3n0fT-cAHAsUBcVtGWXIPNOY',
+      apikey:
+        'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZtbG91ZG5kZ3R4Z2x2Z3J1eWpsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MTM3ODgsImV4cCI6MjA4MjM4OTc4OH0.YmbdTjzy32j34iu0nZA3n0fT-cAHAsUBcVtGWXIPNOY',
     },
     body: JSON.stringify({
       category: 'sw',
@@ -128,7 +124,7 @@ self.addEventListener('activate', (event) => {
       message: `Activating ${CACHE_VERSION}`,
     }),
   }).catch(() => {});
-  
+
   event.waitUntil(
     (async () => {
       // 💎 ATOMIC PURGE: Delete ALL caches that aren't current version
@@ -146,14 +142,14 @@ self.addEventListener('activate', (event) => {
           console.log(`[SW] 🔥 Atomic Purge: ${name}`);
           return caches.delete(name);
         });
-      
+
       await Promise.all(deletionPromises);
       console.log(`[SW] Purged ${deletionPromises.length} old caches`);
-      
+
       // 💎 Take control of ALL open tabs immediately
       await self.clients.claim();
       console.log('[SW] Now controlling all clients');
-      
+
       // 💎 Notify all clients that a new version is active
       const clients = await self.clients.matchAll({ type: 'window' });
       clients.forEach((client) => {
@@ -172,19 +168,19 @@ self.addEventListener('activate', (event) => {
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = request.url;
-  
+
   // Skip non-GET requests
   if (request.method !== 'GET') return;
-  
+
   // Skip non-http(s) requests
   if (!url.startsWith('http')) return;
-  
+
   // 💎 BYPASS: Never cache these patterns
-  const shouldBypass = CACHE_BYPASS_PATTERNS.some(pattern => url.includes(pattern));
+  const shouldBypass = CACHE_BYPASS_PATTERNS.some((pattern) => url.includes(pattern));
   if (shouldBypass) {
     return; // Let browser handle normally
   }
-  
+
   // 💎 NAVIGATION: Network-first with offline fallback
   if (request.mode === 'navigate') {
     event.respondWith(
@@ -192,13 +188,13 @@ self.addEventListener('fetch', (event) => {
         try {
           // Always try network first for navigation
           const networkResponse = await fetch(request);
-          
+
           // Cache successful responses for offline fallback
           if (networkResponse.ok) {
             const cache = await caches.open(CACHE_NAME);
             cache.put(request, networkResponse.clone());
           }
-          
+
           return networkResponse;
         } catch (error) {
           // Network failed - try cache, then offline page
@@ -207,25 +203,28 @@ self.addEventListener('fetch', (event) => {
           if (cachedResponse) {
             return cachedResponse;
           }
-          
+
           // Last resort: offline page
           const offlineResponse = await caches.match(OFFLINE_URL);
-          return offlineResponse || new Response('Offline', { 
-            status: 503,
-            statusText: 'Service Unavailable' 
-          });
+          return (
+            offlineResponse ||
+            new Response('Offline', {
+              status: 503,
+              statusText: 'Service Unavailable',
+            })
+          );
         }
       })()
     );
     return;
   }
-  
+
   // 💎 STATIC ASSETS: Stale-while-revalidate with network preference
   event.respondWith(
     (async () => {
       const cache = await caches.open(CACHE_NAME);
       const cachedResponse = await cache.match(request);
-      
+
       // Start network fetch immediately
       const networkPromise = fetch(request)
         .then((response) => {
@@ -236,20 +235,20 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => null);
-      
+
       // Return cached immediately if available, but update in background
       if (cachedResponse) {
         // Fire-and-forget background update
         networkPromise.catch(() => {});
         return cachedResponse;
       }
-      
+
       // No cache - wait for network
       const networkResponse = await networkPromise;
       if (networkResponse) {
         return networkResponse;
       }
-      
+
       // Both failed
       return new Response('Resource unavailable', { status: 404 });
     })()
@@ -261,28 +260,28 @@ self.addEventListener('fetch', (event) => {
 // =====================================================
 self.addEventListener('message', (event) => {
   console.log('[SW] Message received:', event.data);
-  
+
   const { type } = event.data || {};
-  
+
   switch (type) {
     case 'SKIP_WAITING':
       console.log('[SW] Skip waiting triggered - activating immediately');
       self.skipWaiting();
       break;
-      
+
     case 'GET_VERSION':
       event.ports?.[0]?.postMessage({ version: CACHE_VERSION });
       break;
-      
+
     case 'CHECK_FORCE_UPDATE':
       const shouldForce = FORCE_UPDATE_VERSIONS.includes(CACHE_VERSION);
-      event.source?.postMessage({ 
-        type: 'FORCE_UPDATE_RESULT', 
+      event.source?.postMessage({
+        type: 'FORCE_UPDATE_RESULT',
         shouldForce,
-        version: CACHE_VERSION 
+        version: CACHE_VERSION,
       });
       break;
-      
+
     case 'CLEAR_CACHE':
       // Emergency cache clear
       caches.keys().then((names) => {
@@ -298,9 +297,9 @@ self.addEventListener('message', (event) => {
 // =====================================================
 self.addEventListener('push', (event) => {
   console.log('[SW] Push received');
-  
+
   let data = { title: 'Cannect', body: 'New notification' };
-  
+
   try {
     if (event.data) {
       data = event.data.json();
@@ -317,15 +316,13 @@ self.addEventListener('push', (event) => {
     data: data.data || {},
     actions: [
       { action: 'open', title: 'Open' },
-      { action: 'dismiss', title: 'Dismiss' }
+      { action: 'dismiss', title: 'Dismiss' },
     ],
     tag: data.data?.notificationId || 'cannect-notification',
     renotify: true,
   };
 
-  event.waitUntil(
-    self.registration.showNotification(data.title, options)
-  );
+  event.waitUntil(self.registration.showNotification(data.title, options));
 });
 
 // =====================================================
@@ -333,7 +330,7 @@ self.addEventListener('push', (event) => {
 // =====================================================
 self.addEventListener('notificationclick', (event) => {
   console.log('[SW] Notification clicked');
-  
+
   event.notification.close();
 
   if (event.action === 'dismiss') {
@@ -379,7 +376,7 @@ self.addEventListener('notificationclose', (event) => {
 // =====================================================
 self.addEventListener('sync', (event) => {
   console.log(`[SW] Background sync triggered: ${event.tag}`);
-  
+
   if (event.tag === 'cannect-sync') {
     event.waitUntil(processOfflineQueue());
   }
@@ -390,31 +387,31 @@ self.addEventListener('sync', (event) => {
  */
 async function processOfflineQueue() {
   console.log('[SW] Processing offline queue...');
-  
+
   try {
     // Get queue from IndexedDB or localStorage via client
     const clients = await self.clients.matchAll({ type: 'window' });
-    
+
     if (clients.length === 0) {
       console.log('[SW] No clients available to process queue');
       return;
     }
-    
+
     // Request the client to process the queue
     // This keeps AT Protocol auth logic in the main thread
     const channel = new MessageChannel();
-    
+
     const result = await new Promise((resolve) => {
       channel.port1.onmessage = (event) => {
         resolve(event.data);
       };
-      
+
       clients[0].postMessage({ type: 'PROCESS_SYNC_QUEUE' }, [channel.port2]);
-      
+
       // Timeout after 30 seconds
       setTimeout(() => resolve({ success: false, reason: 'timeout' }), 30000);
     });
-    
+
     console.log('[SW] Queue processing result:', result);
   } catch (error) {
     console.error('[SW] Failed to process offline queue:', error);
@@ -427,7 +424,7 @@ async function processOfflineQueue() {
 // =====================================================
 self.addEventListener('periodicsync', (event) => {
   console.log(`[SW] Periodic sync triggered: ${event.tag}`);
-  
+
   if (event.tag === 'cannect-feed-refresh') {
     event.waitUntil(refreshFeedInBackground());
   }
@@ -438,15 +435,15 @@ self.addEventListener('periodicsync', (event) => {
  */
 async function refreshFeedInBackground() {
   console.log('[SW] Refreshing feed in background...');
-  
+
   try {
     // Notify clients to refresh their data
     const clients = await self.clients.matchAll({ type: 'window' });
-    
+
     clients.forEach((client) => {
       client.postMessage({ type: 'BACKGROUND_REFRESH' });
     });
-    
+
     console.log('[SW] Background refresh notification sent');
   } catch (error) {
     console.error('[SW] Background refresh failed:', error);

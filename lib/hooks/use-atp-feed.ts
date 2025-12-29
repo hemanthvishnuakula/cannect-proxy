@@ -14,10 +14,6 @@ import { useAuthStore } from '@/lib/stores/auth-store-atp';
 import { createOptimisticContext, postUpdaters } from './optimistic-updates';
 import type {
   AppBskyFeedDefs,
-  AppBskyFeedPost,
-  AppBskyFeedGetTimeline,
-  AppBskyFeedGetAuthorFeed,
-  AppBskyFeedGetPostThread,
 } from '@atproto/api';
 
 // Re-export types for convenience
@@ -482,7 +478,7 @@ export function useUnlikePost() {
   const optimistic = createOptimisticContext(queryClient);
 
   return useMutation({
-    mutationFn: async ({ likeUri, postUri }: { likeUri: string; postUri: string }) => {
+    mutationFn: async ({ likeUri, postUri: _postUri }: { likeUri: string; postUri: string }) => {
       await atproto.unlikePost(likeUri);
     },
     onMutate: async ({ postUri }) => {
@@ -532,7 +528,7 @@ export function useDeleteRepost() {
   const optimistic = createOptimisticContext(queryClient);
 
   return useMutation({
-    mutationFn: async ({ repostUri, postUri }: { repostUri: string; postUri: string }) => {
+    mutationFn: async ({ repostUri, postUri: _postUri }: { repostUri: string; postUri: string }) => {
       await atproto.deleteRepost(repostUri);
     },
     onMutate: async ({ postUri }) => {

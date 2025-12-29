@@ -12,7 +12,7 @@
 import { Text, Linking } from 'react-native';
 import { useRouter } from 'expo-router';
 import { memo, useMemo } from 'react';
-import type { AppBskyFeedPost, AppBskyRichtextFacet } from '@atproto/api';
+import type { AppBskyRichtextFacet } from '@atproto/api';
 
 interface RichTextProps {
   /** The post text */
@@ -24,8 +24,6 @@ interface RichTextProps {
   /** Number of lines before truncating (optional) */
   numberOfLines?: number;
 }
-
-type FacetFeature = AppBskyRichtextFacet.Main['features'][0];
 
 interface TextSegment {
   text: string;

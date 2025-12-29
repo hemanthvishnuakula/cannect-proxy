@@ -6,6 +6,18 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { QueryClientProvider } from '@tanstack/react-query';
 import * as Sentry from '@sentry/react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+import * as SplashScreen from 'expo-splash-screen';
+import { queryClient } from '@/lib/query-client';
+import { useAuthStore } from '@/lib/stores';
+import * as atproto from '@/lib/atproto/agent';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { PWAUpdater } from '@/components/PWAUpdater';
+import { IOSInstallPrompt } from '@/components/IOSInstallPrompt';
+import { WhatsNewToast } from '@/components/WhatsNewToast';
+import { OfflineBanner } from '@/components/OfflineBanner';
+import { ToastProvider } from '@/components/ui/Toast';
 
 // 🔒 Initialize Sentry for error tracking (before any other code runs)
 Sentry.init({
@@ -20,18 +32,6 @@ Sentry.init({
     return event;
   },
 });
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import * as SplashScreen from 'expo-splash-screen';
-import { queryClient } from '@/lib/query-client';
-import { useAuthStore } from '@/lib/stores';
-import * as atproto from '@/lib/atproto/agent';
-import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { PWAUpdater } from '@/components/PWAUpdater';
-import { IOSInstallPrompt } from '@/components/IOSInstallPrompt';
-import { WhatsNewToast } from '@/components/WhatsNewToast';
-import { OfflineBanner } from '@/components/OfflineBanner';
-import { ToastProvider } from '@/components/ui/Toast';
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();

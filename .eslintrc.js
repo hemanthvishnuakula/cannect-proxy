@@ -9,11 +9,7 @@ module.exports = {
     // Prettier integration
     'prettier/prettier': 'warn',
 
-    // React Native specific
-    'react-native/no-unused-styles': 'warn',
-    'react-native/no-inline-styles': 'off', // Allow inline for NativeWind
-
-    // React
+    // React (removed react-native rules - not in expo config by default)
     'react/react-in-jsx-scope': 'off', // Not needed in React 17+
     'react-hooks/exhaustive-deps': 'warn',
 
@@ -37,6 +33,7 @@ module.exports = {
     'android/',
     'ios/',
     'scripts/',
+    'public/', // Service worker has browser globals
     '*.config.js',
   ],
 };

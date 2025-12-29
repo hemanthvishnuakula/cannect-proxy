@@ -10,7 +10,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { View, Text, Pressable, Platform } from 'react-native';
-import Animated, { FadeIn, FadeOut, SlideInUp, SlideOutUp } from 'react-native-reanimated';
+import Animated, { SlideInUp, SlideOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { X, CheckCircle, AlertCircle, Info, RefreshCw } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
