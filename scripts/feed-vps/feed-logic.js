@@ -21,7 +21,7 @@ const HIGH_CONFIDENCE_KEYWORDS = [
   'marihuana',
   'cannabinoid',
   'cannabinoids',
-  
+
   // THC/CBD specific
   'thc',
   'delta-8',
@@ -37,7 +37,7 @@ const HIGH_CONFIDENCE_KEYWORDS = [
   'cbd oil',
   'cbd gummies',
   'full spectrum cbd',
-  
+
   // Strains (specific names)
   'og kush',
   'purple haze',
@@ -57,7 +57,7 @@ const HIGH_CONFIDENCE_KEYWORDS = [
   'runtz',
   'granddaddy purple',
   'gdp strain',
-  
+
   // Consumption methods (specific)
   'dispensary',
   'dispensaries',
@@ -78,7 +78,7 @@ const HIGH_CONFIDENCE_KEYWORDS = [
   'rolled a joint',
   'wake and bake',
   'wake n bake',
-  
+
   // Culture (very specific)
   '420 friendly',
   '420friendly',
@@ -101,7 +101,7 @@ const HIGH_CONFIDENCE_KEYWORDS = [
   'high af',
   'stoned af',
   'baked af',
-  
+
   // Products (specific)
   'live rosin',
   'live resin',
@@ -119,7 +119,7 @@ const HIGH_CONFIDENCE_KEYWORDS = [
   'hash rosin',
   'bubble hash',
   'dry sift',
-  
+
   // Industry (specific)
   'cannabis industry',
   'cannabis business',
@@ -134,7 +134,7 @@ const HIGH_CONFIDENCE_KEYWORDS = [
   'legalize weed',
   'decriminalize',
   'decriminalization',
-  
+
   // Medical (specific)
   'medical marijuana',
   'medical cannabis',
@@ -142,7 +142,7 @@ const HIGH_CONFIDENCE_KEYWORDS = [
   'medical card',
   'cannabis patient',
   'marijuana patient',
-  
+
   // Growing (specific)
   'grow tent',
   'growing cannabis',
@@ -154,7 +154,7 @@ const HIGH_CONFIDENCE_KEYWORDS = [
   'cannabis grower',
   'homegrow',
   'home grow',
-  
+
   // Hashtags (very specific)
   '#420',
   '#cannabis',
@@ -175,33 +175,33 @@ const HIGH_CONFIDENCE_KEYWORDS = [
 // These could be false positives, so require 2+ matches
 // =============================================================================
 const MEDIUM_CONFIDENCE_KEYWORDS = [
-  'weed',       // Could be garden weed
-  'kush',       // Could be name/slang
-  'indica',     // Need context
-  'sativa',     // Need context
-  'hybrid',     // Very generic
-  'terpenes',   // Could be perfume/essential oils
-  'terps',      // Slang, need context
-  'edibles',    // Could be any food
-  'blunt',      // Could be "blunt statement"
-  'joint',      // Could be "joint effort"
-  'bong',       // Need context
-  'dabs',       // Could be dance move
-  'stoner',     // Need context
-  'stoned',     // Could be biblical
-  'baked',      // Could be cooking
-  'high',       // Very generic
-  '420',        // Could be just a number
-  'flower',     // Very generic (gardening)
-  'nug',        // Need context
-  'nugs',       // Need context
-  'strain',     // Could be music/stress
-  'pre-roll',   // Need context
-  'preroll',    // Need context
-  'hash',       // Could be hashtag or data
-  'bowl',       // Very generic
-  'pipe',       // Very generic
-  'grinder',    // Could be coffee
+  'weed', // Could be garden weed
+  'kush', // Could be name/slang
+  'indica', // Need context
+  'sativa', // Need context
+  'hybrid', // Very generic
+  'terpenes', // Could be perfume/essential oils
+  'terps', // Slang, need context
+  'edibles', // Could be any food
+  'blunt', // Could be "blunt statement"
+  'joint', // Could be "joint effort"
+  'bong', // Need context
+  'dabs', // Could be dance move
+  'stoner', // Need context
+  'stoned', // Could be biblical
+  'baked', // Could be cooking
+  'high', // Very generic
+  '420', // Could be just a number
+  'flower', // Very generic (gardening)
+  'nug', // Need context
+  'nugs', // Need context
+  'strain', // Could be music/stress
+  'pre-roll', // Need context
+  'preroll', // Need context
+  'hash', // Could be hashtag or data
+  'bowl', // Very generic
+  'pipe', // Very generic
+  'grinder', // Could be coffee
 ];
 
 // Build regex for high confidence (single match)
@@ -209,10 +209,7 @@ const highConfidencePatterns = HIGH_CONFIDENCE_KEYWORDS.map((kw) => {
   const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return escaped;
 });
-const HIGH_CONFIDENCE_REGEX = new RegExp(
-  '\\b(' + highConfidencePatterns.join('|') + ')\\b',
-  'i'
-);
+const HIGH_CONFIDENCE_REGEX = new RegExp('\\b(' + highConfidencePatterns.join('|') + ')\\b', 'i');
 
 // Build regex for medium confidence (need 2+ matches)
 const mediumConfidencePatterns = MEDIUM_CONFIDENCE_KEYWORDS.map((kw) => {
@@ -250,8 +247,8 @@ function shouldIncludePost(authorHandle, text) {
   const mediumMatches = text.match(MEDIUM_CONFIDENCE_REGEX);
   if (mediumMatches) {
     // Get unique matches (case-insensitive)
-    const uniqueMatches = [...new Set(mediumMatches.map(m => m.toLowerCase()))];
-    
+    const uniqueMatches = [...new Set(mediumMatches.map((m) => m.toLowerCase()))];
+
     if (uniqueMatches.length >= 2) {
       return { include: true, reason: 'multiple_medium_keywords' };
     }

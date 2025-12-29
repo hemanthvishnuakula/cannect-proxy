@@ -43,16 +43,16 @@ async function refreshCannectUsers() {
       throw new Error(`HTTP ${response.status}`);
     }
     const data = await response.json();
-    
+
     const oldCount = cannectUserDIDs.size;
     cannectUserDIDs.clear();
-    
+
     for (const repo of data.repos || []) {
       if (repo.did) {
         cannectUserDIDs.add(repo.did);
       }
     }
-    
+
     console.log(`[Users] Loaded ${cannectUserDIDs.size} cannect.space users (was ${oldCount})`);
   } catch (err) {
     console.error('[Users] Failed to fetch cannect.space users:', err.message);
@@ -77,6 +77,28 @@ const JETSTREAM_URL =
 
 const app = express();
 app.use(express.json()); // Parse JSON bodies
+
+// CORS middleware for cross-origin requests from the Cannect app
+app.use((req, res, next) => {
+  const allowedOrigins = [
+    'https://cannect-pwa.vercel.app',
+    'https://cannect.space',
+    'http://localhost:8081',
+    'http://localhost:19006',
+  ];
+  const origin = req.headers.origin;
+  if (allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
 
 // Health check
 app.get('/health', (req, res) => {
@@ -112,7 +134,7 @@ app.post('/api/notify-post', async (req, res) => {
     if (!isCannectUser(authorDid)) {
       // Refresh user list and try again (in case they just signed up)
       await refreshCannectUsers();
-      
+
       if (!isCannectUser(authorDid)) {
         return res.status(403).json({ error: 'Not a cannect.space user' });
       }
@@ -336,7 +358,7 @@ app.listen(PORT, async () => {
 
   // Fetch cannect.space users first
   await refreshCannectUsers();
-  
+
   // Refresh user list every 5 minutes
   setInterval(refreshCannectUsers, 5 * 60 * 1000);
 
