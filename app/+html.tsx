@@ -6,10 +6,11 @@ export default function Root({ children }: { children: React.ReactNode }) {
       <head>
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
-        {/* 💎 Diamond Move: viewport-fit=cover for the Notch */}
+        <title>Cannect - Cannabis Social Network</title>
+        {/* 💎 Viewport: allow user scaling for accessibility (Lighthouse requires max-scale >= 5) */}
         <meta
           name="viewport"
-          content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+          content="width=device-width, initial-scale=1, maximum-scale=5, user-scalable=yes, viewport-fit=cover"
         />
 
         {/* ================================
@@ -34,10 +35,13 @@ export default function Root({ children }: { children: React.ReactNode }) {
         ================================ */}
         <meta
           name="description"
-          content="A Diamond Standard social network with Bluesky federation"
+          content="Cannect is the cannabis social network. Connect with enthusiasts, share experiences, and discover your community on the decentralized Bluesky network."
         />
-        <meta property="og:title" content="Cannect" />
-        <meta property="og:description" content="Connect with your community" />
+        <meta property="og:title" content="Cannect - Cannabis Social Network" />
+        <meta
+          property="og:description"
+          content="Connect with cannabis enthusiasts, share experiences, and discover your community on the decentralized Bluesky network."
+        />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="/icon-512.png" />
         <meta name="twitter:card" content="summary_large_image" />

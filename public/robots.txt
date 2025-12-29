@@ -1,0 +1,12 @@
+# Cannect - Cannabis Social Network
+# https://cannect-one.vercel.app
+
+User-agent: *
+Allow: /
+
+# Disallow API and internal routes
+Disallow: /api/
+Disallow: /_expo/
+
+# Sitemap (add when available)
+# Sitemap: https://cannect-one.vercel.app/sitemap.xml
