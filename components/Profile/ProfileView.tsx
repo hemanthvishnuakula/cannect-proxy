@@ -171,7 +171,7 @@ export function ProfileView({
                     <Pressable className="p-2 rounded-full border border-border bg-surface-elevated active:opacity-70">
                       <MoreHorizontal size={18} color="#6B7280" />
                     </Pressable>
-                    <FollowButton user={profileData} size="lg" />
+                    <FollowButton profile={profileData} size="large" />
                   </>
                 )}
               </View>
