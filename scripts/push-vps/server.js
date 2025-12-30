@@ -73,6 +73,9 @@ console.log('[DB] Database initialized');
 const app = express();
 const rateLimit = require('express-rate-limit');
 
+// Trust proxy (nginx) for correct client IP
+app.set('trust proxy', true);
+
 // Rate limiting
 const generalLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minute
