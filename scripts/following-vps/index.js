@@ -16,8 +16,12 @@ const PORT = process.env.PORT || 3002;
 // CORS for Cannect app
 app.use(cors({
   origin: [
-    'https://www.cannect.nexus',
+    'https://cannect.net',
+    'https://www.cannect.net',
     'https://cannect.nexus',
+    'https://www.cannect.nexus',
+    'https://cannect-pwa.vercel.app',
+    'https://cannect.space',
     'http://localhost:8081',
     'http://localhost:19006'
   ]

@@ -81,6 +81,10 @@ app.use(express.json()); // Parse JSON bodies
 // CORS middleware for cross-origin requests from the Cannect app
 app.use((req, res, next) => {
   const allowedOrigins = [
+    'https://cannect.net',
+    'https://www.cannect.net',
+    'https://cannect.nexus',
+    'https://www.cannect.nexus',
     'https://cannect-pwa.vercel.app',
     'https://cannect.space',
     'http://localhost:8081',
