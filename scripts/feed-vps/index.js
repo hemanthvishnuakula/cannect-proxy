@@ -76,7 +76,28 @@ const JETSTREAM_URL =
 // =============================================================================
 
 const app = express();
+const rateLimit = require('express-rate-limit');
+
 app.use(express.json()); // Parse JSON bodies
+
+// Rate limiting
+const generalLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 60, // 60 requests per minute per IP
+  message: { error: 'Too many requests, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const strictLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 30, // 30 requests per minute (for notify-post)
+  message: { error: 'Too many requests, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use(generalLimiter);
 
 // CORS middleware for cross-origin requests from the Cannect app
 app.use((req, res, next) => {
@@ -120,7 +141,7 @@ app.get('/health', (req, res) => {
 // Notify Endpoint - Instant post inclusion for Cannect App
 // =============================================================================
 
-app.post('/api/notify-post', async (req, res) => {
+app.post('/api/notify-post', strictLimiter, async (req, res) => {
   try {
     const { uri, cid, authorDid } = req.body;
 

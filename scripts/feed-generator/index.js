@@ -356,10 +356,22 @@ app.get('/.well-known/did.json', (req, res) => {
 });
 
 // ============================================
-// Admin Endpoints (for debugging)
+// Admin Endpoints (for debugging) - Protected
 // ============================================
 
-app.get('/admin/stats', (req, res) => {
+const ADMIN_KEY = process.env.ADMIN_KEY;
+
+function requireAdmin(req, res, next) {
+  if (!ADMIN_KEY) {
+    return res.status(503).json({ error: 'Admin endpoints disabled' });
+  }
+  if (req.headers['x-admin-key'] !== ADMIN_KEY) {
+    return res.status(403).json({ error: 'Unauthorized' });
+  }
+  next();
+}
+
+app.get('/admin/stats', requireAdmin, (req, res) => {
   const cannabisCount = db
     .prepare('SELECT COUNT(*) as count FROM posts WHERE feed_type = ?')
     .get('cannabis');
@@ -377,7 +389,7 @@ app.get('/admin/stats', (req, res) => {
   });
 });
 
-app.get('/admin/recent/:feed', (req, res) => {
+app.get('/admin/recent/:feed', requireAdmin, (req, res) => {
   const { feed } = req.params;
   const posts = getFeedPosts.all(feed, 20);
   res.json(posts);

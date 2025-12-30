@@ -71,6 +71,26 @@ console.log('[DB] Database initialized');
 // ============================================
 
 const app = express();
+const rateLimit = require('express-rate-limit');
+
+// Rate limiting
+const generalLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 60, // 60 requests per minute per IP
+  message: { error: 'Too many requests, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+const strictLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 10, // 10 requests per minute (for subscribe/unsubscribe)
+  message: { error: 'Too many requests, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
+app.use(generalLimiter);
 
 app.use(
   cors({
@@ -111,7 +131,7 @@ app.get('/vapid-public-key', (req, res) => {
 });
 
 // Subscribe to push notifications
-app.post('/subscribe', (req, res) => {
+app.post('/subscribe', strictLimiter, (req, res) => {
   try {
     const { did, subscription } = req.body;
 
@@ -144,7 +164,7 @@ app.post('/subscribe', (req, res) => {
 });
 
 // Unsubscribe from push notifications
-app.post('/unsubscribe', (req, res) => {
+app.post('/unsubscribe', strictLimiter, (req, res) => {
   try {
     const { endpoint } = req.body;
 

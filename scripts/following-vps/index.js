@@ -29,6 +29,17 @@ app.use(cors({
 
 app.use(express.json());
 
+// Rate limiting
+const rateLimit = require('express-rate-limit');
+
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 20, // 20 requests per minute per IP (expensive queries)
+  message: { error: 'Too many requests, please try again later' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // =============================================================================
 // CACHE
 // =============================================================================
@@ -151,7 +162,7 @@ async function getAuthorPosts(did, limit = 20) {
  *   - limit: Number of posts to return (default: 50, max: 100)
  *   - cursor: Pagination cursor (ISO timestamp)
  */
-app.get('/api/following', async (req, res) => {
+app.get('/api/following', apiLimiter, async (req, res) => {
   const startTime = Date.now();
   
   try {
