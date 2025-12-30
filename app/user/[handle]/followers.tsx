@@ -9,9 +9,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import { ArrowLeft } from 'lucide-react-native';
-import { Image } from 'expo-image';
 import { useMemo, useCallback } from 'react';
 import { useProfile, useFollowers } from '@/lib/hooks';
+import { useAuthStore } from '@/lib/stores';
+import { UserRow } from '@/components/Profile';
 import { UserListSkeleton } from '@/components/skeletons';
 import type { AppBskyActorDefs } from '@atproto/api';
 
@@ -24,40 +25,10 @@ function formatNumber(num: number | undefined): string {
   return num.toString();
 }
 
-function UserRow({ user, onPress }: { user: ProfileView; onPress: () => void }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={{ minHeight: 80 }}
-      className="flex-row items-center px-4 py-3 min-h-[80px] border-b border-border active:bg-surface-elevated"
-    >
-      {user.avatar ? (
-        <Image
-          source={{ uri: user.avatar }}
-          className="w-12 h-12 rounded-full"
-          contentFit="cover"
-        />
-      ) : (
-        <View className="w-12 h-12 rounded-full bg-surface-elevated items-center justify-center">
-          <Text className="text-text-muted text-lg">{user.handle[0].toUpperCase()}</Text>
-        </View>
-      )}
-      <View className="flex-1 ml-3">
-        <Text className="font-semibold text-text-primary">{user.displayName || user.handle}</Text>
-        <Text className="text-text-muted">@{user.handle}</Text>
-        {user.description && (
-          <Text className="text-text-secondary text-sm mt-1" numberOfLines={2}>
-            {user.description}
-          </Text>
-        )}
-      </View>
-    </Pressable>
-  );
-}
-
 export default function FollowersScreen() {
   const { handle } = useLocalSearchParams<{ handle: string }>();
   const router = useRouter();
+  const { did: currentUserDid } = useAuthStore();
 
   const profileQuery = useProfile(handle || '');
   const followersQuery = useFollowers(profileQuery.data?.did);
@@ -118,7 +89,14 @@ export default function FollowersScreen() {
           overrideItemLayout={(layout) => {
             layout.size = 80;
           }}
-          renderItem={({ item }) => <UserRow user={item} onPress={() => handleUserPress(item)} />}
+          renderItem={({ item }) => (
+            <UserRow
+              user={item}
+              onPress={() => handleUserPress(item)}
+              showFollowButton={item.did !== currentUserDid}
+              showBio
+            />
+          )}
           refreshControl={
             <RefreshControl
               refreshing={followersQuery.isRefetching}

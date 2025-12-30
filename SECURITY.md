@@ -40,6 +40,7 @@ please report it responsibly.
 ### Scope
 
 The following are in scope:
+
 - cannect.net and cannect.nexus web applications
 - cannect.space PDS server
 - feed.cannect.space API
@@ -54,6 +55,7 @@ The following are in scope:
 ## Security Best Practices
 
 This project follows security best practices:
+
 - All secrets stored in environment variables
 - No credentials committed to version control
 - HTTPS enforced on all endpoints

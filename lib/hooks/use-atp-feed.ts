@@ -11,7 +11,7 @@
  *              Bluesky's getTimeline API for others
  *
  * All feeds use Bluesky's hydration layer for proper viewer state.
- * 
+ *
  * @updated 2024-12-30 - Added Following Timeline service for cannect.space PDS
  */
 
@@ -188,9 +188,7 @@ async function fetchCannectFollowingTimeline(
     params.append('cursor', cursor);
   }
 
-  const response = await fetch(
-    `https://feed.cannect.space/api/following?${params.toString()}`
-  );
+  const response = await fetch(`https://feed.cannect.space/api/following?${params.toString()}`);
 
   if (!response.ok) {
     throw new Error(`Following API error: ${response.status}`);
@@ -205,7 +203,7 @@ async function fetchCannectFollowingTimeline(
 
 /**
  * Get Timeline (Following feed) - posts from users the current user follows
- * 
+ *
  * For cannect.space users: Uses our custom Following Timeline API
  * For other users: Uses Bluesky's official getTimeline API
  */

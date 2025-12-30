@@ -53,7 +53,12 @@ export default function ComposeScreen() {
 
   const [content, setContent] = useState('');
   const [images, setImages] = useState<{ uri: string; mimeType: string }[]>([]);
-  const [video, setVideo] = useState<{ uri: string; mimeType: string; width?: number; height?: number } | null>(null);
+  const [video, setVideo] = useState<{
+    uri: string;
+    mimeType: string;
+    width?: number;
+    height?: number;
+  } | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [quotedPost, setQuotedPost] = useState<QuotedPost | null>(null);
@@ -180,9 +185,10 @@ export default function ComposeScreen() {
         embed = {
           $type: 'app.bsky.embed.video',
           video: uploadResult.data.blob,
-          ...(video.width && video.height && {
-            aspectRatio: { width: video.width, height: video.height },
-          }),
+          ...(video.width &&
+            video.height && {
+              aspectRatio: { width: video.width, height: video.height },
+            }),
         };
       }
       // Upload images if any

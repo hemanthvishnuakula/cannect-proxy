@@ -5,6 +5,7 @@ export { Tabs, TabsList, TabsTrigger, TabsContent } from './Tabs';
 export { VideoPlayer } from './VideoPlayer';
 export { HydrationSafeText } from './HydrationSafeText';
 export { ToastProvider, useToast, useFederationToast } from './Toast';
+export { FollowButton, FollowingBadge } from './FollowButton';
 
 // Re-export skeletons for backwards compatibility
 export {

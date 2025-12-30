@@ -10,15 +10,16 @@
  * - Other users: Follow/Unfollow button, Likes tab hidden (API limitation)
  */
 
-import { View, Text, Pressable, ActivityIndicator, RefreshControl, Platform } from 'react-native';
+import { View, Text, Pressable, RefreshControl, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
-import { LogOut, Edit3, UserPlus, UserMinus, MoreHorizontal } from 'lucide-react-native';
+import { LogOut, Edit3, MoreHorizontal } from 'lucide-react-native';
 import { useState, useMemo, useCallback } from 'react';
 import * as Haptics from 'expo-haptics';
-import { useAuthorFeed, useActorLikes, useFollow, useUnfollow } from '@/lib/hooks';
+import { useAuthorFeed, useActorLikes } from '@/lib/hooks';
 import { PostCard } from '@/components/Post';
+import { FollowButton } from '@/components/ui';
 import type { AppBskyActorDefs } from '@atproto/api';
 
 type ProfileViewDetailed = AppBskyActorDefs.ProfileViewDetailed;
@@ -60,10 +61,6 @@ export function ProfileView({
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<ProfileTab>('posts');
 
-  // Follow mutations (for other users)
-  const followMutation = useFollow();
-  const unfollowMutation = useUnfollow();
-
   // Different feeds based on active tab
   const postsQuery = useAuthorFeed(profileData.did, 'posts_no_replies');
   const repliesQuery = useAuthorFeed(profileData.did, 'posts_with_replies');
@@ -103,19 +100,6 @@ export function ProfileView({
     onRefresh?.();
     currentQuery.refetch();
   }, [onRefresh, currentQuery]);
-
-  const handleFollowToggle = useCallback(async () => {
-    triggerHaptic();
-
-    if (profileData.viewer?.following) {
-      await unfollowMutation.mutateAsync(profileData.viewer.following);
-    } else {
-      await followMutation.mutateAsync(profileData.did);
-    }
-  }, [profileData, followMutation, unfollowMutation]);
-
-  const isFollowing = !!profileData.viewer?.following;
-  const isFollowPending = followMutation.isPending || unfollowMutation.isPending;
 
   // Tabs: Likes only visible for own profile
   const tabs: { key: ProfileTab; label: string }[] = [
@@ -187,33 +171,7 @@ export function ProfileView({
                     <Pressable className="p-2 rounded-full border border-border bg-surface-elevated active:opacity-70">
                       <MoreHorizontal size={18} color="#6B7280" />
                     </Pressable>
-                    <Pressable
-                      onPress={handleFollowToggle}
-                      disabled={isFollowPending}
-                      className={`px-4 py-2 rounded-full flex-row items-center ${
-                        isFollowing ? 'bg-surface-elevated border border-border' : 'bg-primary'
-                      } ${isFollowPending ? 'opacity-50' : ''} active:opacity-70`}
-                    >
-                      {isFollowPending ? (
-                        <ActivityIndicator
-                          size="small"
-                          color={isFollowing ? '#6B7280' : '#FFFFFF'}
-                        />
-                      ) : (
-                        <>
-                          {isFollowing ? (
-                            <UserMinus size={16} color="#6B7280" />
-                          ) : (
-                            <UserPlus size={16} color="#FFFFFF" />
-                          )}
-                          <Text
-                            className={`ml-1 font-semibold ${isFollowing ? 'text-text-muted' : 'text-white'}`}
-                          >
-                            {isFollowing ? 'Unfollow' : 'Follow'}
-                          </Text>
-                        </>
-                      )}
-                    </Pressable>
+                    <FollowButton user={profileData} size="lg" />
                   </>
                 )}
               </View>

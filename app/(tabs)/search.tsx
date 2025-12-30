@@ -12,8 +12,6 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
-  Image,
-  Platform,
   RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,17 +21,13 @@ import {
   X,
   Users,
   Sparkles,
-  UserPlus,
-  Check,
   FileText,
 } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import * as Haptics from 'expo-haptics';
-import { useSearchUsers, useSuggestedUsers, useFollow, useSearchPosts } from '@/lib/hooks';
-import { useDebounce } from '@/lib/hooks';
+import { useSearchUsers, useSuggestedUsers, useSearchPosts, useDebounce } from '@/lib/hooks';
 import { useAuthStore } from '@/lib/stores';
-import { useQueryClient } from '@tanstack/react-query';
 import { PostCard } from '@/components/Post';
+import { UserRow } from '@/components/Profile';
 import type { AppBskyActorDefs, AppBskyFeedDefs } from '@atproto/api';
 
 type ProfileView = AppBskyActorDefs.ProfileView;
@@ -45,80 +39,6 @@ type SearchResultItem =
   | { type: 'user'; data: AnyProfileView }
   | { type: 'post'; data: AppBskyFeedDefs.PostView }
   | { type: 'empty'; section: 'users' | 'posts' };
-
-function UserRow({
-  user,
-  onPress,
-  onFollow,
-  isFollowPending,
-  showFollowButton = true,
-  currentUserDid,
-}: {
-  user: AnyProfileView;
-  onPress: () => void;
-  onFollow?: () => void;
-  isFollowPending?: boolean;
-  showFollowButton?: boolean;
-  currentUserDid?: string;
-}) {
-  const isFollowing = !!user.viewer?.following;
-  const isSelf = user.did === currentUserDid;
-  const canShowFollow = showFollowButton && !isFollowing && !isSelf && onFollow;
-
-  return (
-    <Pressable
-      onPress={onPress}
-      style={{ minHeight: 80 }}
-      className="flex-row items-center px-4 py-3 min-h-[80px] border-b border-border active:bg-surface-elevated"
-    >
-      {user.avatar ? (
-        <Image source={{ uri: user.avatar }} className="w-12 h-12 rounded-full" />
-      ) : (
-        <View className="w-12 h-12 rounded-full bg-surface-elevated items-center justify-center">
-          <Text className="text-text-muted text-lg">{user.handle[0].toUpperCase()}</Text>
-        </View>
-      )}
-      <View className="flex-1 ml-3">
-        <Text className="font-semibold text-text-primary">{user.displayName || user.handle}</Text>
-        <Text className="text-text-muted">@{user.handle}</Text>
-        {user.description && (
-          <Text className="text-text-secondary text-sm mt-1" numberOfLines={2}>
-            {user.description}
-          </Text>
-        )}
-      </View>
-
-      {/* Follow Button */}
-      {canShowFollow && (
-        <Pressable
-          onPress={(e) => {
-            e.stopPropagation?.();
-            onFollow();
-          }}
-          disabled={isFollowPending}
-          className={`ml-2 px-4 py-2 rounded-full ${isFollowPending ? 'bg-primary/50' : 'bg-primary'}`}
-        >
-          {isFollowPending ? (
-            <ActivityIndicator size="small" color="white" />
-          ) : (
-            <View className="flex-row items-center gap-1">
-              <UserPlus size={14} color="white" />
-              <Text className="text-white font-semibold text-sm">Follow</Text>
-            </View>
-          )}
-        </Pressable>
-      )}
-
-      {/* Already Following Badge */}
-      {isFollowing && !isSelf && (
-        <View className="ml-2 flex-row items-center gap-1 px-3 py-2 rounded-full bg-surface-elevated">
-          <Check size={14} color="#10B981" />
-          <Text className="text-primary text-sm font-medium">Following</Text>
-        </View>
-      )}
-    </Pressable>
-  );
-}
 
 function SectionHeader({ title, icon }: { title: string; icon: 'users' | 'posts' }) {
   return (
@@ -156,9 +76,6 @@ export default function SearchScreen() {
   const suggestedUsersQuery = useSuggestedUsers();
 
   const { did: currentUserDid } = useAuthStore();
-  const followMutation = useFollow();
-  const queryClient = useQueryClient();
-  const [pendingFollows, setPendingFollows] = useState<Set<string>>(new Set());
 
   // Filter search results
   const searchUsers = useMemo(() => {
@@ -235,31 +152,6 @@ export default function SearchScreen() {
     router.push(`/user/${user.handle}`);
   };
 
-  const handleFollow = useCallback(
-    async (user: AnyProfileView) => {
-      if (Platform.OS !== 'web') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      }
-
-      setPendingFollows((prev) => new Set(prev).add(user.did));
-
-      try {
-        await followMutation.mutateAsync(user.did);
-        queryClient.invalidateQueries({ queryKey: ['searchUsers'] });
-        queryClient.invalidateQueries({ queryKey: ['suggestedUsers'] });
-      } catch (error) {
-        console.error('Failed to follow:', error);
-      } finally {
-        setPendingFollows((prev) => {
-          const next = new Set(prev);
-          next.delete(user.did);
-          return next;
-        });
-      }
-    },
-    [followMutation, queryClient]
-  );
-
   const isSearching = hasQuery && (usersQuery.isLoading || postsQuery.isLoading);
 
   const renderItem = useCallback(
@@ -272,9 +164,7 @@ export default function SearchScreen() {
             <UserRow
               user={item.data}
               onPress={() => handleUserPress(item.data)}
-              onFollow={() => handleFollow(item.data)}
-              isFollowPending={pendingFollows.has(item.data.did)}
-              currentUserDid={currentUserDid || undefined}
+              showFollowButton={item.data.did !== currentUserDid}
             />
           );
         case 'post':
@@ -291,7 +181,7 @@ export default function SearchScreen() {
           return null;
       }
     },
-    [pendingFollows, currentUserDid, handleFollow, router]
+    [currentUserDid, router]
   );
 
   const getItemType = (item: SearchResultItem) => item.type;
@@ -349,9 +239,7 @@ export default function SearchScreen() {
             <UserRow
               user={item}
               onPress={() => handleUserPress(item)}
-              onFollow={() => handleFollow(item)}
-              isFollowPending={pendingFollows.has(item.did)}
-              currentUserDid={currentUserDid || undefined}
+              showFollowButton
             />
           )}
           ListEmptyComponent={
