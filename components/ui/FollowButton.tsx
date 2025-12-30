@@ -74,8 +74,8 @@ export function FollowButton({
       
       // Wait a moment for Bluesky to propagate, then refresh profile data
       setTimeout(() => {
-        queryClient.invalidateQueries({ queryKey: ['profile', profile.handle] });
-        queryClient.invalidateQueries({ queryKey: ['profile', profile.did] });
+        // Invalidate all profile-related queries to ensure UI updates
+        queryClient.invalidateQueries({ queryKey: ['profile'] });
       }, 500);
     } catch (error) {
       console.error('Follow action failed:', error);
