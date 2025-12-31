@@ -14,7 +14,6 @@ import { useCallback } from 'react';
 import { View, Text, Pressable, ActivityIndicator, Platform } from 'react-native';
 import { UserPlus, UserMinus, Check } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { useQueryClient } from '@tanstack/react-query';
 import { useFollow, useUnfollow } from '@/lib/hooks';
 import { useAuthStore } from '@/lib/stores/auth-store-atp';
 import type { AppBskyActorDefs } from '@atproto/api';
@@ -50,7 +49,6 @@ export function FollowButton({
   onUnfollow,
 }: FollowButtonProps) {
   const { did: currentUserDid } = useAuthStore();
-  const queryClient = useQueryClient();
   const followMutation = useFollow();
   const unfollowMutation = useUnfollow();
 
@@ -65,18 +63,15 @@ export function FollowButton({
 
     try {
       if (isFollowing && profile.viewer?.following) {
-        await unfollowMutation.mutateAsync(profile.viewer.following);
+        await unfollowMutation.mutateAsync({
+          followUri: profile.viewer.following,
+          targetDid: profile.did,
+        });
         onUnfollow?.();
       } else {
         await followMutation.mutateAsync(profile.did);
         onFollow?.();
       }
-
-      // Wait a moment for Bluesky to propagate, then refresh profile data
-      setTimeout(() => {
-        // Invalidate all profile-related queries to ensure UI updates
-        queryClient.invalidateQueries({ queryKey: ['profile'] });
-      }, 500);
     } catch (error) {
       console.error('Follow action failed:', error);
     }
@@ -87,7 +82,6 @@ export function FollowButton({
     profile.viewer?.following,
     followMutation,
     unfollowMutation,
-    queryClient,
     onFollow,
     onUnfollow,
   ]);

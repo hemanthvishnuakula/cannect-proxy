@@ -152,37 +152,113 @@ export function useFollowing(actor: string | undefined) {
 }
 
 /**
- * Follow a user
+ * Follow a user with optimistic update
  */
 export function useFollow() {
   const queryClient = useQueryClient();
+  const { did: myDid } = useAuthStore();
 
   return useMutation({
-    mutationFn: async (did: string) => {
-      return atproto.follow(did);
+    mutationFn: async (targetDid: string) => {
+      const result = await atproto.follow(targetDid);
+      return { ...result, targetDid };
     },
-    onSuccess: (_, targetDid) => {
-      queryClient.invalidateQueries({ queryKey: ['profile', targetDid] });
-      queryClient.invalidateQueries({ queryKey: ['followers'] });
-      queryClient.invalidateQueries({ queryKey: ['following'] });
+    onMutate: async (targetDid: string) => {
+      // Cancel outgoing queries to prevent race conditions
+      await queryClient.cancelQueries({ queryKey: ['profile', targetDid] });
+
+      // Snapshot current state for rollback
+      const previousProfile = queryClient.getQueryData(['profile', targetDid]);
+
+      // Optimistically update the profile
+      queryClient.setQueryData(['profile', targetDid], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          followersCount: (old.followersCount || 0) + 1,
+          viewer: { ...old.viewer, following: 'pending' },
+        };
+      });
+
+      return { previousProfile, targetDid };
+    },
+    onSuccess: (result, _, context) => {
+      // Update with actual follow URI from server
+      if (context?.targetDid) {
+        queryClient.setQueryData(['profile', context.targetDid], (old: any) => {
+          if (!old) return old;
+          return {
+            ...old,
+            viewer: { ...old.viewer, following: result.uri },
+          };
+        });
+      }
+    },
+    onError: (err, targetDid, context) => {
+      // Rollback on error
+      if (context?.previousProfile) {
+        queryClient.setQueryData(['profile', targetDid], context.previousProfile);
+      }
+    },
+    onSettled: (_, __, targetDid) => {
+      // Reconcile with server after a delay
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['profile', targetDid] });
+        queryClient.invalidateQueries({ queryKey: ['followers', targetDid] });
+        queryClient.invalidateQueries({ queryKey: ['following', myDid] });
+      }, 2000);
     },
   });
 }
 
 /**
- * Unfollow a user
+ * Unfollow a user with optimistic update
  */
 export function useUnfollow() {
   const queryClient = useQueryClient();
+  const { did: myDid } = useAuthStore();
 
   return useMutation({
-    mutationFn: async (followUri: string) => {
+    mutationFn: async ({ followUri, targetDid }: { followUri: string; targetDid: string }) => {
+      // Validate followUri before attempting to unfollow
+      if (!followUri || followUri === 'pending') {
+        throw new Error('Invalid follow URI - please refresh and try again');
+      }
       await atproto.unfollow(followUri);
+      return { targetDid };
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['profile'] });
-      queryClient.invalidateQueries({ queryKey: ['followers'] });
-      queryClient.invalidateQueries({ queryKey: ['following'] });
+    onMutate: async ({ targetDid }) => {
+      // Cancel outgoing queries to prevent race conditions
+      await queryClient.cancelQueries({ queryKey: ['profile', targetDid] });
+
+      // Snapshot current state for rollback
+      const previousProfile = queryClient.getQueryData(['profile', targetDid]);
+
+      // Optimistically update the profile
+      queryClient.setQueryData(['profile', targetDid], (old: any) => {
+        if (!old) return old;
+        return {
+          ...old,
+          followersCount: Math.max((old.followersCount || 1) - 1, 0),
+          viewer: { ...old.viewer, following: undefined },
+        };
+      });
+
+      return { previousProfile, targetDid };
+    },
+    onError: (err, variables, context) => {
+      // Rollback on error
+      if (context?.previousProfile) {
+        queryClient.setQueryData(['profile', context.targetDid], context.previousProfile);
+      }
+    },
+    onSettled: (_, __, { targetDid }) => {
+      // Reconcile with server after a delay
+      setTimeout(() => {
+        queryClient.invalidateQueries({ queryKey: ['profile', targetDid] });
+        queryClient.invalidateQueries({ queryKey: ['followers', targetDid] });
+        queryClient.invalidateQueries({ queryKey: ['following', myDid] });
+      }, 2000);
     },
   });
 }

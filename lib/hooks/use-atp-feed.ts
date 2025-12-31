@@ -421,7 +421,7 @@ export function useLikePost() {
   return useMutation({
     mutationFn: async ({ uri, cid }: { uri: string; cid: string }) => {
       const result = await atproto.likePost(uri, cid);
-      return result;
+      return { ...result, postUri: uri };
     },
     onMutate: async ({ uri }) => {
       await optimistic.cancel();
@@ -429,10 +429,19 @@ export function useLikePost() {
       optimistic.updatePost(uri, postUpdaters.like);
       return snapshots;
     },
+    onSuccess: (result) => {
+      // Update with the actual like URI from the server
+      optimistic.updatePost(result.postUri, postUpdaters.confirmLike(result.uri));
+    },
     onError: (err, variables, context) => {
       if (context) optimistic.restore(context);
     },
-    // No onSettled - optimistic update is the final state
+    onSettled: () => {
+      // Reconcile with server state after a delay to avoid immediate refetch
+      setTimeout(() => {
+        optimistic.invalidate({ only: ['thread'] });
+      }, 2000);
+    },
   });
 }
 
@@ -444,8 +453,13 @@ export function useUnlikePost() {
   const optimistic = createOptimisticContext(queryClient);
 
   return useMutation({
-    mutationFn: async ({ likeUri, postUri: _postUri }: { likeUri: string; postUri: string }) => {
+    mutationFn: async ({ likeUri, postUri }: { likeUri: string; postUri: string }) => {
+      // Validate likeUri before attempting to unlike
+      if (!likeUri || likeUri === 'pending') {
+        throw new Error('Invalid like URI - please refresh and try again');
+      }
       await atproto.unlikePost(likeUri);
+      return { postUri };
     },
     onMutate: async ({ postUri }) => {
       await optimistic.cancel();
@@ -457,7 +471,12 @@ export function useUnlikePost() {
     onError: (err, variables, context) => {
       if (context) optimistic.restore(context);
     },
-    // No onSettled - optimistic update is the final state
+    onSettled: () => {
+      // Reconcile with server state after a delay
+      setTimeout(() => {
+        optimistic.invalidate({ only: ['thread', 'actorLikes'] });
+      }, 2000);
+    },
   });
 }
 
@@ -471,7 +490,7 @@ export function useRepost() {
   return useMutation({
     mutationFn: async ({ uri, cid }: { uri: string; cid: string }) => {
       const result = await atproto.repost(uri, cid);
-      return result;
+      return { ...result, postUri: uri };
     },
     onMutate: async ({ uri }) => {
       await optimistic.cancel();
@@ -479,10 +498,19 @@ export function useRepost() {
       optimistic.updatePost(uri, postUpdaters.repost);
       return snapshots;
     },
+    onSuccess: (result) => {
+      // Update with the actual repost URI from the server
+      optimistic.updatePost(result.postUri, postUpdaters.confirmRepost(result.uri));
+    },
     onError: (err, variables, context) => {
       if (context) optimistic.restore(context);
     },
-    // No onSettled - optimistic update is the final state
+    onSettled: () => {
+      // Reconcile with server state after a delay
+      setTimeout(() => {
+        optimistic.invalidate({ only: ['thread'] });
+      }, 2000);
+    },
   });
 }
 
@@ -496,12 +524,17 @@ export function useDeleteRepost() {
   return useMutation({
     mutationFn: async ({
       repostUri,
-      postUri: _postUri,
+      postUri,
     }: {
       repostUri: string;
       postUri: string;
     }) => {
+      // Validate repostUri before attempting to delete
+      if (!repostUri || repostUri === 'pending') {
+        throw new Error('Invalid repost URI - please refresh and try again');
+      }
       await atproto.deleteRepost(repostUri);
+      return { postUri };
     },
     onMutate: async ({ postUri }) => {
       await optimistic.cancel();
@@ -512,7 +545,12 @@ export function useDeleteRepost() {
     onError: (err, variables, context) => {
       if (context) optimistic.restore(context);
     },
-    // No onSettled - optimistic update is the final state
+    onSettled: () => {
+      // Reconcile with server state after a delay
+      setTimeout(() => {
+        optimistic.invalidate({ only: ['thread'] });
+      }, 2000);
+    },
   });
 }
 
