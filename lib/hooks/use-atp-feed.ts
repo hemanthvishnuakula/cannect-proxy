@@ -385,7 +385,7 @@ export function useCreatePost() {
 }
 
 /**
- * Delete a post with optimistic update
+ * Delete a post with optimistic update and server verification
  */
 export function useDeletePost() {
   const queryClient = useQueryClient();
@@ -400,14 +400,29 @@ export function useDeletePost() {
       await optimistic.cancel();
       const snapshots = optimistic.snapshot();
       optimistic.removePost(uri);
-      return snapshots;
+      return { snapshots, uri };
     },
     onError: (err, uri, context) => {
-      if (context) optimistic.restore(context);
+      if (context?.snapshots) optimistic.restore(context.snapshots);
     },
-    // NOTE: We intentionally do NOT refetch after delete
-    // The optimistic update already removed the post from cache
-    // Refetching would bring back the post due to AppView caching delays
+    onSuccess: (uri) => {
+      // Verify deletion after AppView propagation delay
+      // If the post still exists, it means delete failed silently
+      setTimeout(async () => {
+        try {
+          // Try to fetch the post - if it succeeds, deletion failed
+          const result = await atproto.getPost(uri);
+          if (result?.data?.thread) {
+            console.warn('[Delete] Post still exists after deletion, restoring to cache');
+            // Post still exists - invalidate to bring it back
+            optimistic.invalidate({ only: ['authorFeed', 'timeline', 'cannectFeed'] });
+          }
+        } catch {
+          // 404 or error = post is actually deleted, which is expected
+          console.log('[Delete] Post verified as deleted');
+        }
+      }, 5000); // Wait 5 seconds for AppView to propagate
+    },
   });
 }
 
@@ -522,13 +537,7 @@ export function useDeleteRepost() {
   const optimistic = createOptimisticContext(queryClient);
 
   return useMutation({
-    mutationFn: async ({
-      repostUri,
-      postUri,
-    }: {
-      repostUri: string;
-      postUri: string;
-    }) => {
+    mutationFn: async ({ repostUri, postUri }: { repostUri: string; postUri: string }) => {
       // Validate repostUri before attempting to delete
       if (!repostUri || repostUri === 'pending') {
         throw new Error('Invalid repost URI - please refresh and try again');

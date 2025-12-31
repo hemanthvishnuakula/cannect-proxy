@@ -105,6 +105,7 @@ app.use(
       'https://cannect.nexus',
       'https://www.cannect.nexus',
       'https://cannect-app.vercel.app',
+      'https://cannect-vps-proxy.vercel.app',
       'https://cannect.space',
       'http://localhost:8081',
       'http://localhost:19006',

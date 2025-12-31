@@ -7,8 +7,17 @@ let isHandlingAuthError = false;
 // Track consecutive 400 errors - multiple 400s in a row likely means auth failure
 let consecutive400Count = 0;
 let last400Time = 0;
-const CONSECUTIVE_400_THRESHOLD = 3;
-const CONSECUTIVE_400_WINDOW_MS = 2000; // Reset count if more than 2s between errors
+const CONSECUTIVE_400_THRESHOLD = 5; // Increased from 3 to reduce false positives
+const CONSECUTIVE_400_WINDOW_MS = 3000; // Increased from 2s to 3s
+
+/**
+ * Reset consecutive error tracking on successful requests
+ * Call this after any successful API response
+ */
+export function resetErrorTracking(): void {
+  consecutive400Count = 0;
+  last400Time = 0;
+}
 
 /**
  * Custom retry function with rate limit awareness

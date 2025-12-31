@@ -119,7 +119,8 @@ export const PostActions = memo(function PostActions({
 
   // Handle like toggle
   const handleLike = useCallback(async () => {
-    if (isLikeLoading) return;
+    // Prevent double-tap: check both local and mutation pending state
+    if (isLikeLoading || likeMutation.isPending || unlikeMutation.isPending) return;
     triggerHaptic();
     setIsLikeLoading(true);
 
@@ -150,7 +151,8 @@ export const PostActions = memo(function PostActions({
 
   // Perform repost/unrepost action
   const handleRepost = useCallback(async () => {
-    if (isRepostLoading) return;
+    // Prevent double-tap: check both local and mutation pending state
+    if (isRepostLoading || repostMutation.isPending || unrepostMutation.isPending) return;
     triggerHaptic(Haptics.ImpactFeedbackStyle.Medium);
     setIsRepostLoading(true);
     setRepostMenuVisible(false);

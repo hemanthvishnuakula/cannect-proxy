@@ -362,27 +362,41 @@ export async function createPost(
 /**
  * Notify the Cannect feed generator about a new post
  * This allows the post to appear immediately in the feed without waiting for Jetstream
+ * Includes retry logic with exponential backoff (3 attempts)
  */
 async function notifyFeedGenerator(uri: string, cid: string, authorDid: string): Promise<void> {
-  try {
-    const response = await fetch('https://feed.cannect.space/api/notify-post', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ uri, cid, authorDid }),
-    });
+  const MAX_RETRIES = 3;
+  const BASE_DELAY = 1000; // 1 second
 
-    if (response.ok) {
-      console.log('[Feed] Post notified to feed generator');
-    } else {
-      const error = await response.json().catch(() => ({}));
-      console.warn('[Feed] Failed to notify feed generator:', error);
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const response = await fetch('https://feed.cannect.space/api/notify-post', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ uri, cid, authorDid }),
+      });
+
+      if (response.ok) {
+        console.log('[Feed] Post notified to feed generator');
+        return; // Success - exit
+      } else {
+        const error = await response.json().catch(() => ({}));
+        console.warn(`[Feed] Attempt ${attempt}/${MAX_RETRIES} failed:`, error);
+      }
+    } catch (err) {
+      console.warn(`[Feed] Attempt ${attempt}/${MAX_RETRIES} error:`, err);
     }
-  } catch (err) {
-    // Don't throw - this is a best-effort notification
-    console.warn('[Feed] Error notifying feed generator:', err);
+
+    // Wait before retry (exponential backoff: 1s, 2s, 4s)
+    if (attempt < MAX_RETRIES) {
+      const delay = BASE_DELAY * Math.pow(2, attempt - 1);
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
   }
+
+  console.warn('[Feed] All retry attempts failed for notifyFeedGenerator');
 }
 
 /**

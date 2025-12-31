@@ -98,8 +98,17 @@ function AppContent() {
             queryClient.invalidateQueries();
           } catch (err: any) {
             console.warn('[App] ❌ Session refresh failed:', err?.message || err);
-            // Session refresh failed - queries will trigger auth error handling
-            queryClient.invalidateQueries();
+            // Don't invalidate queries if session refresh failed
+            // This prevents a cascade of 401 errors from stale tokens
+            // The auth error handler will trigger logout if needed
+            if (atproto.isAuthError(err)) {
+              console.log('[App] 🔴 Auth error detected, skipping query invalidation');
+              // Auth error handler will take care of logout
+            } else {
+              // Network or other error - safe to retry queries
+              console.log('[App] 🔄 Non-auth error, retrying queries');
+              queryClient.invalidateQueries();
+            }
           }
         }
       }
