@@ -496,15 +496,13 @@ export async function getPost(uri: string) {
 }
 
 /**
- * Check if a handle/DID belongs to a Cannect PDS user
+ * Check if a handle belongs to a Cannect PDS user
+ * Only returns true for .cannect.space handles to avoid unnecessary PDS requests
  */
-function isCannectUser(actor: string): boolean {
-  // Check if it's a .cannect.space handle
-  if (actor.includes('.cannect.space')) {
-    return true;
-  }
-  // DIDs will be checked by fetching from PDS
-  return actor.startsWith('did:');
+function isCannectUser(handle: string): boolean {
+  // Only check for .cannect.space handles
+  // DIDs alone are not enough - we need the handle to determine PDS
+  return handle.includes('.cannect.space');
 }
 
 /**
@@ -545,8 +543,9 @@ export async function getProfile(actor: string) {
   const bskyAgent = getAgent();
   const result = await bskyAgent.getProfile({ actor });
   
-  // If this might be a Cannect user, try to get fresh data from PDS
-  if (isCannectUser(actor)) {
+  // Check if this is a Cannect user based on handle (from input or result)
+  const handle = result.data.handle || actor;
+  if (isCannectUser(handle)) {
     const did = result.data.did;
     const pdsProfile = await getProfileFromPds(did);
     
