@@ -130,8 +130,8 @@ export function PostCard({
   return (
     <Pressable
       onPress={handlePress}
-      style={{ minHeight: 140 }}
-      className={`px-4 py-3 min-h-[140px] ${showBorder ? 'border-b border-border' : ''}`}
+      style={{ minHeight: 160 }}
+      className={`px-4 py-4 min-h-[160px] ${showBorder ? 'border-b border-border' : ''}`}
     >
       {/* Repost indicator */}
       {isRepost && repostBy && (
@@ -155,15 +155,15 @@ export function PostCard({
         >
           {author.avatar ? (
             <Image
-              source={{ uri: getOptimizedAvatarUrl(author.avatar, 40) }}
-              className="w-10 h-10 rounded-full bg-surface-elevated"
+              source={{ uri: getOptimizedAvatarUrl(author.avatar, 44) }}
+              className="w-11 h-11 rounded-full bg-surface-elevated"
               contentFit="cover"
               transition={200}
               cachePolicy="memory-disk"
               recyclingKey={author.avatar}
             />
           ) : (
-            <View className="w-10 h-10 rounded-full bg-surface-elevated items-center justify-center">
+            <View className="w-11 h-11 rounded-full bg-surface-elevated items-center justify-center">
               <Text className="text-text-muted text-lg">{author.handle[0].toUpperCase()}</Text>
             </View>
           )}
@@ -201,7 +201,7 @@ export function PostCard({
           <RichText
             text={record.text}
             facets={record.facets}
-            className="mt-1"
+            className="mt-2"
             numberOfLines={shouldTruncate ? MAX_TEXT_LINES : undefined}
           />
 
