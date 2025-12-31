@@ -29,13 +29,11 @@ scp scripts/push-vps/* root@your-vps-ip:/root/push-server/
 npm install
 
 # Set environment variables
-export VAPID_PUBLIC_KEY="your-public-key"
-export VAPID_PRIVATE_KEY="your-private-key"
-export VAPID_SUBJECT="mailto:admin@cannect.space"
-export ADMIN_KEY="your-secret-admin-key"
+cp .env.example .env
+nano .env  # Fill in your values
 
-# Start with pm2
-pm2 start server.js --name push-server
+# Start with pm2 (loads .env automatically via dotenv)
+pm2 start ecosystem.config.js
 pm2 save
 pm2 startup
 ```

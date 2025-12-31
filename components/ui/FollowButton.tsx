@@ -71,7 +71,7 @@ export function FollowButton({
         await followMutation.mutateAsync(profile.did);
         onFollow?.();
       }
-      
+
       // Wait a moment for Bluesky to propagate, then refresh profile data
       setTimeout(() => {
         // Invalidate all profile-related queries to ensure UI updates
@@ -119,12 +119,7 @@ export function FollowButton({
   // Determine button state and styling
   const getButtonContent = () => {
     if (isPending) {
-      return (
-        <ActivityIndicator
-          size="small"
-          color={isFollowing ? '#6B7280' : '#FFFFFF'}
-        />
-      );
+      return <ActivityIndicator size="small" color={isFollowing ? '#6B7280' : '#FFFFFF'} />;
     }
 
     if (isFollowing) {
@@ -182,7 +177,9 @@ export function FollowingBadge({ size = 'small' }: { size?: 'small' | 'medium' }
   const paddingClass = size === 'small' ? 'px-2 py-1' : 'px-3 py-1.5';
 
   return (
-    <View className={`flex-row items-center gap-1 ${paddingClass} rounded-full bg-surface-elevated`}>
+    <View
+      className={`flex-row items-center gap-1 ${paddingClass} rounded-full bg-surface-elevated`}
+    >
       <Check size={iconSize} color="#10B981" />
       <Text className={`text-primary font-medium ${textClass}`}>Following</Text>
     </View>

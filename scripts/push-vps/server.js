@@ -74,7 +74,7 @@ const app = express();
 const rateLimit = require('express-rate-limit');
 
 // Trust proxy (nginx) for correct client IP
-app.set('trust proxy', true);
+app.set('trust proxy', 1);
 
 // Rate limiting
 const generalLimiter = rateLimit({
@@ -83,6 +83,7 @@ const generalLimiter = rateLimit({
   message: { error: 'Too many requests, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false },
 });
 
 const strictLimiter = rateLimit({
@@ -91,6 +92,7 @@ const strictLimiter = rateLimit({
   message: { error: 'Too many requests, please try again later' },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { trustProxy: false },
 });
 
 app.use(generalLimiter);
@@ -125,6 +127,7 @@ app.get('/health', (req, res) => {
     status: 'ok',
     subscriptions: count.count,
     vapidPublicKey: VAPID_PUBLIC_KEY,
+    adminKeyConfigured: !!process.env.ADMIN_KEY,
   });
 });
 
@@ -262,6 +265,10 @@ app.post('/broadcast', async (req, res) => {
   try {
     const { title, body, icon, url, adminKey } = req.body;
 
+    // Debug logging
+    console.log('[Broadcast] Received adminKey:', adminKey);
+    console.log('[Broadcast] Expected adminKey:', process.env.ADMIN_KEY);
+
     // Simple admin key check (set ADMIN_KEY env var)
     if (adminKey !== process.env.ADMIN_KEY) {
       return res.status(403).json({ error: 'Unauthorized' });
@@ -294,6 +301,7 @@ app.post('/broadcast', async (req, res) => {
         await webpush.sendNotification(pushSubscription, payload);
         sent++;
       } catch (error) {
+        console.error(`[Broadcast] Push failed for ${sub.did}:`, error.statusCode, error.body || error.message);
         failed++;
         if (error.statusCode === 404 || error.statusCode === 410) {
           db.prepare('DELETE FROM subscriptions WHERE id = ?').run(sub.id);

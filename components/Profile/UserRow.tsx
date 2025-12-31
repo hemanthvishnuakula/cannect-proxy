@@ -69,9 +69,7 @@ export function UserRow({
         />
       ) : (
         <View className="w-12 h-12 rounded-full bg-surface-elevated items-center justify-center">
-          <Text className="text-text-muted text-lg">
-            {(user.handle || '?')[0].toUpperCase()}
-          </Text>
+          <Text className="text-text-muted text-lg">{(user.handle || '?')[0].toUpperCase()}</Text>
         </View>
       )}
 
@@ -95,12 +93,7 @@ export function UserRow({
         {rightElement ? (
           rightElement
         ) : showFollowButton && !isSelf && !isBlocked ? (
-          <FollowButton
-            profile={user}
-            size="small"
-            onFollow={onFollow}
-            onUnfollow={onUnfollow}
-          />
+          <FollowButton profile={user} size="small" onFollow={onFollow} onUnfollow={onUnfollow} />
         ) : isFollowing && !isSelf ? (
           <FollowingBadge size="small" />
         ) : null}

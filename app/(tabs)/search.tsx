@@ -6,23 +6,10 @@
  */
 
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import {
-  View,
-  Text,
-  TextInput,
-  Pressable,
-  ActivityIndicator,
-  RefreshControl,
-} from 'react-native';
+import { View, Text, TextInput, Pressable, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FlashList } from '@shopify/flash-list';
-import {
-  Search as SearchIcon,
-  X,
-  Users,
-  Sparkles,
-  FileText,
-} from 'lucide-react-native';
+import { Search as SearchIcon, X, Users, Sparkles, FileText } from 'lucide-react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { useSearchUsers, useSuggestedUsers, useSearchPosts, useDebounce } from '@/lib/hooks';
 import { useAuthStore } from '@/lib/stores';
@@ -236,11 +223,7 @@ export default function SearchScreen() {
             </View>
           }
           renderItem={({ item }) => (
-            <UserRow
-              user={item}
-              onPress={() => handleUserPress(item)}
-              showFollowButton
-            />
+            <UserRow user={item} onPress={() => handleUserPress(item)} showFollowButton />
           )}
           ListEmptyComponent={
             suggestedUsersQuery.isLoading ? (

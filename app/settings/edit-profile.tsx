@@ -316,13 +316,14 @@ export default function EditProfileScreen() {
         update.bannerMimeType = banner.mimeType;
       }
 
-      // Navigate back FIRST to avoid white flash from query invalidation
-      router.back();
-
-      // Then update in background - the onSuccess will update the store
+      // Wait for mutation to complete BEFORE navigating
+      // This ensures the update finishes on Android PWA where background work is killed
       await updateProfileMutation.mutateAsync(update);
 
       triggerNotification('success');
+      
+      // Navigate back after successful save
+      router.back();
     } catch (err: any) {
       setIsSaving(false);
       setError(err.message || 'Failed to update profile');
