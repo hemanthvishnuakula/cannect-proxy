@@ -337,12 +337,14 @@ export const PostActions = memo(function PostActions({
             stopEvent(e);
             handleReply();
           }}
-          className="flex-row items-center py-1"
+          className="flex-row items-center py-1 min-w-[44px]"
           hitSlop={8}
         >
           <MessageCircle size={iconSize} color={mutedColor} />
-          {!hideReplyCounts && replyCount > 0 && (
-            <Text className="text-text-muted text-sm ml-1.5">{replyCount}</Text>
+          {!hideReplyCounts && (
+            <Text className="text-text-muted text-sm ml-1.5 min-w-[16px]">
+              {replyCount > 0 ? replyCount : ''}
+            </Text>
           )}
         </Pressable>
 
@@ -353,16 +355,14 @@ export const PostActions = memo(function PostActions({
             stopEvent(e);
             handleRepostPress();
           }}
-          className="flex-row items-center py-1"
+          className="flex-row items-center py-1 min-w-[44px]"
           disabled={isRepostLoading}
           hitSlop={8}
         >
           <Repeat2 size={iconSize} color={repostColor} />
-          {repostCount > 0 && (
-            <Text className={`text-sm ml-1.5 ${isReposted ? 'text-green-500' : 'text-text-muted'}`}>
-              {repostCount}
-            </Text>
-          )}
+          <Text className={`text-sm ml-1.5 min-w-[16px] ${isReposted ? 'text-green-500' : 'text-text-muted'}`}>
+            {repostCount > 0 ? repostCount : ''}
+          </Text>
         </Pressable>
 
         {/* Like */}
@@ -372,16 +372,14 @@ export const PostActions = memo(function PostActions({
             stopEvent(e);
             handleLike();
           }}
-          className="flex-row items-center py-1"
+          className="flex-row items-center py-1 min-w-[44px]"
           disabled={isLikeLoading}
           hitSlop={8}
         >
           <Heart size={iconSize} color={likeColor} fill={isLiked ? '#EF4444' : 'none'} />
-          {likeCount > 0 && (
-            <Text className={`text-sm ml-1.5 ${isLiked ? 'text-red-500' : 'text-text-muted'}`}>
-              {likeCount}
-            </Text>
-          )}
+          <Text className={`text-sm ml-1.5 min-w-[16px] ${isLiked ? 'text-red-500' : 'text-text-muted'}`}>
+            {likeCount > 0 ? likeCount : ''}
+          </Text>
         </Pressable>
 
         {/* Share */}
