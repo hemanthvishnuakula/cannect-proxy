@@ -314,6 +314,11 @@ function handleNewPost(did, commit) {
   const record = commit.record;
   if (!record) return;
 
+  // Skip replies - only include top-level posts for better feed quality
+  if (record.reply) {
+    return;
+  }
+
   // Get post text
   const text = getPostText(record);
 
