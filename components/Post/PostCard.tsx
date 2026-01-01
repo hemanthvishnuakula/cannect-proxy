@@ -204,7 +204,7 @@ export function PostCard({
 
           {/* Show more button for truncated text */}
           {shouldTruncate && (
-            <Pressable onPressIn={stopEvent} onPress={handleShowMore} className="mt-1">
+            <Pressable onPressIn={stopEvent} onPress={handleShowMore} className="mt-2">
               <Text className="text-primary font-medium">Show more</Text>
             </Pressable>
           )}
