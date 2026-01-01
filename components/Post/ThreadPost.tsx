@@ -20,6 +20,22 @@ import type { AppBskyFeedDefs, AppBskyFeedPost } from '@atproto/api';
 
 type PostView = AppBskyFeedDefs.PostView;
 
+// Format relative time (matching PostCard)
+function formatTime(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / (1000 * 60));
+  const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+  if (diffMins < 1) return 'now';
+  if (diffMins < 60) return `${diffMins}m`;
+  if (diffHours < 24) return `${diffHours}h`;
+  if (diffDays < 7) return `${diffDays}d`;
+  return date.toLocaleDateString();
+}
+
 interface ThreadPostProps {
   post: PostView;
   onImagePress?: (images: string[], index: number) => void;
@@ -39,17 +55,6 @@ export function ThreadPost({ post, onImagePress }: ThreadPostProps) {
   const handleAuthorPress = () => {
     router.push(`/user/${author.handle}`);
   };
-
-  // Format full date
-  const formattedDate = record.createdAt
-    ? new Date(record.createdAt).toLocaleString(undefined, {
-        hour: 'numeric',
-        minute: '2-digit',
-        month: 'short',
-        day: 'numeric',
-        year: 'numeric',
-      })
-    : '';
 
   // Check if cannect.space user
   const isCannectUser = author.handle.endsWith('.cannect.space');
@@ -101,6 +106,8 @@ export function ThreadPost({ post, onImagePress }: ThreadPostProps) {
                 <Text className="text-text-muted text-xs font-medium">global</Text>
               </View>
             )}
+            <View className="flex-1" />
+            <Text className="text-text-muted text-sm flex-shrink-0">{formatTime(record.createdAt)}</Text>
           </View>
           <Text className="text-text-muted text-sm">{displayHandle}</Text>
         </View>
@@ -111,9 +118,6 @@ export function ThreadPost({ post, onImagePress }: ThreadPostProps) {
 
       {/* Embeds */}
       <PostEmbeds embed={post.embed} onImagePress={onImagePress} />
-
-      {/* Timestamp */}
-      <Text className="text-text-muted text-sm mt-4 mb-4">{formattedDate}</Text>
 
       {/* Action buttons with counts */}
       <PostActions post={post} variant="expanded" />
