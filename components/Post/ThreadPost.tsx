@@ -8,6 +8,7 @@
  * - Full action bar
  */
 
+import { useCallback } from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
@@ -29,6 +30,12 @@ export function ThreadPost({ post, onImagePress }: ThreadPostProps) {
   const record = post.record as AppBskyFeedPost.Record;
   const author = post.author;
 
+  // Stop event propagation helper
+  const stopEvent = useCallback((e: any) => {
+    e?.stopPropagation?.();
+    e?.preventDefault?.();
+  }, []);
+
   const handleAuthorPress = () => {
     router.push(`/user/${author.handle}`);
   };
@@ -44,10 +51,24 @@ export function ThreadPost({ post, onImagePress }: ThreadPostProps) {
       })
     : '';
 
+  // Check if cannect.space user
+  const isCannectUser = author.handle.endsWith('.cannect.space');
+
+  // Truncate long handles
+  const displayHandle = author.handle.length > 25 
+    ? `@${author.handle.slice(0, 25)}…` 
+    : `@${author.handle}`;
+
   return (
     <View className="px-4">
       {/* Author info - larger for thread view */}
-      <Pressable onPress={handleAuthorPress} className="flex-row items-center mb-4">
+      <Pressable
+        onPressIn={stopEvent}
+        onPress={handleAuthorPress}
+        className="flex-row items-center mb-4"
+        hitSlop={8}
+        style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+      >
         {author.avatar ? (
           <Image
             source={{ uri: getOptimizedAvatarUrl(author.avatar, 48) }}
@@ -66,10 +87,22 @@ export function ThreadPost({ post, onImagePress }: ThreadPostProps) {
           </View>
         )}
         <View className="ml-3 flex-1">
-          <Text className="text-text-primary font-semibold text-base">
-            {author.displayName || author.handle}
-          </Text>
-          <Text className="text-text-muted text-sm">@{author.handle}</Text>
+          <View className="flex-row items-center">
+            <Text className="text-text-primary font-semibold text-base flex-shrink" numberOfLines={1}>
+              {author.displayName || author.handle}
+            </Text>
+            {/* Network badge - cannect (green) or global */}
+            {isCannectUser ? (
+              <View className="ml-2 px-2 py-0.5 rounded-full bg-primary/20 flex-shrink-0">
+                <Text className="text-primary text-xs font-medium">cannect</Text>
+              </View>
+            ) : (
+              <View className="ml-2 px-2 py-0.5 rounded-full bg-surface-elevated flex-shrink-0">
+                <Text className="text-text-muted text-xs font-medium">global</Text>
+              </View>
+            )}
+          </View>
+          <Text className="text-text-muted text-sm">{displayHandle}</Text>
         </View>
       </Pressable>
 
