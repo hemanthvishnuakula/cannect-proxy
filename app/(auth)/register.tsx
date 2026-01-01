@@ -14,15 +14,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { ArrowLeft, Mail, Lock, Eye, EyeOff, Globe } from 'lucide-react-native';
 import { useCreateAccount } from '@/lib/hooks';
 
-// Built-in invite code for app users
-const APP_INVITE_CODE = process.env.EXPO_PUBLIC_PDS_INVITE_CODE || '';
-
 export default function RegisterScreen() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  // Auto-fill with app's invite code, hidden from user
-  const inviteCode = APP_INVITE_CODE;
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -53,7 +48,6 @@ export default function RegisterScreen() {
         email,
         password,
         handle: normalizedUsername,
-        inviteCode: inviteCode || undefined,
       });
 
       // Success - redirect to feed
@@ -64,8 +58,6 @@ export default function RegisterScreen() {
 
       if (message.includes('Handle already taken')) {
         setError('This username is already taken. Please choose another.');
-      } else if (message.includes('Invalid invite code')) {
-        setError('Invalid invite code. Please check and try again.');
       } else if (message.includes('Email already exists')) {
         setError('An account with this email already exists.');
       } else {
