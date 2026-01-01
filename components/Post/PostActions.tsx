@@ -337,8 +337,9 @@ export const PostActions = memo(function PostActions({
             stopEvent(e);
             handleReply();
           }}
-          className="flex-row items-center py-1 min-w-[44px]"
-          hitSlop={8}
+          className="flex-row items-center p-2 min-w-[44px] -ml-2"
+          hitSlop={12}
+          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
         >
           <MessageCircle size={iconSize} color={mutedColor} />
           {!hideReplyCounts && (
@@ -355,9 +356,10 @@ export const PostActions = memo(function PostActions({
             stopEvent(e);
             handleRepostPress();
           }}
-          className="flex-row items-center py-1 min-w-[44px]"
+          className="flex-row items-center p-2 min-w-[44px]"
           disabled={isRepostLoading}
-          hitSlop={8}
+          hitSlop={12}
+          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
         >
           <Repeat2 size={iconSize} color={repostColor} />
           <Text className={`text-sm ml-1.5 min-w-[16px] ${isReposted ? 'text-green-500' : 'text-text-muted'}`}>
@@ -372,9 +374,10 @@ export const PostActions = memo(function PostActions({
             stopEvent(e);
             handleLike();
           }}
-          className="flex-row items-center py-1 min-w-[44px]"
+          className="flex-row items-center p-2 min-w-[44px]"
           disabled={isLikeLoading}
-          hitSlop={8}
+          hitSlop={12}
+          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
         >
           <Heart size={iconSize} color={likeColor} fill={isLiked ? '#EF4444' : 'none'} />
           <Text className={`text-sm ml-1.5 min-w-[16px] ${isLiked ? 'text-red-500' : 'text-text-muted'}`}>
@@ -389,8 +392,9 @@ export const PostActions = memo(function PostActions({
             stopEvent(e);
             handleShare();
           }}
-          className="flex-row items-center py-1"
-          hitSlop={8}
+          className="flex-row items-center p-2 min-w-[44px]"
+          hitSlop={12}
+          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
         >
           <Share size={iconSize} color={mutedColor} />
         </Pressable>
@@ -403,8 +407,9 @@ export const PostActions = memo(function PostActions({
               stopEvent(e);
               handleOptionsPress();
             }}
-            className="flex-row items-center py-1"
-            hitSlop={8}
+            className="flex-row items-center p-2 min-w-[44px] -mr-2"
+            hitSlop={12}
+            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
           >
             <MoreHorizontal size={iconSize} color={mutedColor} />
           </Pressable>
