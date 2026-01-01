@@ -372,6 +372,31 @@ export default function ComposeScreen() {
             />
           </View>
 
+          {/* Inline Toolbar - Below Text */}
+          <View className="flex-row items-center justify-between ml-13 mt-3 pb-3 border-b border-border">
+            <View className="flex-row gap-4">
+              <Pressable
+                onPress={handlePickImage}
+                disabled={images.length >= 4 || video !== null}
+                className={images.length >= 4 || video !== null ? 'opacity-50' : ''}
+              >
+                <ImageIcon size={22} color="#10B981" />
+              </Pressable>
+              <Pressable
+                onPress={handlePickVideo}
+                disabled={images.length > 0 || video !== null}
+                className={images.length > 0 || video !== null ? 'opacity-50' : ''}
+              >
+                <VideoIcon size={22} color="#3B82F6" />
+              </Pressable>
+            </View>
+            <Text
+              className={`font-medium ${isOverLimit ? 'text-accent-error' : remainingChars < 50 ? 'text-yellow-500' : 'text-text-muted'}`}
+            >
+              {remainingChars}
+            </Text>
+          </View>
+
           {/* Images Preview */}
           {images.length > 0 && (
             <View className="flex-row flex-wrap gap-2 mt-4 ml-13">
@@ -454,34 +479,6 @@ export default function ComposeScreen() {
               )}
             </View>
           )}
-        </View>
-
-        {/* Bottom Bar */}
-        <View className="flex-row items-center justify-between px-4 py-3 border-t border-border">
-          {/* Media Buttons */}
-          <View className="flex-row gap-4">
-            <Pressable
-              onPress={handlePickImage}
-              disabled={images.length >= 4 || video !== null}
-              className={images.length >= 4 || video !== null ? 'opacity-50' : ''}
-            >
-              <ImageIcon size={24} color="#10B981" />
-            </Pressable>
-            <Pressable
-              onPress={handlePickVideo}
-              disabled={images.length > 0 || video !== null}
-              className={images.length > 0 || video !== null ? 'opacity-50' : ''}
-            >
-              <VideoIcon size={24} color="#3B82F6" />
-            </Pressable>
-          </View>
-
-          {/* Character Count */}
-          <Text
-            className={`font-medium ${isOverLimit ? 'text-accent-error' : remainingChars < 50 ? 'text-yellow-500' : 'text-text-muted'}`}
-          >
-            {remainingChars}
-          </Text>
         </View>
       </KeyboardAvoidingView>
     </SafeAreaView>
