@@ -367,8 +367,10 @@ export default function ComposeScreen() {
               placeholderTextColor="#6B7280"
               multiline
               autoFocus
+              blurOnSubmit={false}
+              submitBehavior="newline"
               className="flex-1 ml-3 text-text-primary text-lg leading-6 outline-none"
-              style={{ textAlignVertical: 'top', minHeight: 100 }}
+              style={{ textAlignVertical: 'top', minHeight: 180 }}
             />
           </View>
 
