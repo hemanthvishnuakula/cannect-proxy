@@ -273,7 +273,7 @@ export default function EditProfileScreen() {
 
   const handlePickAvatar = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [1, 1],
       quality: 1, // Get full quality, we'll compress ourselves
@@ -302,7 +302,7 @@ export default function EditProfileScreen() {
 
   const handlePickBanner = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ImagePicker.MediaTypeOptions.Images,
+      mediaTypes: ['images'],
       allowsEditing: true,
       aspect: [3, 1],
       quality: 1, // Get full quality, we'll compress ourselves
@@ -390,16 +390,7 @@ export default function EditProfileScreen() {
         {/* Header */}
         <View className="flex-row items-center justify-between px-4 py-3 border-b border-border">
           <Pressable
-            onPress={() => {
-              console.log('[EditProfile] Back button pressed');
-              try {
-                router.back();
-              } catch (err) {
-                console.error('[EditProfile] router.back() failed:', err);
-                // Fallback to replace if back fails
-                router.replace('/profile');
-              }
-            }}
+            onPress={() => router.back()}
             className="w-10 h-10 items-center justify-center active:opacity-70"
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
