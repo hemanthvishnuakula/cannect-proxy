@@ -533,7 +533,7 @@ export default function ComposeScreen() {
               onPress={() => setDiscardMenuVisible(false)}
               className="py-4 rounded-xl bg-zinc-800 items-center active:bg-zinc-700"
             >
-              <Text className="text-text-primary font-semibold text-base">Keep Draft</Text>
+              <Text className="text-text-primary font-semibold text-base">Keep Editing</Text>
             </Pressable>
           </View>
         </View>
