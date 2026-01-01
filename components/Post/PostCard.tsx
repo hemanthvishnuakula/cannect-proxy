@@ -133,7 +133,7 @@ export function PostCard({
       {isRepost && repostBy && (
         <View className="flex-row items-center mb-2 pl-10">
           <Repeat2 size={14} color="#6B7280" />
-          <Text className="text-text-muted text-xs ml-1">
+          <Text className="text-text-muted text-xs ml-1 flex-1" numberOfLines={1}>
             Reposted by {repostBy.displayName || repostBy.handle}
           </Text>
         </View>
@@ -148,6 +148,8 @@ export function PostCard({
             handleAuthorPress();
           }}
           className="self-start"
+          hitSlop={8}
+          style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
         >
           {author.avatar ? (
             <Image
@@ -176,6 +178,7 @@ export function PostCard({
                 handleAuthorPress();
               }}
               className="flex-row items-center flex-1 mr-2"
+              style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
             >
               <Text className="font-semibold text-text-primary flex-shrink" numberOfLines={1}>
                 {author.displayName || author.handle}
@@ -204,7 +207,13 @@ export function PostCard({
 
           {/* Show more button for truncated text */}
           {shouldTruncate && (
-            <Pressable onPressIn={stopEvent} onPress={handleShowMore} className="mt-2">
+            <Pressable
+              onPressIn={stopEvent}
+              onPress={handleShowMore}
+              className="mt-2 py-1 self-start"
+              hitSlop={8}
+              style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
+            >
               <Text className="text-primary font-medium">Show more</Text>
             </Pressable>
           )}
