@@ -264,10 +264,7 @@ export default function PostDetailsScreen() {
 
         {/* Replies - Using PostCard component */}
         {replies.length > 0 && (
-          <View>
-            <Text className="text-text-muted text-sm font-medium px-4 py-3 border-b border-border">
-              {replies.length} {replies.length === 1 ? 'Reply' : 'Replies'}
-            </Text>
+          <View className="border-t border-border">
             {replies.map((reply) => (
               <PostCard key={reply.post.uri} post={reply.post} />
             ))}
