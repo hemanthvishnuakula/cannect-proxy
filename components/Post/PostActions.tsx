@@ -403,40 +403,51 @@ export const PostActions = memo(function PostActions({
       </View>
     ) : (
       // Expanded layout (for ThreadPost detail view)
-      <View className="flex-row justify-around py-2 border-b border-border mb-4">
+      <View className="flex-row justify-around py-2 border-b border-border mb-4 h-[44px]">
         {/* Reply */}
-        <Pressable onPress={handleReply} className="flex-row items-center p-2" hitSlop={8}>
+        <Pressable
+          onPressIn={stopEvent}
+          onPress={handleReply}
+          className="flex-row items-center p-2 min-w-[44px]"
+          hitSlop={12}
+          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+        >
           <MessageCircle size={iconSize} color={mutedColor} />
         </Pressable>
 
         {/* Repost */}
         <Pressable
+          onPressIn={stopEvent}
           onPress={handleRepostPress}
-          className="flex-row items-center p-2"
+          className="flex-row items-center p-2 min-w-[44px]"
           disabled={isRepostLoading}
-          hitSlop={8}
+          hitSlop={12}
+          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
         >
           <Repeat2 size={iconSize} color={repostColor} />
         </Pressable>
 
         {/* Like */}
         <Pressable
+          onPressIn={stopEvent}
           onPress={handleLike}
-          className="flex-row items-center p-2"
+          className="flex-row items-center p-2 min-w-[44px]"
           disabled={isLikeLoading}
-          hitSlop={8}
+          hitSlop={12}
+          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
         >
           <Heart size={iconSize} color={likeColor} fill={isLiked ? '#EF4444' : 'transparent'} />
         </Pressable>
 
-        {/* Share */}
-        <Pressable onPress={handleShare} className="flex-row items-center p-2" hitSlop={8}>
-          <Share size={iconSize} color={mutedColor} />
-        </Pressable>
-
-        {/* Options */}
+        {/* Options (includes Share, Copy Link, Delete, Report) */}
         {!hideOptions && (
-          <Pressable onPress={handleOptionsPress} className="flex-row items-center p-2" hitSlop={8}>
+          <Pressable
+            onPressIn={stopEvent}
+            onPress={handleOptionsPress}
+            className="flex-row items-center p-2 min-w-[44px]"
+            hitSlop={12}
+            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+          >
             <MoreHorizontal size={iconSize} color={mutedColor} />
           </Pressable>
         )}
