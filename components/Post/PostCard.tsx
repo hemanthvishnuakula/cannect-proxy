@@ -168,30 +168,31 @@ export function PostCard({
         {/* Content */}
         <View className="flex-1 ml-3">
           {/* Header - Name, Badge, and Time (single line, name truncates only if needed) */}
-          <Pressable
-            onPressIn={stopEvent}
-            onPress={(e) => {
-              stopEvent(e);
-              handleAuthorPress();
-            }}
-            className="flex-row items-center self-start"
-          >
-            <Text className="font-semibold text-text-primary flex-1" numberOfLines={1}>
-              {author.displayName || author.handle}
-            </Text>
-            {/* Network badge - cannect (green) or global */}
-            {author.handle.endsWith('.cannect.space') ? (
-              <View className="ml-2 px-2 py-0.5 rounded-full bg-primary/20">
-                <Text className="text-primary text-xs font-medium">cannect</Text>
-              </View>
-            ) : (
-              <View className="ml-2 px-2 py-0.5 rounded-full bg-surface-elevated">
-                <Text className="text-text-muted text-xs font-medium">global</Text>
-              </View>
-            )}
-            <Text className="text-text-muted mx-1">·</Text>
+          <View className="flex-row items-center">
+            <Pressable
+              onPressIn={stopEvent}
+              onPress={(e) => {
+                stopEvent(e);
+                handleAuthorPress();
+              }}
+              className="flex-row items-center flex-1 mr-2"
+            >
+              <Text className="font-semibold text-text-primary flex-shrink" numberOfLines={1}>
+                {author.displayName || author.handle}
+              </Text>
+              {/* Network badge - cannect (green) or global */}
+              {author.handle.endsWith('.cannect.space') ? (
+                <View className="ml-2 px-2 py-0.5 rounded-full bg-primary/20 flex-shrink-0">
+                  <Text className="text-primary text-xs font-medium">cannect</Text>
+                </View>
+              ) : (
+                <View className="ml-2 px-2 py-0.5 rounded-full bg-surface-elevated flex-shrink-0">
+                  <Text className="text-text-muted text-xs font-medium">global</Text>
+                </View>
+              )}
+            </Pressable>
             <Text className="text-text-muted flex-shrink-0">{formatTime(record.createdAt)}</Text>
-          </Pressable>
+          </View>
 
           {/* Post text with facets (mentions, links, hashtags) */}
           <RichText
