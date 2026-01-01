@@ -175,6 +175,7 @@ function PushNotificationToggle() {
 
 /**
  * Compress and resize image to fit within size limit
+ * For avatars: center-crops to square first, then resizes
  * Uses progressive quality reduction until under limit
  */
 async function compressImage(
@@ -186,12 +187,42 @@ async function compressImage(
   const maxDimension = isAvatar ? 800 : 1500; // Avatar smaller, banner wider
   let quality = 0.9;
 
-  // First resize to max dimensions
-  let result = await ImageManipulator.manipulateAsync(
-    uri,
-    [{ resize: { width: maxDimension, height: maxDimension } }],
-    { compress: quality, format: ImageManipulator.SaveFormat.JPEG }
-  );
+  // Build the manipulation actions
+  const actions: ImageManipulator.Action[] = [];
+
+  // For avatars, we need to center-crop to square first
+  if (isAvatar) {
+    // Get original image dimensions
+    const { width, height } = await new Promise<{ width: number; height: number }>((resolve) => {
+      Image.getSize(uri, (w, h) => resolve({ width: w, height: h }));
+    });
+
+    // Calculate center square crop
+    const size = Math.min(width, height);
+    const originX = Math.floor((width - size) / 2);
+    const originY = Math.floor((height - size) / 2);
+
+    console.log(`[Compress] Original: ${width}x${height}, cropping to ${size}x${size} square`);
+
+    // Add crop action first
+    actions.push({
+      crop: {
+        originX,
+        originY,
+        width: size,
+        height: size,
+      },
+    });
+  }
+
+  // Then resize
+  actions.push({ resize: { width: maxDimension, height: maxDimension } });
+
+  // First manipulation pass
+  let result = await ImageManipulator.manipulateAsync(uri, actions, {
+    compress: quality,
+    format: ImageManipulator.SaveFormat.JPEG,
+  });
 
   // Check file size and progressively reduce quality if needed
   let response = await fetch(result.uri);
@@ -203,11 +234,10 @@ async function compressImage(
       `[Compress] Size ${(blob.size / 1024).toFixed(0)}KB > ${(maxSize / 1024).toFixed(0)}KB, reducing quality to ${(quality * 100).toFixed(0)}%`
     );
 
-    result = await ImageManipulator.manipulateAsync(
-      uri,
-      [{ resize: { width: maxDimension, height: maxDimension } }],
-      { compress: quality, format: ImageManipulator.SaveFormat.JPEG }
-    );
+    result = await ImageManipulator.manipulateAsync(uri, actions, {
+      compress: quality,
+      format: ImageManipulator.SaveFormat.JPEG,
+    });
 
     response = await fetch(result.uri);
     blob = await response.blob();
