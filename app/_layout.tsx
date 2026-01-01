@@ -197,7 +197,7 @@ function AppContent() {
 }
 
 export default Sentry.wrap(function RootLayout() {
-  const { setSession, setLoading } = useAuthStore();
+  const { setSession, setProfile, setLoading } = useAuthStore();
 
   useEffect(() => {
     // Initialize AT Protocol agent and restore session
@@ -213,6 +213,24 @@ export default Sentry.wrap(function RootLayout() {
         if (agent.session) {
           console.log('[RootLayout] ✅ Session found, setting in store');
           setSession(agent.session);
+
+          // Fetch profile for avatar in reply bar, etc.
+          try {
+            const { data } = await atproto.getProfile(agent.session.did);
+            setProfile({
+              did: data.did,
+              handle: data.handle,
+              displayName: data.displayName,
+              description: data.description,
+              avatar: data.avatar,
+              banner: data.banner,
+              followersCount: data.followersCount,
+              followsCount: data.followsCount,
+              postsCount: data.postsCount,
+            });
+          } catch (profileErr) {
+            console.warn('[RootLayout] Failed to fetch profile:', profileErr);
+          }
         } else {
           console.log('[RootLayout] ⚠️ No session found');
           setLoading(false);
