@@ -431,11 +431,12 @@ export default function EditProfileScreen() {
 
           {/* Avatar */}
           <View className="px-4 -mt-12">
-            <Pressable onPress={handlePickAvatar} className="relative">
+            <Pressable onPress={handlePickAvatar} className="relative w-24 h-24">
               {currentAvatar ? (
                 <Image
                   source={{ uri: currentAvatar }}
                   className="w-24 h-24 rounded-full border-4 border-background"
+                  resizeMode="cover"
                 />
               ) : (
                 <View className="w-24 h-24 rounded-full border-4 border-background bg-surface-elevated items-center justify-center">
@@ -444,8 +445,9 @@ export default function EditProfileScreen() {
                   </Text>
                 </View>
               )}
-              <View className="absolute inset-0 items-center justify-center bg-black/30 rounded-full">
-                <Camera size={20} color="#fff" />
+              {/* Camera badge - bottom right corner */}
+              <View className="absolute bottom-0 right-0 w-7 h-7 rounded-full bg-primary items-center justify-center border-2 border-background">
+                <Camera size={14} color="#fff" />
               </View>
             </Pressable>
           </View>
