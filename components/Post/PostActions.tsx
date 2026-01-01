@@ -385,21 +385,7 @@ export const PostActions = memo(function PostActions({
           </Text>
         </Pressable>
 
-        {/* Share */}
-        <Pressable
-          onPressIn={stopEvent}
-          onPress={(e) => {
-            stopEvent(e);
-            handleShare();
-          }}
-          className="flex-row items-center p-2 min-w-[44px]"
-          hitSlop={12}
-          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
-        >
-          <Share size={iconSize} color={mutedColor} />
-        </Pressable>
-
-        {/* More Options */}
+        {/* More Options (includes Share, Copy Link, Delete, Report) */}
         {!hideOptions && (
           <Pressable
             onPressIn={stopEvent}
