@@ -52,6 +52,8 @@ const getFeed = db.prepare(`
 
 const getPostCount = db.prepare(`SELECT COUNT(*) as count FROM posts`);
 
+const getAllPostsStmt = db.prepare(`SELECT uri, author_did, author_handle FROM posts`);
+
 const cleanOldPosts = db.prepare(`
   DELETE FROM posts WHERE created_at < unixepoch() - ?
 `);
@@ -97,6 +99,13 @@ function getCount() {
 }
 
 /**
+ * Get all posts (for cleanup/migration scripts)
+ */
+function getAllPosts() {
+  return getAllPostsStmt.all();
+}
+
+/**
  * Clean posts older than X seconds (default 7 days)
  */
 function cleanup(maxAgeSeconds = 7 * 24 * 60 * 60) {
@@ -115,6 +124,7 @@ module.exports = {
   addPost,
   removePost,
   getPosts,
+  getAllPosts,
   getCount,
   cleanup,
   close,

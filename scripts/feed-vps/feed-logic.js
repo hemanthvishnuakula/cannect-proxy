@@ -219,6 +219,33 @@ const STRAIN_NAMES = [
   'cookies',
   'sherbert',
   'sunset sherbert',
+  // Additional strains
+  'chemdawg',
+  'chem dawg',
+  'chemdog',
+  'chem dog',
+  'sunshine diesel',
+  'bubba kush',
+  'skywalker',
+  'skywalker og',
+  'ak-47',
+  'ak47',
+  'durban poison',
+  'lemon haze',
+  'strawberry cough',
+  'amnesia haze',
+  'bruce banner',
+  'cereal milk',
+  'mac 1',
+  'gmo cookies',
+  'gary payton',
+  'ice cream cake',
+  'banana kush',
+  'mimosa',
+  'dosidos',
+  'do-si-dos',
+  'animal mints',
+  'slurricane',
 ];
 
 // =============================================================================
@@ -230,16 +257,17 @@ const POSITIVE_CONTEXT_SIGNALS = [
   // Core terms
   'cannabis', 'marijuana', 'weed', 'thc', 'cbd', 'dispensary',
   // Consumption
-  'smoke', 'smoked', 'smoking', 'vape', 'edible', 'edibles', 'dab',
+  'smoke', 'smoked', 'smoking', 'vape', 'edible', 'edibles', 'dab', 'blunt', 'joint', 'bong',
   // Types
   'indica', 'sativa', 'hybrid', 'strain',
   // Growing
-  'grow', 'harvest', 'trichome', 'flowering', 'cultivar',
+  'grow', 'growing', 'harvest', 'trichome', 'trichomes', 'flowering', 'cultivar', 'tent', 'grow tent',
+  'homegrow', 'home grow', 'autoflower', 'photoperiod',
   // Culture
-  'stoner', 'baked', 'high', 'blazed', '420',
+  'stoner', 'baked', 'high', 'blazed', '420', 'nug', 'nugs', 'dank', 'fire',
   // Hashtags
   '#cannabis', '#weed', '#420', '#stoner', '#thc', '#cbd', '#mmj',
-  '#cannabiscommunity', '#growmie', '#homegrow',
+  '#cannabiscommunity', '#growmie', '#homegrow', '#growyourown',
 ];
 
 // Negative signals: Terms that indicate false positive
@@ -359,10 +387,11 @@ function shouldIncludePost(authorHandle, text) {
   // (e.g., "northern lights" could be aurora, "purple haze" could be Hendrix)
   if (STRAIN_NAME_REGEX.test(text)) {
     // Need positive context score to include strain name matches
-    if (contextScore >= 2) {
+    // Score >= 0 means at least neutral (no strong false positive signals)
+    if (contextScore >= 0) {
       return { include: true, reason: 'strain_with_context', contextScore };
     }
-    // If neutral or negative context, skip (likely false positive)
+    // If negative context, skip (likely false positive)
     return { include: false, reason: 'strain_no_context', contextScore };
   }
 
