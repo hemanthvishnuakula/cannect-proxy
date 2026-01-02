@@ -319,8 +319,11 @@ export const PostActions = memo(function PostActions({
     }
   }, [post.uri, post.cid]);
 
-  // Icon sizes based on variant
-  const iconSize = variant === 'compact' ? 18 : 22;
+  // Icon sizes based on variant (20px min for better tap targets)
+  const iconSize = variant === 'compact' ? 20 : 22;
+  
+  // Shared hitSlop for all buttons
+  const buttonHitSlop = { top: 12, bottom: 12, left: 12, right: 12 };
   const mutedColor = '#6B7280';
   const likeColor = isLiked ? '#EF4444' : mutedColor;
   const repostColor = isReposted ? '#10B981' : mutedColor;
@@ -329,7 +332,7 @@ export const PostActions = memo(function PostActions({
   // Action buttons JSX
   const actionButtons =
     variant === 'compact' ? (
-      <View className="flex-row items-center justify-between mt-4 h-[42px]">
+      <View className="flex-row items-center justify-between mt-3">
         {/* Reply */}
         <Pressable
           onPressIn={stopEvent}
@@ -337,9 +340,10 @@ export const PostActions = memo(function PostActions({
             stopEvent(e);
             handleReply();
           }}
-          className="flex-row items-center p-2 min-w-[44px] -ml-2"
-          hitSlop={12}
-          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+          className="flex-row items-center justify-center p-3 min-w-[48px] min-h-[48px] -ml-3"
+          hitSlop={buttonHitSlop}
+          android_ripple={{ color: 'rgba(0,0,0,0.1)', borderless: true }}
+          style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
         >
           <MessageCircle size={iconSize} color={mutedColor} />
           {!hideReplyCounts && (
@@ -356,10 +360,11 @@ export const PostActions = memo(function PostActions({
             stopEvent(e);
             handleRepostPress();
           }}
-          className="flex-row items-center p-2 min-w-[44px]"
+          className="flex-row items-center justify-center p-3 min-w-[48px] min-h-[48px]"
           disabled={isRepostLoading}
-          hitSlop={12}
-          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+          hitSlop={buttonHitSlop}
+          android_ripple={{ color: 'rgba(0,0,0,0.1)', borderless: true }}
+          style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
         >
           <Repeat2 size={iconSize} color={repostColor} />
           <Text className={`text-sm ml-1.5 min-w-[16px] ${isReposted ? 'text-green-500' : 'text-text-muted'}`}>
@@ -374,10 +379,11 @@ export const PostActions = memo(function PostActions({
             stopEvent(e);
             handleLike();
           }}
-          className="flex-row items-center p-2 min-w-[44px]"
+          className="flex-row items-center justify-center p-3 min-w-[48px] min-h-[48px]"
           disabled={isLikeLoading}
-          hitSlop={12}
-          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+          hitSlop={buttonHitSlop}
+          android_ripple={{ color: 'rgba(0,0,0,0.1)', borderless: true }}
+          style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
         >
           <Heart size={iconSize} color={likeColor} fill={isLiked ? '#EF4444' : 'none'} />
           <Text className={`text-sm ml-1.5 min-w-[16px] ${isLiked ? 'text-red-500' : 'text-text-muted'}`}>
@@ -393,9 +399,10 @@ export const PostActions = memo(function PostActions({
               stopEvent(e);
               handleOptionsPress();
             }}
-            className="flex-row items-center p-2 min-w-[44px] -mr-2"
-            hitSlop={12}
-            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+            className="flex-row items-center justify-center p-3 min-w-[48px] min-h-[48px] -mr-3"
+            hitSlop={buttonHitSlop}
+            android_ripple={{ color: 'rgba(0,0,0,0.1)', borderless: true }}
+            style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
           >
             <MoreHorizontal size={iconSize} color={mutedColor} />
           </Pressable>
@@ -403,14 +410,15 @@ export const PostActions = memo(function PostActions({
       </View>
     ) : (
       // Expanded layout (for ThreadPost detail view) - with counts like compact
-      <View className="flex-row justify-around py-2 mt-3 h-[42px]">
+      <View className="flex-row justify-around py-2 mt-3">
         {/* Reply */}
         <Pressable
           onPressIn={stopEvent}
           onPress={handleReply}
-          className="flex-row items-center p-2 min-w-[44px]"
-          hitSlop={12}
-          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+          className="flex-row items-center justify-center p-3 min-w-[48px] min-h-[48px]"
+          hitSlop={buttonHitSlop}
+          android_ripple={{ color: 'rgba(0,0,0,0.1)', borderless: true }}
+          style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
         >
           <MessageCircle size={iconSize} color={mutedColor} />
           <Text className="text-text-muted text-sm ml-1.5 min-w-[16px]">
@@ -422,10 +430,11 @@ export const PostActions = memo(function PostActions({
         <Pressable
           onPressIn={stopEvent}
           onPress={handleRepostPress}
-          className="flex-row items-center p-2 min-w-[44px]"
+          className="flex-row items-center justify-center p-3 min-w-[48px] min-h-[48px]"
           disabled={isRepostLoading}
-          hitSlop={12}
-          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+          hitSlop={buttonHitSlop}
+          android_ripple={{ color: 'rgba(0,0,0,0.1)', borderless: true }}
+          style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
         >
           <Repeat2 size={iconSize} color={repostColor} />
           <Text className={`text-sm ml-1.5 min-w-[16px] ${isReposted ? 'text-green-500' : 'text-text-muted'}`}>
@@ -437,10 +446,11 @@ export const PostActions = memo(function PostActions({
         <Pressable
           onPressIn={stopEvent}
           onPress={handleLike}
-          className="flex-row items-center p-2 min-w-[44px]"
+          className="flex-row items-center justify-center p-3 min-w-[48px] min-h-[48px]"
           disabled={isLikeLoading}
-          hitSlop={12}
-          style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+          hitSlop={buttonHitSlop}
+          android_ripple={{ color: 'rgba(0,0,0,0.1)', borderless: true }}
+          style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
         >
           <Heart size={iconSize} color={likeColor} fill={isLiked ? '#EF4444' : 'none'} />
           <Text className={`text-sm ml-1.5 min-w-[16px] ${isLiked ? 'text-red-500' : 'text-text-muted'}`}>
@@ -453,9 +463,10 @@ export const PostActions = memo(function PostActions({
           <Pressable
             onPressIn={stopEvent}
             onPress={handleOptionsPress}
-            className="flex-row items-center p-2 min-w-[44px]"
-            hitSlop={12}
-            style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}
+            className="flex-row items-center justify-center p-3 min-w-[48px] min-h-[48px]"
+            hitSlop={buttonHitSlop}
+            android_ripple={{ color: 'rgba(0,0,0,0.1)', borderless: true }}
+            style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
           >
             <MoreHorizontal size={iconSize} color={mutedColor} />
           </Pressable>
