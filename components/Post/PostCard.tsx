@@ -242,7 +242,7 @@ export function PostCard({
       )}
 
       {/* Actions Section */}
-      <View className="px-2 pb-2">
+      <View className="px-3 pb-3">
         <PostActions post={post} variant="compact" />
       </View>
     </Pressable>

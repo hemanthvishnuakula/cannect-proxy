@@ -332,7 +332,7 @@ export const PostActions = memo(function PostActions({
   // Action buttons JSX
   const actionButtons =
     variant === 'compact' ? (
-      <View className="flex-row items-center justify-between mt-3">
+      <View className="flex-row items-center justify-around mt-3">
         {/* Reply */}
         <Pressable
           onPressIn={stopEvent}
@@ -340,7 +340,7 @@ export const PostActions = memo(function PostActions({
             stopEvent(e);
             handleReply();
           }}
-          className="flex-row items-center justify-center p-3 min-w-[48px] min-h-[48px] -ml-3"
+          className="flex-row items-center justify-center p-3 min-w-[48px] min-h-[48px]"
           hitSlop={buttonHitSlop}
           android_ripple={{ color: 'rgba(0,0,0,0.1)', borderless: true }}
           style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
