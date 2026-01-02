@@ -18,6 +18,7 @@ const express = require('express');
 const WebSocket = require('ws');
 const db = require('./db');
 const { shouldIncludePost, getPostText } = require('./feed-logic');
+const { verifyWithAI } = require('./ai-filter');
 
 // =============================================================================
 // Configuration
@@ -331,13 +332,13 @@ function handleNewPost(did, commit) {
   const handle = isCannectSpaceUser ? 'user.cannect.space' : '';
   const result = shouldIncludePost(handle, text);
 
-  if (result.include) {
-    const uri = `at://${did}/${commit.collection}/${commit.rkey}`;
-    const cid = commit.cid;
-    // Always use server UTC time for consistent sorting
-    // (record.createdAt can have timezone offsets that break string sorting)
-    const indexedAt = new Date().toISOString();
+  const uri = `at://${did}/${commit.collection}/${commit.rkey}`;
+  const cid = commit.cid;
+  // Always use server UTC time for consistent sorting
+  const indexedAt = new Date().toISOString();
 
+  // If post should be included directly (high confidence or cannect user)
+  if (result.include) {
     db.addPost(uri, cid, did, handle, indexedAt);
     stats.indexed++;
 
@@ -348,6 +349,40 @@ function handleNewPost(did, commit) {
     if (stats.indexed % 100 === 0) {
       console.log(`[Indexer] Stats: ${stats.indexed} indexed, ${stats.processed} processed`);
     }
+    return;
+  }
+
+  // If post needs AI verification (ambiguous content)
+  if (result.needsAI && text) {
+    // Process async - don't block the main event loop
+    processWithAI(uri, cid, did, handle, text, indexedAt, result.reason).catch(err => {
+      console.error(`[AI-Filter] Error processing post:`, err.message);
+    });
+  }
+}
+
+/**
+ * Process a post with AI verification
+ */
+async function processWithAI(uri, cid, did, handle, text, indexedAt, reason) {
+  try {
+    const aiResult = await verifyWithAI(text);
+    
+    if (aiResult.error) {
+      // If AI fails, don't include (conservative approach)
+      console.log(`[AI-Filter] Error for "${text.substring(0, 40)}..." - skipping`);
+      return;
+    }
+    
+    if (aiResult.isCannabis) {
+      db.addPost(uri, cid, did, handle, indexedAt);
+      stats.indexed++;
+      console.log(`[AI-Filter] ✓ INCLUDED (${reason}): ${text.substring(0, 50)}...`);
+    } else {
+      console.log(`[AI-Filter] ✗ REJECTED (${reason}): ${text.substring(0, 50)}...`);
+    }
+  } catch (err) {
+    console.error(`[AI-Filter] Exception:`, err.message);
   }
 }
 

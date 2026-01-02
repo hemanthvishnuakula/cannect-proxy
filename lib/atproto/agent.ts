@@ -847,7 +847,7 @@ export async function getUnreadCount() {
  * Our custom feed generator at feed.cannect.space
  * Includes: cannect.space users + cannabis keyword matches
  */
-const CANNECT_FEED_URI = 'at://did:plc:ubkp6dfvxif7rmexyat5np6e/app.bsky.feed.generator/cannect';
+const CANNECT_FEED_URI = 'at://did:plc:ogomjwhxshb4g2a25njmkesw/app.bsky.feed.generator/cannect';
 
 /**
  * Get the Cannect feed from our Feed Generator

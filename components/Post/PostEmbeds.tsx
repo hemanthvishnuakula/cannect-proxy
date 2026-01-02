@@ -113,7 +113,7 @@ function ImageGrid({
   fullWidth?: boolean;
 }) {
   const imageUrls = images.map((img) => img.fullsize || img.thumb);
-  
+
   // Border radius: none for full-width mode
   const borderClass = fullWidth ? '' : 'rounded-xl';
 
@@ -153,7 +153,9 @@ function ImageGrid({
   }
 
   return (
-    <View className={`flex-row flex-wrap gap-1 overflow-hidden ${fullWidth ? 'px-4' : borderClass}`}>
+    <View
+      className={`flex-row flex-wrap gap-1 overflow-hidden ${fullWidth ? 'px-4' : borderClass}`}
+    >
       {images.slice(0, 4).map((img, idx) => (
         <Pressable
           key={idx}
@@ -247,7 +249,10 @@ function QuotePost({ record }: { record: any }) {
         <Text className="text-text-primary font-medium text-sm flex-shrink" numberOfLines={1}>
           {author?.displayName || author?.handle}
         </Text>
-        <Text className="text-text-muted text-sm ml-1 flex-shrink-0">@{author?.handle?.slice(0, 15)}{author?.handle?.length > 15 ? '…' : ''}</Text>
+        <Text className="text-text-muted text-sm ml-1 flex-shrink-0">
+          @{author?.handle?.slice(0, 15)}
+          {author?.handle?.length > 15 ? '…' : ''}
+        </Text>
       </View>
       <Text className="text-text-primary text-sm" numberOfLines={3}>
         {text}
@@ -256,7 +261,13 @@ function QuotePost({ record }: { record: any }) {
   );
 }
 
-function VideoEmbed({ video, fullWidth = false }: { video: AppBskyEmbedVideo.View; fullWidth?: boolean }) {
+function VideoEmbed({
+  video,
+  fullWidth = false,
+}: {
+  video: AppBskyEmbedVideo.View;
+  fullWidth?: boolean;
+}) {
   const aspectRatio =
     video.aspectRatio?.width && video.aspectRatio?.height
       ? video.aspectRatio.width / video.aspectRatio.height
@@ -293,9 +304,15 @@ function RecordWithMedia({
     <>
       {/* Media part (images or video) */}
       {media.$type === 'app.bsky.embed.images#view' && (
-        <ImageGrid images={(media as any).images} onImagePress={onImagePress} fullWidth={fullWidth} />
+        <ImageGrid
+          images={(media as any).images}
+          onImagePress={onImagePress}
+          fullWidth={fullWidth}
+        />
       )}
-      {media.$type === 'app.bsky.embed.video#view' && <VideoEmbed video={media as any} fullWidth={fullWidth} />}
+      {media.$type === 'app.bsky.embed.video#view' && (
+        <VideoEmbed video={media as any} fullWidth={fullWidth} />
+      )}
 
       {/* Quote part */}
       {record && record.$type === 'app.bsky.embed.record#viewRecord' && (

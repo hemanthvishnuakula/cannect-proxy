@@ -42,7 +42,9 @@ async function fetchPostContent(uris) {
 async function cleanup() {
   console.log('='.repeat(60));
   console.log('Cannect Feed Cleanup - Context-Aware Filter');
-  console.log(DRY_RUN ? '*** DRY RUN MODE - No deletions ***' : '*** LIVE MODE - Will delete posts ***');
+  console.log(
+    DRY_RUN ? '*** DRY RUN MODE - No deletions ***' : '*** LIVE MODE - Will delete posts ***'
+  );
   console.log('='.repeat(60));
 
   // Get all posts from database

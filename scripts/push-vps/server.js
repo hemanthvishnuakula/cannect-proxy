@@ -303,7 +303,11 @@ app.post('/broadcast', async (req, res) => {
         await webpush.sendNotification(pushSubscription, payload);
         sent++;
       } catch (error) {
-        console.error(`[Broadcast] Push failed for ${sub.did}:`, error.statusCode, error.body || error.message);
+        console.error(
+          `[Broadcast] Push failed for ${sub.did}:`,
+          error.statusCode,
+          error.body || error.message
+        );
         failed++;
         if (error.statusCode === 404 || error.statusCode === 410) {
           db.prepare('DELETE FROM subscriptions WHERE id = ?').run(sub.id);

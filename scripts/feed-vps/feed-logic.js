@@ -38,7 +38,7 @@ const HIGH_CONFIDENCE_KEYWORDS = [
   'thca',
   'cbda',
   'cbg',
-  'cbn',
+  // Note: 'cbn' removed - matches 'Central Bank of Nigeria'
   'cbd oil',
   'cbd gummies',
   'full spectrum cbd',
@@ -46,6 +46,9 @@ const HIGH_CONFIDENCE_KEYWORDS = [
   // Consumption methods (specific)
   'dispensary',
   'dispensaries',
+  'cannabis dispensary',
+  'weed dispensary',
+  'marijuana dispensary',
   'budtender',
   'dab rig',
   'dabbing',
@@ -96,13 +99,15 @@ const HIGH_CONFIDENCE_KEYWORDS = [
   'cannabis edibles',
   'moon rocks',
   'moonrocks',
-  'shatter',
+  'thc shatter',
+  'dab shatter',
+  'cannabis shatter',
   'cannabis wax',
   'thc wax',
   'cannabis concentrate',
   'thc concentrate',
-  'hash rosin',
-  'bubble hash',
+  'hashish',
+  'hash oil',
   'dry sift',
 
   // Industry (specific)
@@ -182,7 +187,7 @@ const MEDIUM_CONFIDENCE_KEYWORDS = [
   'strain', // Could be music/stress
   'pre-roll', // Need context
   'preroll', // Need context
-  'hash', // Could be hashtag or data
+  // Note: 'hash' removed - matches 'hash browns', 'hashtag', etc.
   'bowl', // Very generic
   'pipe', // Very generic
   'grinder', // Could be coffee
@@ -191,33 +196,34 @@ const MEDIUM_CONFIDENCE_KEYWORDS = [
 // =============================================================================
 // TIER 3: STRAIN NAMES - Require positive context (could be false positives)
 // These are strain names that could match non-cannabis content
+// Note: Removed overly generic terms like "cookies", "skywalker", "headband"
 // =============================================================================
 const STRAIN_NAMES = [
   'og kush',
-  'purple haze',
+  'purple haze strain',
   'blue dream',
-  'girl scout cookies',
+  'girl scout cookies strain',
   'gsc strain',
-  'gorilla glue',
+  'gorilla glue strain',
   'gg4',
   'white widow',
-  'northern lights',
+  'northern lights strain',
   'sour diesel',
   'jack herer',
-  'pineapple express',
+  'pineapple express strain',
   'gelato strain',
   'zkittlez',
   'wedding cake strain',
-  'runtz',
+  'runtz strain',
   'granddaddy purple',
   'gdp strain',
   'green crack',
   'super lemon haze',
-  'trainwreck',
-  'headband',
-  'cherry pie',
-  'cookies',
-  'sherbert',
+  'trainwreck strain',
+  'headband strain',
+  'cherry pie strain',
+  'cookies strain',
+  'sherbert strain',
   'sunset sherbert',
   // Additional strains
   'chemdawg',
@@ -226,22 +232,21 @@ const STRAIN_NAMES = [
   'chem dog',
   'sunshine diesel',
   'bubba kush',
-  'skywalker',
   'skywalker og',
-  'ak-47',
-  'ak47',
+  'skywalker kush',
+  'ak-47 strain',
   'durban poison',
   'lemon haze',
   'strawberry cough',
   'amnesia haze',
-  'bruce banner',
-  'cereal milk',
-  'mac 1',
+  'bruce banner strain',
+  'cereal milk strain',
+  'mac 1 strain',
   'gmo cookies',
-  'gary payton',
-  'ice cream cake',
+  'gary payton strain',
+  'ice cream cake strain',
   'banana kush',
-  'mimosa',
+  'mimosa strain',
   'dosidos',
   'do-si-dos',
   'animal mints',
@@ -255,25 +260,73 @@ const STRAIN_NAMES = [
 // Positive signals: Terms that confirm cannabis context
 const POSITIVE_CONTEXT_SIGNALS = [
   // Core terms
-  'cannabis', 'marijuana', 'weed', 'thc', 'cbd', 'dispensary',
+  'cannabis',
+  'marijuana',
+  'weed',
+  'thc',
+  'cbd',
+  'dispensary',
   // Consumption
-  'smoke', 'smoked', 'smoking', 'vape', 'edible', 'edibles', 'dab', 'blunt', 'joint', 'bong',
+  'smoke',
+  'smoked',
+  'smoking',
+  'vape',
+  'edible',
+  'edibles',
+  'dab',
+  'blunt',
+  'joint',
+  'bong',
   // Types
-  'indica', 'sativa', 'hybrid', 'strain',
+  'indica',
+  'sativa',
+  'hybrid',
+  'strain',
   // Growing
-  'grow', 'growing', 'harvest', 'trichome', 'trichomes', 'flowering', 'cultivar', 'tent', 'grow tent',
-  'homegrow', 'home grow', 'autoflower', 'photoperiod',
+  'grow',
+  'growing',
+  'harvest',
+  'trichome',
+  'trichomes',
+  'flowering',
+  'cultivar',
+  'tent',
+  'grow tent',
+  'homegrow',
+  'home grow',
+  'autoflower',
+  'photoperiod',
   // Culture
-  'stoner', 'baked', 'high', 'blazed', '420', 'nug', 'nugs', 'dank', 'fire',
+  'stoner',
+  'baked',
+  'high',
+  'blazed',
+  '420',
+  'nug',
+  'nugs',
+  'dank',
+  'fire',
   // Hashtags
-  '#cannabis', '#weed', '#420', '#stoner', '#thc', '#cbd', '#mmj',
-  '#cannabiscommunity', '#growmie', '#homegrow', '#growyourown',
+  '#cannabis',
+  '#weed',
+  '#420',
+  '#stoner',
+  '#thc',
+  '#cbd',
+  '#mmj',
+  '#cannabiscommunity',
+  '#growmie',
+  '#homegrow',
+  '#growyourown',
 ];
 
 // Negative signals: Terms that indicate false positive
 const NEGATIVE_CONTEXT_SIGNALS = [
   // Astronomy (northern lights false positive)
-  { pattern: /\b(nasa|astronomy|aurora|borealis|space|constellation|nebula|observatory)\b/i, weight: -5 },
+  {
+    pattern: /\b(nasa|astronomy|aurora|borealis|space|constellation|nebula|observatory)\b/i,
+    weight: -5,
+  },
   // Games (420 score false positive)
   { pattern: /\b(wordle|puzzle|score|game|trivia|quiz)\b/i, weight: -4 },
   // Gardening (weed false positive)
@@ -283,12 +336,38 @@ const NEGATIVE_CONTEXT_SIGNALS = [
   // Products/Commerce spam
   { pattern: /\b(led\s+light|bathroom|mirror|homedecor|vanity|amazon|ebay)\b/i, weight: -4 },
   // Cooking (baked false positive)
-  { pattern: /\b(recipe|oven|baking\s+soda|flour|cake\s+recipe|cookie\s+recipe)\b/i, weight: -3 },
+  {
+    pattern: /\b(recipe|oven|baking\s+soda|flour|cake\s+recipe|cookie\s+recipe|hash\s*browns?)\b/i,
+    weight: -3,
+  },
+  // Sports/Records (shatter records)
+  {
+    pattern: /\b(nba|nfl|mlb|warriors|lakers|basketball|football|season|record|points|assists)\b/i,
+    weight: -4,
+  },
+  // Glass/Art metaphors (shatter)
+  { pattern: /\b(glass|illusions?|dreams?|mirror|window|crystal)\b/i, weight: -3 },
+  // Finance/Banking (CBN = Central Bank)
+  { pattern: /\b(bank|banking|central\s+bank|monetary|financial|economy|fiscal)\b/i, weight: -5 },
+  // Star Wars (skywalker)
+  { pattern: /\b(luke|star\s*wars|jedi|vader|yoda|force\s+awakens)\b/i, weight: -5 },
+  // Historical buildings
+  {
+    pattern: /\b(victorian|heritage|listed|refurbishment|railway|swimming\s+pool|baths)\b/i,
+    weight: -4,
+  },
+  // Automotive (hybrid SUV, joint venture)
+  {
+    pattern: /\b(suv|sedan|vehicle|car|automotive|huawei|tesla|toyota|honda|ford|plug-in|electric\s+vehicle|ev)\b/i,
+    weight: -5,
+  },
   // Idioms
   { pattern: /\bweed\s+out\b/i, weight: -5 },
-  { pattern: /\bjoint\s+(effort|venture|statement|custody)\b/i, weight: -5 },
+  { pattern: /\bjoint\s+(effort|venture|statement|custody|series)\b/i, weight: -5 },
   { pattern: /\bpipe\s+dream\b/i, weight: -4 },
   { pattern: /\bhigh\s+(school|court|five|road|way|level|quality|priority)\b/i, weight: -5 },
+  // Fibromyalgia/medical typos
+  { pattern: /\b(fibromyalgia|chronic\s+pain|arthritis)\b/i, weight: -2 },
 ];
 
 // Build regex for high confidence (single match)
@@ -320,7 +399,10 @@ const positiveContextPatterns = POSITIVE_CONTEXT_SIGNALS.map((kw) => {
   const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   return escaped;
 });
-const POSITIVE_CONTEXT_REGEX = new RegExp('\\b(' + positiveContextPatterns.join('|') + ')\\b', 'gi');
+const POSITIVE_CONTEXT_REGEX = new RegExp(
+  '\\b(' + positiveContextPatterns.join('|') + ')\\b',
+  'gi'
+);
 
 /**
  * Calculate context score for a post
@@ -356,61 +438,63 @@ function calculateContextScore(text) {
 /**
  * Check if a post should be included in the feed
  *
+ * SIMPLIFIED FLOW (with DeepSeek AI):
+ * 1. Cannect.space users → Include directly (trusted)
+ * 2. High confidence keywords → Send to AI (catches false positives like "dispensary" in historical building)
+ * 3. Strain names → Send to AI (most false positives)
+ * 4. 2+ medium keywords → Send to AI
+ * 5. Single medium + positive context → Send to AI
+ * 6. No match / single medium alone → Reject
+ *
+ * Keywords act as pre-filter (reduces millions to hundreds)
+ * AI acts as quality filter (ensures ~99% accuracy)
+ *
  * @param {string} authorHandle - Author's handle (e.g., "user.cannect.space")
  * @param {string} text - Post text content
- * @returns {{ include: boolean, reason: string, contextScore?: number }}
+ * @returns {{ include: boolean, reason: string, needsAI?: boolean }}
  */
 function shouldIncludePost(authorHandle, text) {
-  // Rule 1: Always include cannect.space users
+  // Rule 1: Always include cannect.space users (no AI needed - trusted users)
   if (authorHandle && authorHandle.endsWith('.cannect.space')) {
-    return { include: true, reason: 'cannect_user' };
+    return { include: true, reason: 'cannect_user', needsAI: false };
   }
 
   if (!text) {
-    return { include: false, reason: 'no_text' };
+    return { include: false, reason: 'no_text', needsAI: false };
   }
 
-  // Calculate context score for context-aware decisions
+  // Calculate context for medium keyword decisions
   const contextScore = calculateContextScore(text);
 
-  // Rule 2a: High confidence keywords (single match = include)
-  // But check for strong negative context that could indicate false positive
+  // Rule 2: High confidence keywords → AI verification
+  // Even "cannabis" or "dispensary" can be false positives (Victorian dispensary building)
   if (HIGH_CONFIDENCE_REGEX.test(text)) {
-    // If context score is very negative, it's likely a false positive
-    if (contextScore < -3) {
-      return { include: false, reason: 'false_positive_context', contextScore };
-    }
-    return { include: true, reason: 'high_confidence_keyword', contextScore };
+    return { include: false, reason: 'high_confidence', needsAI: true };
   }
 
-  // Rule 2b: Strain names - require positive context to avoid false positives
-  // (e.g., "northern lights" could be aurora, "purple haze" could be Hendrix)
+  // Rule 3: Strain names → AI verification
   if (STRAIN_NAME_REGEX.test(text)) {
-    // Need positive context score to include strain name matches
-    // Score >= 0 means at least neutral (no strong false positive signals)
-    if (contextScore >= 0) {
-      return { include: true, reason: 'strain_with_context', contextScore };
-    }
-    // If negative context, skip (likely false positive)
-    return { include: false, reason: 'strain_no_context', contextScore };
+    return { include: false, reason: 'strain_match', needsAI: true };
   }
 
-  // Rule 2c: Medium confidence keywords (need 2+ different matches)
+  // Rule 4: Medium confidence keywords
   const mediumMatches = text.match(MEDIUM_CONFIDENCE_REGEX);
   if (mediumMatches) {
-    // Get unique matches (case-insensitive)
     const uniqueMatches = [...new Set(mediumMatches.map((m) => m.toLowerCase()))];
 
+    // 2+ different medium keywords → AI verification
     if (uniqueMatches.length >= 2) {
-      // Even with 2+ matches, check for negative context
-      if (contextScore < -2) {
-        return { include: false, reason: 'medium_false_positive', contextScore };
-      }
-      return { include: true, reason: 'multiple_medium_keywords', contextScore };
+      return { include: false, reason: 'multi_medium', needsAI: true };
+    }
+    
+    // Single medium + positive context → AI verification
+    if (uniqueMatches.length === 1 && contextScore > 0) {
+      return { include: false, reason: 'medium_with_context', needsAI: true };
     }
   }
 
-  return { include: false, reason: 'no_match' };
+  // Rule 5: No keyword match or single medium alone → Reject
+  return { include: false, reason: 'no_match', needsAI: false };
 }
 
 /**

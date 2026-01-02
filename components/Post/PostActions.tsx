@@ -321,7 +321,7 @@ export const PostActions = memo(function PostActions({
 
   // Icon sizes based on variant (20px min for better tap targets)
   const iconSize = variant === 'compact' ? 20 : 22;
-  
+
   // Shared hitSlop for all buttons
   const buttonHitSlop = { top: 12, bottom: 12, left: 12, right: 12 };
   const mutedColor = '#6B7280';
@@ -367,7 +367,9 @@ export const PostActions = memo(function PostActions({
           style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
         >
           <Repeat2 size={iconSize} color={repostColor} />
-          <Text className={`text-sm ml-1.5 min-w-[16px] ${isReposted ? 'text-green-500' : 'text-text-muted'}`}>
+          <Text
+            className={`text-sm ml-1.5 min-w-[16px] ${isReposted ? 'text-green-500' : 'text-text-muted'}`}
+          >
             {repostCount > 0 ? repostCount : ''}
           </Text>
         </Pressable>
@@ -386,7 +388,9 @@ export const PostActions = memo(function PostActions({
           style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
         >
           <Heart size={iconSize} color={likeColor} fill={isLiked ? '#EF4444' : 'none'} />
-          <Text className={`text-sm ml-1.5 min-w-[16px] ${isLiked ? 'text-red-500' : 'text-text-muted'}`}>
+          <Text
+            className={`text-sm ml-1.5 min-w-[16px] ${isLiked ? 'text-red-500' : 'text-text-muted'}`}
+          >
             {likeCount > 0 ? likeCount : ''}
           </Text>
         </Pressable>
@@ -437,7 +441,9 @@ export const PostActions = memo(function PostActions({
           style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
         >
           <Repeat2 size={iconSize} color={repostColor} />
-          <Text className={`text-sm ml-1.5 min-w-[16px] ${isReposted ? 'text-green-500' : 'text-text-muted'}`}>
+          <Text
+            className={`text-sm ml-1.5 min-w-[16px] ${isReposted ? 'text-green-500' : 'text-text-muted'}`}
+          >
             {repostCount > 0 ? repostCount : ''}
           </Text>
         </Pressable>
@@ -453,7 +459,9 @@ export const PostActions = memo(function PostActions({
           style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}
         >
           <Heart size={iconSize} color={likeColor} fill={isLiked ? '#EF4444' : 'none'} />
-          <Text className={`text-sm ml-1.5 min-w-[16px] ${isLiked ? 'text-red-500' : 'text-text-muted'}`}>
+          <Text
+            className={`text-sm ml-1.5 min-w-[16px] ${isLiked ? 'text-red-500' : 'text-text-muted'}`}
+          >
             {likeCount > 0 ? likeCount : ''}
           </Text>
         </Pressable>

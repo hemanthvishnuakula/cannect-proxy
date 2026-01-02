@@ -1,9 +1,9 @@
 /**
  * Following Timeline Service for Cannect
- * 
+ *
  * Aggregates posts from users that the requesting user follows.
  * Uses Bluesky public API - pure AT Protocol.
- * 
+ *
  * Port: 3002
  */
 
@@ -14,20 +14,22 @@ const app = express();
 const PORT = process.env.PORT || 3002;
 
 // CORS for Cannect app
-app.use(cors({
-  origin: [
-    'https://cannect.net',
-    'https://www.cannect.net',
-    'https://cannect.nexus',
-    'https://www.cannect.nexus',
-    'https://cannect-app.vercel.app',
-    'https://cannect-vps-proxy.vercel.app',
-    'https://cannect-proxy.vercel.app',
-    'https://cannect.space',
-    'http://localhost:8081',
-    'http://localhost:19006'
-  ]
-}));
+app.use(
+  cors({
+    origin: [
+      'https://cannect.net',
+      'https://www.cannect.net',
+      'https://cannect.nexus',
+      'https://www.cannect.nexus',
+      'https://cannect-app.vercel.app',
+      'https://cannect-vps-proxy.vercel.app',
+      'https://cannect-proxy.vercel.app',
+      'https://cannect.space',
+      'http://localhost:8081',
+      'http://localhost:19006',
+    ],
+  })
+);
 
 app.use(express.json());
 
@@ -47,13 +49,13 @@ const apiLimiter = rateLimit({
 // =============================================================================
 
 const cache = {
-  follows: new Map(),    // "did:plc:xxx" -> { data: [...], expires: timestamp }
-  posts: new Map()       // "did:plc:xxx" -> { data: [...], expires: timestamp }
+  follows: new Map(), // "did:plc:xxx" -> { data: [...], expires: timestamp }
+  posts: new Map(), // "did:plc:xxx" -> { data: [...], expires: timestamp }
 };
 
 const CACHE_TTL = {
-  FOLLOWS: 5 * 60 * 1000,  // 5 minutes
-  POSTS: 2 * 60 * 1000     // 2 minutes
+  FOLLOWS: 5 * 60 * 1000, // 5 minutes
+  POSTS: 2 * 60 * 1000, // 2 minutes
 };
 
 function getCached(map, key) {
@@ -106,7 +108,7 @@ async function getFollows(actor) {
   }
 
   console.log(`[API CALL] getFollows:${actor}`);
-  
+
   const follows = [];
   let cursor = null;
 
@@ -114,14 +116,14 @@ async function getFollows(actor) {
   do {
     const url = `${BSKY_PUBLIC_API}/app.bsky.graph.getFollows?actor=${encodeURIComponent(actor)}&limit=100${cursor ? `&cursor=${cursor}` : ''}`;
     const data = await fetchJson(url);
-    
-    follows.push(...data.follows.map(f => f.did));
+
+    follows.push(...data.follows.map((f) => f.did));
     cursor = data.cursor;
   } while (cursor);
 
   // Cache the result
   setCache(cache.follows, actor, follows, CACHE_TTL.FOLLOWS);
-  
+
   return follows;
 }
 
@@ -141,10 +143,10 @@ async function getAuthorPosts(did, limit = 20) {
   try {
     const url = `${BSKY_PUBLIC_API}/app.bsky.feed.getAuthorFeed?actor=${encodeURIComponent(did)}&limit=${limit}&filter=posts_and_author_threads`;
     const data = await fetchJson(url);
-    
+
     // Cache the result
     setCache(cache.posts, did, data.feed || [], CACHE_TTL.POSTS);
-    
+
     return data.feed || [];
   } catch (error) {
     console.error(`Error fetching posts for ${did}:`, error.message);
@@ -158,7 +160,7 @@ async function getAuthorPosts(did, limit = 20) {
 
 /**
  * GET /api/following
- * 
+ *
  * Query params:
  *   - actor: DID or handle of the user (required)
  *   - limit: Number of posts to return (default: 50, max: 100)
@@ -166,7 +168,7 @@ async function getAuthorPosts(did, limit = 20) {
  */
 app.get('/api/following', apiLimiter, async (req, res) => {
   const startTime = Date.now();
-  
+
   try {
     const { actor, limit = 50, cursor } = req.query;
 
@@ -178,7 +180,7 @@ app.get('/api/following', apiLimiter, async (req, res) => {
 
     // Step 1: Get follows
     const followDids = await getFollows(actor);
-    
+
     if (followDids.length === 0) {
       return res.json({ feed: [], cursor: null });
     }
@@ -191,15 +193,13 @@ app.get('/api/following', apiLimiter, async (req, res) => {
 
     for (let i = 0; i < followDids.length; i += CONCURRENCY) {
       const batch = followDids.slice(i, i + CONCURRENCY);
-      const batchResults = await Promise.all(
-        batch.map(did => getAuthorPosts(did, 20))
-      );
-      batchResults.forEach(posts => allPosts.push(...posts));
+      const batchResults = await Promise.all(batch.map((did) => getAuthorPosts(did, 20)));
+      batchResults.forEach((posts) => allPosts.push(...posts));
     }
 
     // Step 3: Deduplicate by post URI
     const seenUris = new Set();
-    const uniquePosts = allPosts.filter(item => {
+    const uniquePosts = allPosts.filter((item) => {
       if (seenUris.has(item.post.uri)) return false;
       seenUris.add(item.post.uri);
       return true;
@@ -216,7 +216,7 @@ app.get('/api/following', apiLimiter, async (req, res) => {
     let filteredPosts = uniquePosts;
     if (cursor) {
       const cursorTime = new Date(cursor).getTime();
-      filteredPosts = uniquePosts.filter(item => {
+      filteredPosts = uniquePosts.filter((item) => {
         const postTime = new Date(item.post.record.createdAt || item.post.indexedAt).getTime();
         return postTime < cursorTime;
       });
@@ -233,13 +233,14 @@ app.get('/api/following', apiLimiter, async (req, res) => {
     }
 
     const elapsed = Date.now() - startTime;
-    console.log(`[DONE] ${resultPosts.length} posts in ${elapsed}ms (${followDids.length} follows)`);
+    console.log(
+      `[DONE] ${resultPosts.length} posts in ${elapsed}ms (${followDids.length} follows)`
+    );
 
     res.json({
       feed: resultPosts,
-      cursor: nextCursor
+      cursor: nextCursor,
     });
-
   } catch (error) {
     console.error('[ERROR]', error);
     res.status(500).json({ error: 'Failed to fetch timeline', details: error.message });
@@ -251,13 +252,13 @@ app.get('/api/following', apiLimiter, async (req, res) => {
 // =============================================================================
 
 app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
+  res.json({
+    status: 'ok',
     service: 'following-timeline',
     cache: {
       follows: cache.follows.size,
-      posts: cache.posts.size
-    }
+      posts: cache.posts.size,
+    },
   });
 });
 
@@ -267,8 +268,8 @@ app.get('/', (req, res) => {
     version: '1.0.0',
     endpoints: {
       '/api/following': 'GET - Fetch following timeline (params: actor, limit, cursor)',
-      '/health': 'GET - Health check with cache stats'
-    }
+      '/health': 'GET - Health check with cache stats',
+    },
   });
 });
 
@@ -278,5 +279,5 @@ app.get('/', (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Following Timeline Service running on port ${PORT}`);
-  console.log(`Cache TTL: follows=${CACHE_TTL.FOLLOWS/1000}s, posts=${CACHE_TTL.POSTS/1000}s`);
+  console.log(`Cache TTL: follows=${CACHE_TTL.FOLLOWS / 1000}s, posts=${CACHE_TTL.POSTS / 1000}s`);
 });
